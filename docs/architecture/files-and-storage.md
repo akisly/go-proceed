@@ -42,6 +42,13 @@ deployed as a web export at the Vercel project `goproceed-field`; native builds
 come later from the same codebase, so the local-encryption section stays v0.3.
 Below, «the v0.1 PWA» reads as that web field client, whose capture code is a
 port of the PWA's; every limit and refusal stated for the PWA binds it.]*
+*[2026-09-23, DEV-042 — the web export is retired as well. [ADR-013](../decisions/ADR-013-native-field-client.md) makes the
+field client the native iOS/Android build of `apps/mobile` and brings durable
+encrypted pending captures into the v0.1 internal beta, so the «Expo
+pending-original protection» section below now describes that client rather
+than a v0.3 one; the owner deleted the Vercel project `goproceed-field`. The
+native client is on branch `codex/mobile-native` (PR #115, not merged), and
+its device evidence is NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 v0.1 supports:
 
@@ -153,6 +160,14 @@ and 8). Everything in this section is a v0.3 obligation and none of it is
 claimed for the v0.1 PWA, which has no Keychain/Keystore-bound wrapping key, no
 storage the OS will not reclaim, and therefore no durable pending original and
 no seven-day warned quarantine.
+*[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) moves this section into the v0.1 internal beta
+for the native client (libsodium secretstream vault with per-file keys wrapped
+by Keychain/Keystore, SQLite journal, foreground queue). Witnesses:
+`apps/mobile/src/lib/native/queue.test.ts`,
+`apps/mobile/src/lib/native/session-storage.test.ts` and
+`apps/mobile/modules/goproceed-vault/scripts/test-container.mjs`. Not yet true:
+the warned seven-day expiry is not wired (owner acceptance owed), the Android
+vault is not built, and no physical device has run it ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 The v0.3 obligation itself is unchanged: capture is online-authorized, and a
 connection or process interruption must not lose the original selected while
@@ -225,6 +240,8 @@ The v0.1 web field client is a browser page on its own origin: the
 ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and «Amendment, 2026-09-23»).
 *[2026-09-23, DEV-035 — was: «The v0.1 field client is a browser page on the
 product origin ([ADR-007] decision 1).» The owner retired the `apps/app` PWA.]*
+*[2026-09-23, DEV-042 — this web client is retired too ([ADR-013](../decisions/ADR-013-native-field-client.md)); this section
+describes the retired web client, not the native one ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 It has no
 Keychain/Keystore-bound wrapping key: a non-extractable Web Crypto key in
 IndexedDB is bound to the **origin**, not to a secure element, so it is evicted

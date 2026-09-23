@@ -10,9 +10,18 @@
 «Amendment, 2026-08-28» at the end of this document. The original text above
 them is unchanged.
 
+**Superseded in part:** by [ADR-013](ADR-013-native-field-client.md), approved
+by the owner on 2026-09-22 — its Expo-web deployment of `apps/mobile` and the
+delayed-retirement (parity) gate no longer hold. *[Added 2026-09-23, DEV-042:
+the field client is the native iOS/Android build; the owner deleted the Vercel
+project `goproceed-field` and removed `FIELD_CLIENT_ORIGINS` from
+`goproceed-app` that day. The text of this ADR is unchanged. Execution record:
+[DEV-042](../tasks/DEV-042-mobile-native.md).]*
+
 **Related decisions:** [ADR-001](ADR-001-product-boundary.md),
 [ADR-004](ADR-004-roadmap-demo-and-documentation.md),
-[ADR-006](ADR-006-pilot-shaped-v0.1.md), [ADR-007](ADR-007-pilot-field-client.md)
+[ADR-006](ADR-006-pilot-shaped-v0.1.md), [ADR-007](ADR-007-pilot-field-client.md),
+[ADR-013](ADR-013-native-field-client.md) (supersedes this decision in part on 2026-09-22)
 
 > **Authority.** The owner's decision of 2026-08-20, taken after the reversal
 > costs below were presented twice and accepted. This ADR amends

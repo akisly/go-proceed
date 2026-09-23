@@ -153,6 +153,14 @@ as a web export at Vercel project `goproceed-field` (observed serving on
 [ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) «Amendment,
 2026-09-23».]*
 
+*[2026-09-23, DEV-042 — the web export is retired as well.
+[ADR-013](docs/decisions/ADR-013-native-field-client.md) makes the field client
+the native iOS/Android build of `apps/mobile` (encrypted local vault, foreground
+queue); the owner deleted the Vercel project `goproceed-field` and removed
+`FIELD_CLIENT_ORIGINS` from `goproceed-app` the same day. The native client is on
+branch `codex/mobile-native` (PR #115, not merged), and its device and store
+evidence is NOT RUN ([DEV-042](docs/tasks/DEV-042-mobile-native.md)).]*
+
 `apps/demo` and `prototype/` were the legacy reference material and are
 **gone** — `prototype/` on 2026-08-19, `apps/demo` on 2026-08-20. Neither
 was a product surface; the durable `/demo` named above arrives inside

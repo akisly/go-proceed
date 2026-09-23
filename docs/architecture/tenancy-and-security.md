@@ -49,6 +49,15 @@ authorization boundary as the web product, so it adds no actor plane, no grant,
 and no policy shape to this document.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».
 The same-origin reasoning no longer describes any field client; this correction
 does not re-assess whether the cross-origin client adds a policy shape.]*
+*[2026-09-23, DEV-042 — the cross-origin web client is retired too. [ADR-013](../decisions/ADR-013-native-field-client.md)
+makes the field client the native iOS/Android build of `apps/mobile`: it keeps
+its session in the platform keychain/keystore through SecureStore
+(`apps/mobile/src/lib/native/session-storage.ts`) and calls `/v1` with the same
+bearer token, with no browser origin and so no CORS. The owner deleted the
+Vercel project `goproceed-field` and removed `FIELD_CLIENT_ORIGINS` from
+`goproceed-app` the same day, so the CORS layer in `apps/app/src/lib/cors.ts`
+is off. Not merged (branch `codex/mobile-native`, PR #115); device evidence is
+NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)). This note does not re-assess the policy shape either.]*
 [ADR-007](../decisions/ADR-007-pilot-field-client.md) does subtract one
 thing: the client-held encrypted pending original, which is a v0.3 native
 obligation and is not a v0.1 security control (see
@@ -398,6 +407,11 @@ rule rather than needing its own: any service worker or cached asset it ships is
 client code on the product origin, receives no service credential, and must not
 cache evidence originals or authenticated domain responses.» The owner retired
 that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]*
+*[2026-09-23, DEV-042 — the web field client and its `goproceed-field`
+deployment are retired ([ADR-013](../decisions/ADR-013-native-field-client.md)); the rule now binds the native build: its
+`EXPO_PUBLIC_*` values, its bundle and source maps, and its local vault, which
+holds encrypted pending originals under a Keychain/Keystore-wrapped key and
+never a signed URL or bearer token in a queue record ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 Authenticated clients call reviewed BFF/API routes. If a Supabase Data API
 query is intentionally exposed, it is limited to reviewed `api` views/functions
