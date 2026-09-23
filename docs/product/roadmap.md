@@ -589,6 +589,11 @@ a group chat.
   D-U-N-S number, no funded Expo plan, no UDID registration, and no
   internal-distribution track is an entry condition for this milestone or an
   exit gate for it;
+  *[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the web export
+  and `goproceed-field` are retired (the owner deleted the project on
+  2026-09-23). The field client is the native iOS/Android build, and signing
+  plus TestFlight / Google Play Internal installation are now its gates, NOT
+  RUN in [DEV-042](../tasks/DEV-042-mobile-native.md); not merged.]*
 - a written measurement plan for the browser behaviours ADR-007 refuses to
   assume: which engines and OS versions strip or re-encode image metadata, how
   each honours the `capture` attribute on a file input, the storage-eviction
@@ -1279,6 +1284,13 @@ reviewed quarterly and enter a version only through the scope-change rule below.
   evidence. It is the starting point for v0.3. It is not free while it sits: it
   is a workspace in CI with an SDK that ages off the delivery path.» The owner
   retired that PWA; see ADR-009 «Amendment, 2026-09-23».]*
+- *[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) changes the `apps/mobile`
+  bullet: the v0.1 field client is its native iOS/Android build with an
+  encrypted local vault and foreground queue, distributed to an internal beta
+  through TestFlight and Google Play Internal Testing; the web export and
+  `goproceed-field` are retired, and `token-proof` is deleted. The next bullet's
+  «native … persistence through an ordinary restart: v0.3» moves into that
+  beta. Not merged; device and store evidence NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 - online-only browser capture with a **non-durable pending original**, and a
   client that warns rather than silently losing bytes: v0.1. Native online
   capture with OS-sandboxed persistence through an ordinary restart: v0.3.

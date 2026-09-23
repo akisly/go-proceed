@@ -647,7 +647,12 @@ settled it stands unchanged and settles the next disagreement the same way.
     (decision 2)». The owner retired that PWA; see ADR-009 «Amendment,
     2026-09-23». In this milestone, «PWA capture» and «the PWA path» read as the
     web field client from `apps/mobile`, whose capture code is a port of the
-    PWA's; every limit and refusal stated for the PWA binds it.]*;
+    PWA's; every limit and refusal stated for the PWA binds it.]*
+    *[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the web export
+    and `goproceed-field` are retired; the `apps/mobile` field client is its
+    native iOS/Android build, with durable encrypted pending captures, and its
+    physical-device matrix and TestFlight / Play Internal install are NOT RUN
+    ([DEV-042](../tasks/DEV-042-mobile-native.md); not merged).]*;
   - capture is **online-only** and a pending original is **not durable**: no
     screen reports success before the persisted `available` receipt, the client
     uploads immediately rather than offering a queue it cannot honour, and the

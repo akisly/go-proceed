@@ -70,7 +70,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-039](#bl-039) | P2 | open | The retention mechanism does not reach every table it claims |
 | [BL-040](#bl-040) | P3 | open | No workspace closure procedure |
 | [BL-041](#bl-041) | P2 | deferred (owner) | `apps/mobile` has had no visual pass under Daylight |
-| [BL-042](#bl-042) | P3 | open | The install hint does not recognise an iPad in desktop-class mode |
+| [BL-042](#bl-042) | P3 | closed → DEV-042 | The install hint does not recognise an iPad in desktop-class mode |
 | [BL-043](#bl-043) | P3 | open | «Мої доручення» can show a bare unit as a work item's subtitle |
 | [BL-044](#bl-044) | P3 | open | The field client's routes load the shared Button's motion chunk |
 | [BL-045](#bl-045) | P1 | deferred (owner) | Plan D slice D4: members and access |
@@ -613,9 +613,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-042"></a>
 ### BL-042 — P3 — The install hint does not recognise an iPad in desktop-class mode
 
-- **State:** open
+- **State:** closed → DEV-042
 - **Legacy cite:** `TODOS.md` «the install hint does not recognise an iPad in desktop-class mode»
-- **Why:** iPadOS Safari reports a Macintosh user agent by default, so a real iPad gets no hint. The pilot is two phones.
+- **Why:** *[Closed 2026-09-23 by [DEV-042](tasks/DEV-042-mobile-native.md) (branch `codex/mobile-native`, PR #115, not merged) — superseded, not fixed: the install hint went with the Expo web field client ([ADR-013](decisions/ADR-013-native-field-client.md)). `apps/mobile/src/lib/install-hint.ts` is deleted, its `hint.install.*` copy rows are marked retired, and the native client installs from TestFlight or Google Play Internal Testing, so there is no browser hint left to recognise an iPad. The evidence line below is historical.]* iPadOS Safari reports a Macintosh user agent by default, so a real iPad gets no hint. The pilot is two phones.
 - **Evidence:** `apps/mobile/src/lib/install-hint.ts:81` keys on `/iPad|iPhone|iPod/`; no `maxTouchPoints` check anywhere under `apps`.
 - **Depends on:** nothing (`gp-mobile`).
 - **Deadline:** none recorded.
@@ -1632,7 +1632,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-035 (2026-09-23) removed the field PWA from `apps/app` at the owner's word («удали все что в (app)», «Удалить сейчас», «Всё мёртвое») and left these outside its edit list or for the owner. (1) `apps/mobile/src/lib/field/{assignments,obligations,disclaimer}.ts`, `src/lib/capture/attempt.ts`, `src/lib/safe-next.ts` and `otp-error.ts` still say «the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files» — the originals are gone, so these copies are canonical now. (2) `disclaimer.ts`'s copy of the довідковий text has no byte-equality guard against `apps/app/src/lib/statutory-act-form.ts`, and the harness that rendered the `apps/app` copy on a screen is gone. (3) `apps/mobile`'s browser pass (`pnpm --filter @goproceed/mobile qa`, `qa/field-web.mjs`) is in no CI job, so no CI browser pass covers the field screens any more (INV-081, INV-086 witnesses). (4) With the manifest removed («Убрать манифест»), `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png` serve nothing; `scripts/generate-brand-icons.mjs` still writes them. (5) A foreman's old `/a/{id}` link or bookmark now signs in and lands on the Ukrainian 404 (`app/not-found.tsx`); a redirect to the field client's same route needs a build-time variable naming its origin (hostnames are tokens, BL-004) and a `gp-security` pass. (6) What an icon installed from the old PWA does on a real iPhone and Android phone after the deploy is not measured (DEV-035 gp-mobile AC-09, AC-10).
+- **Why:** DEV-035 (2026-09-23) removed the field PWA from `apps/app` at the owner's word («удали все что в (app)», «Удалить сейчас», «Всё мёртвое») and left these outside its edit list or for the owner. (1) `apps/mobile/src/lib/field/{assignments,obligations,disclaimer}.ts`, `src/lib/capture/attempt.ts`, `src/lib/safe-next.ts` and `otp-error.ts` still say «the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files» — the originals are gone, so these copies are canonical now. (2) `disclaimer.ts`'s copy of the довідковий text has no byte-equality guard against `apps/app/src/lib/statutory-act-form.ts`, and the harness that rendered the `apps/app` copy on a screen is gone. (3) `apps/mobile`'s browser pass (`pnpm --filter @goproceed/mobile qa`, `qa/field-web.mjs`) is in no CI job, so no CI browser pass covers the field screens any more (INV-081, INV-086 witnesses). *[2026-09-23, DEV-042: that browser pass is deleted with the Expo web field client ([ADR-013](decisions/ADR-013-native-field-client.md)); item (3) now reads as «the native field client has no browser or device harness, in CI or out of it» (`.github/workflows/ci.yml` still names the deleted command in a comment).]* (4) With the manifest removed («Убрать манифест»), `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png` serve nothing; `scripts/generate-brand-icons.mjs` still writes them. (5) A foreman's old `/a/{id}` link or bookmark now signs in and lands on the Ukrainian 404 (`app/not-found.tsx`); a redirect to the field client's same route needs a build-time variable naming its origin (hostnames are tokens, BL-004) and a `gp-security` pass. (6) What an icon installed from the old PWA does on a real iPhone and Android phone after the deploy is not measured (DEV-035 gp-mobile AC-09, AC-10).
 - **Evidence:** DEV-035's record, `gp-mobile` findings M1-03, M1-04, M1-06, M1-07.
 - **Depends on:** (5) an owner decision; (6) BL-002's phones; (3) the Actions billing block.
 - **Deadline:** (1)–(2) before the next `apps/mobile` change; (3) when CI runs again.

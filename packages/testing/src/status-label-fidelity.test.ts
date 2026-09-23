@@ -22,6 +22,9 @@ import { join } from "node:path";
  * renders as confidently as a right one. Rendering catches an artifact that is
  * MISSING; only a comparison against the source catches one that is STALE.
  * This file is that comparison.
+ * [2026-09-23, DEV-042] token-proof.tsx is deleted (nothing imported it once
+ * its route went); the paragraph above is its history, and this comparison
+ * is unchanged.
  *
  * The catalog is parsed here rather than imported from the generator's own
  * parser on purpose. If this test called `generate-labels.mjs`'s
