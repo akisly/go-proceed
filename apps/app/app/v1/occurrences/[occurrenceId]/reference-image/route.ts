@@ -9,7 +9,8 @@ import { readVerifiedReferenceImage } from "../../../../../src/lib/reference-ima
 export const runtime = "nodejs";
 const PRIVATE_HEADERS = { "cache-control": "private, no-store", vary: "Authorization, Cookie",
   "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox",
-  "referrer-policy": "no-referrer", "x-frame-options": "DENY" };
+  "referrer-policy": "no-referrer", "x-frame-options": "DENY",
+  "cross-origin-resource-policy": "same-origin" };
 
 export async function GET(req: Request, ctx: { params: Promise<{ occurrenceId: string }> }): Promise<Response> {
   let requestId = crypto.randomUUID();
@@ -46,7 +47,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ occurrenceId: s
       bytes = await readVerifiedReferenceImage(
         await openObjectStream(row.storage_key, row.storage_bucket), row.byte_size, row.sha256);
     } catch {
-      // Storage diagnostics can contain raw keys. No provider errors escape.
+      // Storage diagnostics can contain raw keys. No provider errors escape, and
+      // the log carries only the request and occurrence ids (error-catalog policy).
+      console.error("[REFERENCE_IMAGE_UNAVAILABLE]", requestId, { occurrenceId });
       throw new HttpProblem(503, problem("REFERENCE_IMAGE_UNAVAILABLE", "Приклад фотографії тимчасово недоступний.",
         { requestId, retryable: true, userAction: "retry_later" }));
     }

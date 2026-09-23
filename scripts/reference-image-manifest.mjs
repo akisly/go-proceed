@@ -56,6 +56,9 @@ export async function loadManifest(path) {
         || (meta.pages ?? 1) !== 1 || (meta.orientation ?? 1) !== 1) {
       throw new Error("Image must be a single upright raster matching the manifest");
     }
+    // Served byte-for-byte to every project member and hash-pinned forever:
+    // location, device and author metadata must be stripped before hashing.
+    if (meta.exif || meta.xmp || meta.iptc) throw new Error("Image must carry no EXIF, XMP or IPTC metadata");
     images.push({ ...entry, bytes });
   }
   return { sha256: digest(raw), images };

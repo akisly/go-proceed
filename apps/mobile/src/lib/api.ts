@@ -62,8 +62,14 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 function apiUrl(path: string): string {
-  if (!/^\/v1(?:\/|$)/.test(path) || /[\\#\r\n]/.test(path) || path.includes("..")) {
+  // `%2e` is normalised to `.` by the URL parser, so it counts as a dot segment.
+  if (!/^\/v1(?:\/|$)/.test(path) || /[\\#\r\n]/.test(path) || path.includes("..") || /%2e/i.test(path)) {
     throw new Error("INVALID_API_PATH");
+  }
+  // A bearer never travels over plain HTTP, except to this machine during development.
+  const origin = new URL(API_ORIGIN);
+  if (origin.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)) {
+    throw new Error("INSECURE_API_ORIGIN");
   }
   return `${API_ORIGIN.replace(/\/$/, "")}${path}`;
 }

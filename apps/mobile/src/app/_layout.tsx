@@ -18,7 +18,7 @@ export default function RootLayout() {
       <Page><Notice error>Не вдалося завантажити шрифти. Перезапустіть застосунок.</Notice></Page> :
       <NativeRuntimeProvider>
         <Stack screenOptions={{ contentStyle: { backgroundColor: palette["bg-canvas"] },
-          headerTintColor: palette["text-brand"], headerTitleStyle: { fontFamily: fonts.semibold },
+          headerTintColor: palette["text-link"], headerTitleStyle: { fontFamily: fonts.semibold },
           headerShadowVisible: false, headerBackButtonDisplayMode: "minimal",
           animation: reduceMotion ? "none" : "default",
           headerBackground: () => <MobileGlassSurface style={{ flex: 1, borderRadius: 0 }} /> }}>

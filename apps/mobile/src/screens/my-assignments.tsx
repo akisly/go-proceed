@@ -11,6 +11,7 @@ import { HeaderActions } from "../ui/header-actions";
 import { corners, palette, splitWidth, touchHeight, unit } from "../ui/theme";
 import { AssignmentDetail } from "./assignment";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { rememberOpenedAssignment } from "../lib/field/opened-assignment";
 import { parkedBySwitch, pendingSummary } from "../lib/native/item-labels";
 
 const fetchJson: Fetcher = async path => {
@@ -33,6 +34,7 @@ export function MyAssignments() {
   const [selected, setSelected] = useState<AssignmentRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);
+  const opening = useRef(false);
   const subject = runtime.session?.user.id;
   const load = useCallback(async () => {
     if (!subject) return;
@@ -62,19 +64,24 @@ export function MyAssignments() {
     void enter(row);
   }
   async function enter(row: AssignmentRow) {
+    if (opening.current) return; // a double tap must not push the detail twice
+    opening.current = true;
     setError(null);
     try {
       await runtime.activateWorkspace(row.project.workspaceId);
+      rememberOpenedAssignment({ assignmentId: row.assignmentId, description: row.description, projectName: row.project.name });
       setSelected(row);
       if (!split) router.push({ pathname: "/a/[assignmentId]", params: { assignmentId: row.assignmentId } });
     } catch { setError("Не вдалося перевірити доступ. Перевірте з’єднання та спробуйте ще раз."); }
+    finally { opening.current = false; }
   }
   return <View style={{ flex: 1, flexDirection: "row", backgroundColor: palette["bg-canvas"] }}>
     <Stack.Screen options={{ headerRight: () => <HeaderActions /> }} />
     <FlatList data={filtered} keyExtractor={item => item.assignmentId} contentInsetAdjustmentBehavior="automatic"
       style={split ? { width: "40%", flexGrow: 0, borderRightWidth: 1, borderRightColor: palette["border-default"] } : { flex: 1 }}
-      contentContainerStyle={{ padding: unit * 4, paddingBottom: insets.bottom + unit * 6, gap: unit * 3 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(); }} tintColor={palette["text-brand"]} />}
+      contentContainerStyle={{ padding: unit * 4, paddingBottom: insets.bottom + unit * 6, gap: unit * 3,
+        paddingLeft: insets.left + unit * 4, paddingRight: (split ? 0 : insets.right) + unit * 4 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(); }} tintColor={palette["text-link"]} />}
       ListHeaderComponent={<View style={{ gap: unit * 3, paddingBottom: unit * 2 }}>
         <AppText secondary>Що потрібно зафіксувати на об’єкті</AppText>
         {network.isConnected === false ? <Notice title="Немає з’єднання">Доручення доступні онлайн. Уже збережені фото залишаються в черзі надсилання.</Notice> : null}
@@ -97,15 +104,17 @@ export function MyAssignments() {
         <Button label="Спробувати ще раз" onPress={() => { void load(); }} /></Card> :
         <Card><AppText variant="h2">Поки немає доручень</AppText><AppText>{"message" in screen ? screen.message : "За цим проєктом немає доручень."}</AppText></Card>}
       renderItem={({ item }) => <Pressable accessibilityRole="button" onPress={() => open(item)}
-        accessibilityState={{ selected: selected?.assignmentId === item.assignmentId }}>
+        accessibilityState={{ selected: selected?.assignmentId === item.assignmentId }}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
         <Card style={selected?.assignmentId === item.assignmentId ? { borderColor: palette["border-accent"] } : undefined}>
-          <AppText variant="meta" secondary>{item.project.name}</AppText>
-          <AppText variant="h3">{item.description}</AppText>
-          <AppText secondary>{rowSubtitle(item, false)}</AppText>
-          <AppText variant="meta" style={{ color: palette["text-brand"] }}>{statusLabels[item.status] ?? "Стан уточнюється"} · Відкрити вимоги →</AppText>
+          <AppText selectable={false} variant="meta" secondary>{item.project.name}</AppText>
+          <AppText selectable={false} variant="h3">{item.description}</AppText>
+          {rowSubtitle(item, false) ? <AppText selectable={false} secondary>{rowSubtitle(item, false)}</AppText> : null}
+          <AppText selectable={false} variant="meta" secondary>{statusLabels[item.status] ?? "Стан уточнюється"}</AppText>
+          <AppText selectable={false} variant="meta" style={{ color: palette["text-link"] }}>Відкрити вимоги →</AppText>
         </Card>
       </Pressable>} />
-    {split ? <View style={{ flex: 1 }}>{selected ? <AssignmentDetail key={selected.assignmentId} assignmentId={selected.assignmentId} /> :
+    {split ? <View style={{ flex: 1 }}>{selected ? <AssignmentDetail key={selected.assignmentId} assignmentId={selected.assignmentId} heading /> :
       <View style={{ flex: 1, justifyContent: "center", padding: unit * 8, gap: unit * 3 }}>
         <AppText variant="h2">Оберіть доручення</AppText><AppText secondary>Тут з’являться вимоги до фіксації та приклади фотографій.</AppText>
       </View>}</View> : null}

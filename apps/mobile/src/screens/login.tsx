@@ -29,7 +29,7 @@ export function Login() {
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <Page contentContainerStyle={{ justifyContent: "center", width: "100%", maxWidth: 520, alignSelf: "center" }}>
       <View style={{ gap: unit * 2, paddingVertical: unit * 6 }}>
-        <AppText variant="display" style={{ fontFamily: fonts.brand, color: palette["text-brand"] }}>GoProceed</AppText>
+        <AppText variant="display" style={{ fontFamily: fonts.brand, color: palette["text-primary"] }}>GoProceed</AppText>
         <AppText secondary>Фіксуйте роботу. Зберігайте підтвердження.</AppText>
       </View>
       <Card>
@@ -43,7 +43,7 @@ export function Login() {
           <TextInput testID="otp-code" accessibilityLabel="Код із листа" value={code} onChangeText={setCode}
             keyboardType="number-pad" autoComplete="one-time-code" maxLength={6} editable={!state.pending}
             autoFocus style={[inputStyle, { fontVariant: ["tabular-nums"] }]} />}
-        {state.message ? <Notice error>{state.message}</Notice> : null}
+        {state.message ? <Notice error announce>{state.message}</Notice> : null}
         <Button testID={state.phase === "email" ? "otp-email-submit" : "otp-code-submit"}
           label={state.pending ? "Зачекайте…" : state.phase === "email" ? "Надіслати код" : "Увійти"}
           disabled={state.pending || (state.phase === "email" ? !email.trim() : code.length !== 6)}

@@ -113,6 +113,6 @@ do $$ begin
   if exists (select 1 from storage.buckets where id = 'requirement-reference-images'
     and (public or file_size_limit is distinct from 5242880::bigint
       or allowed_mime_types is distinct from array['image/jpeg','image/png','image/webp'])) then
-    raise exception '0090: reference image bucket has incompatible security settings';
+    raise exception '0095: reference image bucket has incompatible security settings';
   end if;
 end $$;

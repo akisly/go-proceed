@@ -23,6 +23,9 @@ async function main() {
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!databaseUrl || !storageUrl || !key) throw new Error("SUPABASE_DB_URL, SUPABASE_URL and SUPABASE_SECRET_KEY are required");
   const local = (value) => ["127.0.0.1", "localhost", "[::1]"].includes(new URL(value).hostname);
+  // pg reads host/hostaddr from the query string too, which would bypass the hostname check.
+  const dbParams = new URL(databaseUrl).searchParams;
+  if (dbParams.has("host") || dbParams.has("hostaddr")) throw new Error("SUPABASE_DB_URL must not override the host in its query string");
   if ((!local(databaseUrl) || !local(storageUrl)) && !values["allow-remote"]) {
     throw new Error("Remote provisioning requires explicit --allow-remote and owner authorization");
   }
@@ -71,6 +74,11 @@ async function main() {
             { contentType: image.mimeType, upsert: false, cacheControl: "0" });
           if (upload.error) throw new Error("Private reference upload failed");
         }
+        // The database and Storage must be one project: the row would otherwise
+        // point at an object the proxy can never read.
+        const stored = await client.query(
+          "select 1 from storage.objects where bucket_id = $1 and name = $2", [BUCKET, storageKey]);
+        if (!stored.rows.length) throw new Error("Storage and database are different projects; refusing to publish");
         if (!prior.rows[0]) {
           await client.query(`insert into public.requirement_reference_image_versions
             (id,workspace_id,requirement_library_item_id,version_no,storage_key,sha256,byte_size,
