@@ -12,7 +12,17 @@
 [ADR-005](ADR-005-readiness-gate-and-hidden-works.md),
 [ADR-011](ADR-011-telegram-locked-project-channel.md) (amends this decision on 2026-09-03),
 [ADR-006](ADR-006-pilot-shaped-v0.1.md),
-[ADR-009](ADR-009-three-pilot-surfaces.md)
+[ADR-009](ADR-009-three-pilot-surfaces.md),
+[ADR-013](ADR-013-native-field-client.md) (supersedes this decision in part on 2026-09-22)
+
+> *[2026-09-23, DEV-042 — **superseded in part by
+> [ADR-013](ADR-013-native-field-client.md)** (approved by the owner on
+> 2026-09-22): its PWA client and distribution decisions no longer hold. The
+> field client is the native iOS/Android build of `apps/mobile`, with durable
+> encrypted pending captures in its internal beta; ADR-013 names what else
+> stands (evidence, regulatory, tenancy and acceptance boundaries). The text
+> below is unchanged and is the record of the 2026-08-06 decision. Execution
+> record: [DEV-042](../tasks/DEV-042-mobile-native.md).]*
 
 > **Amendment note.** This ADR amends
 > [ADR-004](ADR-004-roadmap-demo-and-documentation.md) on exactly one sentence

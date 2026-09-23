@@ -95,6 +95,9 @@ apps/app/qa-output/
 # harness serves) is already covered by apps/mobile/.gitignore's own `dist/`
 # entry; listed again here too since CI's clean-tree checks run from the
 # repo root, not from apps/mobile.
+# [2026-09-23, DEV-042] qa/field-web.mjs and the Expo web field client are
+# retired (ADR-013); nothing writes qa-output/ or the web dist/ now. Both
+# entries stay so a stale local copy is never committed.
 apps/mobile/qa-output/
 apps/mobile/dist/
 

@@ -42,6 +42,7 @@ export * from "./requirements";
 export * from "./requirement-library";
 export * from "./requirement-rules";
 export * from "./requirement-occurrences";
+export * from "./reference-images";
 export * from "./assignments";
 export * from "./evidence";
 export * from "./progress";

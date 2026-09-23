@@ -1,0 +1,10 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+execFileSync(process.execPath, [resolve(root, 'scripts/prepare-sodium.mjs'), 'host'], { stdio: 'inherit' });
+const { install } = JSON.parse(readFileSync(resolve(root, `.build/host-${process.arch}-default.json`), 'utf8'));
+const output = resolve(root, '.build/test-container');
+execFileSync('cc', ['-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', '-g', `-I${root}/ios`, `-I${install}/include`, resolve(root, 'ios/GPVault.c'), resolve(root, 'tests/container.c'), `${install}/lib/libsodium.a`, '-o', output], { stdio: 'inherit' });
+execFileSync(output, [], { stdio: 'inherit' });

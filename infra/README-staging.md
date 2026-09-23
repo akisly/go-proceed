@@ -21,6 +21,13 @@ this repo has run it yet (see "Status" at the bottom). It provisions:
    `goproceed-field` (§4.5), which calls `/v1` cross-origin with a bearer
    token, and the Telegram project channel, which is enabled in no
    environment yet.]*
+   *[2026-09-23, DEV-042 — the Expo web export is retired too ([ADR-013](../docs/decisions/ADR-013-native-field-client.md)): the
+   owner deleted the Vercel project `goproceed-field` and removed
+   `FIELD_CLIENT_ORIGINS` from `goproceed-app` that day, so the `/v1` CORS
+   layer is inactive. The field client is the native iOS/Android build of
+   `apps/mobile`, distributed through TestFlight and Google Play Internal
+   Testing rather than a Vercel project; nothing is built or distributed yet
+   ([DEV-042](../docs/tasks/DEV-042-mobile-native.md)). §4.5 and its owner steps are historical.]*
 3. A verification pass that proves the same vertical slice this repo tests
    locally (`POST /v1/organizations` → `GET /v1/me/context`, audit +
    outbox + cron drain, tenant isolation) also works against staging — plus,
@@ -454,7 +461,7 @@ Variables**, for **both** Production and Preview — except `PURGE_DB_URL` and
 | `EXTERNAL_LINK_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
 | `EXTERNAL_SESSION_HMAC_KEYS` | runtime | a DIFFERENT generated key | |
 | `EXTERNAL_SESSION_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
-| `FIELD_CLIENT_ORIGINS` | runtime | OPTIONAL: comma-separated exact origins | Plan C; unset = CORS layer off, `/v1` behaves exactly as before; set only when the Expo-web field client origin exists |
+| `FIELD_CLIENT_ORIGINS` | runtime | OPTIONAL: comma-separated exact origins | Plan C; unset = CORS layer off, `/v1` behaves exactly as before; set only when the Expo-web field client origin exists. *[2026-09-23, DEV-042: that origin no longer exists — the owner deleted `goproceed-field` and removed this variable from `goproceed-app`; leave it unset ([ADR-013](../docs/decisions/ADR-013-native-field-client.md)).]* |
 
 **Three of these were undocumented until 2026-08-18 and would have failed the
 first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are read
@@ -568,6 +575,11 @@ decided. The canonical `goproceed-landing.vercel.app` is the origin for now.
 build-time or runtime secrets.
 
 ### 4.5 `apps/mobile` — the field client (`goproceed-field`)
+
+*[2026-09-23, DEV-042 — RETIRED. The owner deleted the Vercel project
+`goproceed-field` on 2026-09-23 ([ADR-013](../docs/decisions/ADR-013-native-field-client.md)); this section is the record of how it
+was created and verified and describes nothing that exists now. Do not run its
+steps. The native field client has no Vercel project ([DEV-042](../docs/tasks/DEV-042-mobile-native.md)).]*
 
 **Created:** Project `goproceed-field` (Vercel ID `prj_q0pHp3k54YSlqw0CZUIylZ56FGBg`)
 linked to GitHub repository `akisly/go-proceed`, root directory `apps/mobile`,
@@ -740,6 +752,9 @@ second time, and the session should still be there — not Safari-to-installed-a
 continuity, which iOS does not provide.
 
 **Owner's dashboard steps, still to run — verbatim.**
+*[2026-09-23, DEV-042 — do not run: `goproceed-field` is deleted and the owner
+removed `FIELD_CLIENT_ORIGINS` from `goproceed-app`, leaving the CORS layer
+inactive (unset means off). The steps and curls below are historical ([DEV-042](../docs/tasks/DEV-042-mobile-native.md)).]*
 
 On `goproceed-field` → Settings → Environment Variables, **Production**, all
 three, and they must be present at **BUILD time** — Metro inlines
@@ -959,7 +974,12 @@ timings) — a checked box with no evidence is not verification.
    «Amendment, 2026-09-23»), so the Expo client at `goproceed-field` is the
    only web field client, and the boxes below measure its readiness.
    *[2026-09-23, DEV-035 — was: «the PWA remains the pilot's deployed field
-   client in service until that measurement passes.»]* **Before it: custom
+   client in service until that measurement passes.»]*
+   *[2026-09-23, DEV-042 — no web field client is left: the owner deleted
+   `goproceed-field` that day ([ADR-013](../docs/decisions/ADR-013-native-field-client.md)). This step now means opening the native
+   iOS/Android build on the physical device matrix after a TestFlight or Play
+   Internal install; the browser-specific boxes below describe the retired web
+   client. NOT RUN ([DEV-042](../docs/tasks/DEV-042-mobile-native.md)).]* **Before it: custom
    SMTP.** Read from the
    current Supabase docs on 2026-08-19
    (https://supabase.com/docs/guides/auth/auth-smtp): the default email
@@ -1001,7 +1021,8 @@ timings) — a checked box with no evidence is not verification.
      375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI
      *[2026-09-23, DEV-035: removed from `apps/app/qa/field.mjs` with the
      field pages; the remaining equivalent is `apps/mobile/qa/field-web.mjs`'s,
-     which is in no CI job]* —
+     which is in no CI job]* *[2026-09-23, DEV-042: that harness is deleted
+     with the Expo web client; no equivalent remains]* —
      but the point of this step is a REAL engine, not headless Chrome).
      **Partial, 2026-08-21, on iPhone (Expo client):** the disclaimer renders
      unconditionally and was visible. The 44×44 sweep itself was NOT done

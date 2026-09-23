@@ -268,7 +268,12 @@ Two further constraints from the same research:
   *[2026-09-23, DEV-035 — was: «In v0.1 it is a **PWA served from `apps/app`** —
   a link opens the capture screen and there is no install step ([ADR-007]
   decision 1). `apps/mobile` stays in the tree and is not on the v0.1 path». The
-  owner retired that PWA; see ADR-009 «Amendment, 2026-09-23».]*;
+  owner retired that PWA; see ADR-009 «Amendment, 2026-09-23».]*
+  *[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the field client
+  is the native iOS/Android build of `apps/mobile`, installed for the internal
+  beta through TestFlight or Google Play Internal Testing; the web export and
+  `goproceed-field` are retired, and «native builds come later» no longer
+  holds. Not merged; device and store evidence NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*;
 - **capture is online-only and a pending original is not durable.** The client
   never reports success before the receipt and **warns rather than silently
   losing bytes**, and it promises nothing else about a photograph: a
@@ -277,7 +282,14 @@ Two further constraints from the same research:
   blocking requirement, a camera-versus-gallery label, tamper-evident provenance
   and verified capture-time GPS are **withdrawn** and may not be claimed in a
   screen, a package, a demo or a sales sentence
-  ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decisions 5 and 6);
+  ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decisions 5 and 6)
+  *[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) changes the first sentence of
+  this bullet for the native client: it keeps durable encrypted pending
+  captures, so a pending original is meant to survive a restart. Capture stays
+  online-authorized. The native code path records `native_camera` or
+  `photo_picker` as client-supplied provenance with no claim of sensor
+  authenticity; tamper-evident provenance and verified capture-time GPS stay
+  withdrawn. Device evidence is NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*;
 - a refusal to close a stage names the requirement, the missing evidence, and
   the role that owes the decision — a support surface, not a red badge.
 
@@ -542,7 +554,9 @@ Marketing, demo, and sales material may not claim:
 - **that a pending original survives a lost connection, a closed tab, or a
   restart.** Capture is online-only and the pending original is not durable
   (ADR-007 decision 6); the durable-original invariants are the native client's
-  and are v0.3;
+  and are v0.3 *[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) moves them into
+  the v0.1 internal beta through the native client; the claim stays unmade
+  until the device evidence of [DEV-042](../tasks/DEV-042-mobile-native.md), NOT RUN today, exists]*;
 - that v0.1 sends a push notification of any kind, on either platform;
 - that a Ukrainian statutory rule forbids paying without a signed act on hidden
   works. No such rule was found;

@@ -1,4 +1,5 @@
 module,entity,status_version,purpose,identity,lifecycle,workspace_scoped,project_scoped,contract_scoped,immutable_content,retention_class,source_document
+requirements,requirement_reference_image_versions,v0.1-M2,Licensed product illustration pinned at rule publication and occurrence materialisation,workspace_id+library_item_id+version_no,append_only,yes,no,no,yes,standard,docs/specs/2026-09-22-mobile-native.md
 workspace_access,workspaces,v0.0,Tenant and governance boundary with display identity and default own party reference,id uuid,draft_mutable,self,no,no,no,external_gate_retention,docs/domain/domain-model.md
 workspace_access,memberships,v0.0,Person-to-workspace governance relationship with closed role set owner/admin/member/auditor,workspace_id+id,draft_mutable,yes,no,no,no,external_gate_retention,docs/architecture/tenancy-and-security.md
 workspace_access,invitations,v0.0,Pending workspace membership offer with bounded expiry and single-use acceptance,workspace_id+id,draft_mutable,yes,no,no,no,standard,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md

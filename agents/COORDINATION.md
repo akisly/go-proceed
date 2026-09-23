@@ -48,7 +48,7 @@ There is one role family, `gp-*`, for the whole monorepo. Where deploy-doc split
 | `technical/states/**`, `technical/permissions/**`, `technical/events/**`, outbox, workers, retention, erasure, the Telegram channel | `gp-architect` before implementing |
 | Supabase Auth, sessions, `apps/app/proxy.ts`, `supabase/templates/**`, external capability links and HMAC keys, evidence storage, signed URLs and uploads, the Telegram webhook, bot tokens and identity erasure, `apps/landing/app/api/pilot/**`, application environment variables (`.env*`, `NEXT_PUBLIC_*`, hosted secrets) or secrets, `.github/workflows/**` permissions or pins, retention and deletion of personal data | `gp-security` over the diff |
 | `apps/landing/**`, `apps/app/app/**`, `apps/app/src/components/**`, `apps/mobile/src/**`, `packages/ui/**`, `packages/tokens/**`, `technical/copy-catalog.csv` | `gp-ui-reviewer` over the diff, the §5 gate output and the §6 screenshots |
-| `apps/mobile/**`, field-client installability, offline or capture behaviour, signing, store or OTA | `gp-mobile` before design or review |
+| `apps/mobile/**`, field-client installation, offline or capture behaviour or encrypted local vault, signing, store or OTA | `gp-mobile` before design or review |
 | A question about an installed library, a hosted service or a regulatory source | `gp-researcher` before the dependent decision |
 
 ## Intake and routing

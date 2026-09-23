@@ -418,6 +418,13 @@ starting point for the v0.3 offline work.» The owner retired that PWA; see
 [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23». Below, «PWA capture» and «the PWA
 path» read as the web field client from `apps/mobile`, whose capture code is a
 port of the PWA's; every limit and refusal stated for the PWA binds it.]*
+*[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the Expo client is
+now the native iOS/Android build, installed through TestFlight or Google Play
+Internal Testing for the internal beta; the web export and its `goproceed-field`
+deployment are retired (the owner deleted the project on 2026-09-23). It reaches
+`/v1` with a bearer token and no CORS. «PWA capture» and «the PWA path» below
+describe the retired web client. Not merged; device and store evidence NOT RUN
+([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 1. Authorized member creates an operational assignment from a work line, with
    performer party, planned quantity, and optional member assignee and due date.
@@ -468,6 +475,11 @@ original is **not durable**. The durable-pending-original invariants are the
 native client's and become v0.3 obligations; they are not claimed for the PWA
 path. This is a real reduction in what the product guarantees a foreman, and it
 is accepted because the alternative is a client nobody can install.
+*[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the native client
+brings durable encrypted pending captures (INV-013, INV-014, INV-053) into the
+v0.1 internal beta, installed from TestFlight or Google Play Internal Testing.
+Capture stays online-authorized; the warned seven-day expiry is not wired and
+device evidence is NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 **Completion evidence:** a server-confirmed evidence object retains hash,
 provenance, claimed capture time, receipt time, recorder, source party, and

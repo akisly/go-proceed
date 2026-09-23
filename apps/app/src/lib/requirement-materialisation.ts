@@ -47,6 +47,7 @@ export interface BoundRuleVersion {
   normRef: string | null;
   normRefVerification: string | null;
   normRefSource: string | null;
+  referenceImageVersionId?: string | null;
 }
 
 /**
@@ -61,7 +62,7 @@ export const BOUND_RULE_VERSIONS_SQL = `
          rv.ordinal, rv.intervention_type, rv.blocking_scope, rv.timing, rv.evidence_kind,
          rv.acceptance_criterion, rv.performer_role, rv.approver_role,
          rv.approver_is_external, rv.min_evidence_count, rv.max_evidence_count,
-         rv.norm_ref, rv.norm_ref_verification, rv.norm_ref_source
+         rv.norm_ref, rv.norm_ref_verification, rv.norm_ref_source, rv.reference_image_version_id
     from public.contract_version_rule_bindings b
     join public.requirement_rule_versions rv
       on rv.workspace_id = b.workspace_id and rv.id = b.requirement_rule_version_id
@@ -89,6 +90,7 @@ export function boundRuleVersion(r: Record<string, unknown>): BoundRuleVersion {
     normRef: (r.norm_ref as string | null) ?? null,
     normRefVerification: (r.norm_ref_verification as string | null) ?? null,
     normRefSource: (r.norm_ref_source as string | null) ?? null,
+    referenceImageVersionId: (r.reference_image_version_id as string | null) ?? null,
   };
 }
 

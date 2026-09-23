@@ -999,6 +999,10 @@ to be left with an in-flight or unsent original, the user is told plainly that
 GoProceed has not saved the photo and that it must be retaken or kept by them. A
 silent loss is the one outcome this decision must not produce. On logout,
 revocation or account switch the PWA discards the in-memory original and says so.
+*[2026-09-23, DEV-042 — this paragraph describes the retired web client.
+Under [ADR-013](../decisions/ADR-013-native-field-client.md) the native field client keeps a durable encrypted pending queue,
+quarantines on logout, revocation or account switch, and still never reports
+success before the `available` receipt. Device evidence is NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 The client states the v0.1 PWA actually has are **`not_sent`, `sending`,
 `awaiting_receipt`, `server_confirmed`, `failed` and `discarded`**, because a
@@ -1036,6 +1040,10 @@ path** ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decisions 2 and 8)
 Everything in this section is a v0.3 obligation. The v0.1 field client is a PWA
 whose capture is online-only and whose pending original is **not durable**;
 INV-013, INV-014 and INV-053 are not claimed for it.
+*[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the native client
+is the v0.1 field client's internal beta, and this section's durable-pending
+obligations apply to it now; offline tasks and background sync stay later.
+Not merged; device evidence NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 Native capture requires current server authorization at start.
 

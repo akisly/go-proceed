@@ -1,27 +1,65 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "GoProceed",
+    "slug": "goproceed",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "scheme": "goproceed",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lightholdlabs.goproceed",
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "uk"
+      },
+      "appleTeamId": "GJX986XEH7"
     },
     "android": {
+      "package": "com.lightholdlabs.goproceed",
       "adaptiveIcon": {
         "backgroundColor": "#0C0C0A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "predictiveBackGestureEnabled": true,
+      "permissions": []
     },
     "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          },
+          "android": {
+            "minSdkVersion": 29
+          }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "GoProceed використовує камеру для фіксації виконаних робіт.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Оберіть фото для фіксації виконаних робіт.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
