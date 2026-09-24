@@ -28,7 +28,8 @@ export function verifyMinisign(data, signatureText, fileName, publicKey = LIBSOD
   const key = decode('public key', publicKey, 42);
   // A public key's algorithm is always `Ed`, whichever way its signatures hash.
   if (key.subarray(0, 2).toString('latin1') !== 'Ed') throw new Error('minisign: the public key is not Ed25519');
-  if (typeof signatureText !== 'string' || signatureText.includes('\r')) throw new Error('minisign: the signature text must use LF line endings');
+  if (typeof signatureText !== 'string' || signatureText === '') throw new Error('minisign: no signature text (the pin carries no .minisig)');
+  if (signatureText.includes('\r')) throw new Error('minisign: the signature text must use LF line endings');
   const lines = signatureText.split('\n');
   if (lines.at(-1) === '') lines.pop();
   if (lines.length !== 4) throw new Error('minisign: the signature text is not four lines');

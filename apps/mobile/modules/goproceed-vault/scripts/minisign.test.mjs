@@ -51,6 +51,23 @@ describe('verifyMinisign', () => {
       .toThrow(`minisign: libsodium-${pin.version}.tar.gz does not match its signature`);
   });
 
+  it('never pins a release older than 1.0.22: a bump cannot roll back to an older signed archive', () => {
+    const [major, minor, patch] = pin.version.split('.').map(Number);
+    expect(major * 1e6 + minor * 1e3 + patch).toBeGreaterThanOrEqual(1_000_022);
+    const timestamp = Number(/timestamp:(\d+)/.exec(pin.minisig.split('\n')[2])?.[1]);
+    // 1.0.22's signature time; a lower one is an older release, whatever the version says.
+    expect(timestamp).toBeGreaterThanOrEqual(1775774745);
+  });
+
+  it('is what prepare-sodium.mjs calls, on the archive, before it extracts or configures', () => {
+    const script = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'prepare-sodium.mjs'), 'utf8');
+    const call = script.indexOf('verifyMinisign(release, minisig, `libsodium-${version}.tar.gz`)');
+    expect(script).toContain("import { verifyMinisign } from './minisign.mjs';");
+    expect(call).toBeGreaterThan(-1);
+    expect(call).toBeLessThan(script.indexOf("execFileSync('tar'"));
+    expect(call).toBeLessThan(script.indexOf("resolve(source, 'configure')"));
+  });
+
   it('accepts a valid signature and refuses a flipped bit in the data or the signature', () => {
     const { key, signatureText } = signer();
     const text = signatureText(data);
@@ -97,5 +114,7 @@ describe('verifyMinisign', () => {
     expect(() => verifyMinisign(data, replaceLine(text, 0, 'comment: test'), FILE, key)).toThrow('untrusted comment');
     expect(() => verifyMinisign(data, text.replaceAll('\n', '\r\n'), FILE, key)).toThrow('LF line endings');
     expect(() => verifyMinisign(data, text, FILE, 'RWQ*')).toThrow('public key is not base64');
+    expect(() => verifyMinisign(data, undefined, FILE, key)).toThrow('no signature text');
+    expect(() => verifyMinisign(data, '', FILE, key)).toThrow('no signature text');
   });
 });

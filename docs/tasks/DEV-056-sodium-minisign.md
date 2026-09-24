@@ -35,19 +35,26 @@
 | 1 | gp-mobile | Requirements R1–R10 and AC-1…AC-12; the key must live apart from the pin (a bump could otherwise swap key, digest and signature together); on iOS the check runs whenever the xcframework is (re)built, not on every Xcode build; Android runs it on every Gradle build; no device needed | Subagent report (session) | Implement |
 | 2 | Coordinator | Prototype on the cached 1.0.22 archive: algorithm `ED`, key id equal to the published key's, file and global signatures valid, a one-bit tamper refused; the `.minisig` from the GitHub release and from download.libsodium.org are byte-identical (sha256 `c0186d6c…abbff0f3`), and the committed JSON string hashes the same | scratchpad `verify.mjs`; `shasum -a 256` | Implement |
 | 3 | Coordinator | Implemented plan steps 1–3. Unit: 7 tests pass. Host: `node scripts/prepare-sodium.mjs host` exit 0; with one character of the global signature changed, exit 1 `Error: minisign: the trusted comment does not verify`, no new `.build/` entry; restored, exit 0. iOS: `sodium-xcframework.mjs` rebuilt once (stamp changed, 2.4 s, exit 0), a second run exited at once with the same stamp; tampered, exit 1 with the minisign error and the old stamp left in place; restored, exit 0 without work. Android (fresh `expo prebuild --platform android` in this worktree, `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a`): `:goproceed-vault:prepareSodium` built both ABIs, BUILD SUCCESSFUL; tampered, `prepare-sodium failed for armeabi-v7a: … Error: minisign: the trusted comment does not verify`; restored, BUILD SUCCESSFUL in 2 s, the same two build directories | scratchpad `ac9.log`, `ac10.log` | gp-reviewer, gp-security |
+| 4 | gp-reviewer, gp-security; Coordinator | gp-security: PASS (S1, S2 minor; S3–S5 nit). gp-reviewer: PASS with findings (R4 minor and R5, R6 nit for this task; R1–R3, R7–R9 are DEV-057's). Fixed S1–S5, R4–R6 (Findings). Re-run: `minisign.test.mjs` 9 passed; host good → tampered exit 1 `Error: minisign: the trusted comment does not verify`, `.build/` listing unchanged → restored exit 0; iOS tampered exit 1 with the stamp unchanged (`aa74dee5…`), restored exit 0 with one rebuild (the stamp covers the edited `minisign.mjs`, now `a699c77b…`) and a second run exiting at once; `pod install` tampered exit 1 `[!] Invalid \`GoProceedVault.podspec\` file: GoProceedVault: building the pinned libsodium xcframework failed.`, restored exit 0 | scratchpad `tamper-host-ios.log`, `tamper-podinstall.log`, `pod-tampered-full.log` | gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1 | minor | `minisign.mjs` key; Sources | the key rested on one read of doc.libsodium.org, edited by the same author as the releases | Coordinator | Fixed: two independent, older witnesses recorded in Sources — the key is in `jedisct1/libsodium-doc` `installation/README.md` since commit `77f9ac46` (2015-11-10), and the 1.0.18 release (2019, legacy `Ed`) verifies against it (key id and file signature, session check) |
+| S2 | minor | `sodium-pin.json` | a pin bump could roll back to an older signed release | Coordinator | Fixed: `minisign.test.mjs` asserts version ≥ 1.0.22 and the trusted comment's timestamp ≥ 1775774745 |
+| S3 | nit | «What is not true» | more build outputs are reused unchecked than the source tree | Coordinator | Fixed: sentence widened (row 4) |
+| S4, R4 | nit, minor | AC-7, AC-9 evidence | the host and iOS tamper runs were not in a log; the podspec `raise` never driven | Coordinator | Fixed: `tamper-host-ios.log` and `tamper-podinstall.log` (row 4) |
+| S5, R6 | nit | `minisign.mjs` | a missing `minisig` reported «LF line endings» | Coordinator | Fixed: its own message «no signature text (the pin carries no .minisig)», tested |
+| R5 | nit | `prepare-sodium.mjs` | nothing proved the build still calls the verifier | Coordinator | Fixed: a static test asserts the import and that the call precedes `tar` and `configure` |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: one rework after the first review (not a round: no QA FAIL, no blocker); every change is a stated fix above.
 
 ## What is not true after this task
 
 - On iOS the signature is checked when `pod install` (re)builds the xcframework, not on every Xcode build: `sodium-xcframework.mjs` exits early on a current stamp. The stamp now covers `minisign.mjs`, so a verifier change re-verifies.
-- The extracted source tree under `.build/libsodium-<tag>` is reused without re-checking either the digest or the signature (unchanged threat model: a local attacker who can write `.build/` can also write the scripts).
-- The trust root is one key read from doc.libsodium.org on 2026-09-24. If libsodium rotates its key, the next pin bump fails until the key constant is changed in its own reviewed diff — intended.
+- Build outputs are reused without re-checking the digest or the signature: the extracted source tree under `.build/libsodium-<tag>`, each compiled `.build/<tag>-<slice>-<recipe>/installed` (gated only by its `.installed` marker), the Android manifest JSON CMake reads for `install`, and on iOS `ios/Vendor/Sodium.xcframework` while its stamp is current. A local attacker who can write those can also write the scripts. EAS starts clean because `.build/` and `ios/Vendor/` are git-ignored and there is no `.easignore`; adding a build cache or an `.easignore` would weaken this.
+- The trust root is one key, read from doc.libsodium.org on 2026-09-24 and corroborated by two older witnesses (Sources). If libsodium rotates its key, the next pin bump fails until the key constant is changed in its own reviewed diff — intended.
 - No EAS build ran (no account); CI does not run until the Actions billing block ends.
 
 ## Acceptance evidence
@@ -60,11 +67,11 @@ Rework count and hypothesis changes: none yet.
 | AC-4 refusals: legacy `Ed`, key id, edited comment, flipped global signature, bad base64, 73/75 bytes, missing line, CRLF | Yes | working tree | `minisign.test.mjs` | PASS | |
 | AC-5 a key changed only in the pin fails | Yes | working tree | the key is a constant in `minisign.mjs`, and the test pins its value and the pin's keys (`digest`, `minisig`, `version`) | PASS | |
 | AC-6 committed `.minisig` equals the published file | Yes | working tree | row 2: GitHub and download.libsodium.org copies byte-identical, sha256 equal to the committed string's | PASS | |
-| AC-7 tampered pin fails a real build, nothing left behind | Yes | working tree | row 3 (host) | PASS | |
+| AC-7 tampered pin fails a real build, nothing left behind | Yes | working tree | rows 3, 4 (host; `tamper-host-ios.log`) | PASS | |
 | AC-8 the real archive passes | Yes | working tree | row 3 (host, iOS, Android) | PASS | |
-| AC-9 iOS rebuilds once, then not; failure surfaces | Yes | working tree | row 3 (iOS) | PASS | the podspec `raise` itself not driven through `pod install` with a tampered pin; the script's non-zero exit is what it tests |
+| AC-9 iOS rebuilds once, then not; failure surfaces | Yes | working tree | rows 3, 4 (iOS; `pod install` exit 1 through the podspec `raise`) | PASS | |
 | AC-10 Android failure in `GradleException`, no recompile after restore | Yes | working tree | row 3 (Android) | PASS | |
-| AC-11 the test runs in the package suite; typecheck | Yes | working tree | `pnpm --filter @goproceed/mobile test` 188 passed (22 files; `main` 186 in 20 files); `typecheck` exit 0 | PASS | shared with DEV-057's changes |
+| AC-11 the test runs in the package suite; typecheck | Yes | working tree | `pnpm --filter @goproceed/mobile test` 191 passed in 22 files after rework (`main` 186 in 20); `typecheck` exit 0 | PASS | shared with DEV-057's changes |
 | AC-12 records and pin-bump procedure | Yes | working tree | DEV-042 rows annotated; `prepare-sodium.mjs` header and `build.gradle` comment | PASS | |
 
 ## Sources
@@ -72,6 +79,8 @@ Rework count and hypothesis changes: none yet.
 - libsodium, «Installation — Integrity checking», https://doc.libsodium.org/installation (page updated about 2026-08-27, accessed 2026-09-24): the minisign key `RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3`; applies to libsodium 1.0.22 (pinned).
 - minisign, «Signature format», https://jedisct1.github.io/minisign/ (accessed 2026-09-24): `ED` = Ed25519 over BLAKE2b-512 of the file; the global signature covers the signature and the trusted comment.
 - The release asset `libsodium-1.0.22.tar.gz.minisig`, https://github.com/jedisct1/libsodium/releases/download/1.0.22-RELEASE/ and https://download.libsodium.org/libsodium/releases/ (fetched 2026-09-24; trusted comment `timestamp:1775774745`).
+- `jedisct1/libsodium-doc`, `installation/README.md`, https://github.com/jedisct1/libsodium-doc (git history read through the GitHub API 2026-09-24): the same key first appears in commit `77f9ac46…` of 2015-11-10 and is present since.
+- The 1.0.18 release asset and its `.minisig`, https://github.com/jedisct1/libsodium/releases/download/1.0.18-RELEASE/ (trusted comment `timestamp:1559249953`, 2019; fetched 2026-09-24): verifies against the same key (legacy `Ed`, key id equal).
 - Node.js 24.18.0 (installed): `crypto.verify(null, …)` for Ed25519 and `createHash('blake2b512')`, exercised by the tests.
 
 ## Completion / handoff
