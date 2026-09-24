@@ -2,6 +2,7 @@ package expo.modules.goproceedvault
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.DatabaseErrorHandler
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.os.Build
@@ -41,6 +42,13 @@ private fun text(data: JSONObject, key: String): String {
 private fun uuid(data: JSONObject, key: String): String {
   val value = text(data, key).lowercase()
   if (!Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").matches(value)) fail("VAULT_INVALID_ARGUMENT")
+  return value
+}
+/** Requirement text is stored verbatim (content rules): newlines allowed, no NUL, bounded. */
+private fun label(data: JSONObject, key: String): String? {
+  if (!data.has(key)) return null
+  val value = data.opt(key) as? String ?: fail("VAULT_INVALID_ARGUMENT")
+  if (value.isEmpty() || value.length > 2000 || value.contains('\u0000')) fail("VAULT_INVALID_ARGUMENT")
   return value
 }
 private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
@@ -95,8 +103,14 @@ internal class NativeVault private constructor(private val context: Context) {
 
   fun call(operation: String, payload: String): String = lock.withLock {
     try {
-      openJournal()
       val input = JSONObject(payload)
+      // These never open the journal: they must work when it cannot be opened.
+      when (operation) {
+        "wipe" -> return@withLock wipe(input).toString()
+        "installationCheck" -> return@withLock JSONObject().put("fresh", installationFresh()).toString()
+        "installationMark" -> { installationMark(); return@withLock "null" }
+      }
+      openJournal()
       var result: Any = JSONObject.NULL
       when (operation) {
         "initialize" -> {
@@ -143,6 +157,8 @@ internal class NativeVault private constructor(private val context: Context) {
             "setUploadIntent" -> {
               mutable(item)
               val intent = uuid(input, "intentId")
+              // A photo the user asked to delete never gets a new upload intent.
+              if (item.has("discardRequestedAt") && !item.has("intentId")) fail("VAULT_DISCARD_REQUESTED")
               if (item.has("intentId") && item.getString("intentId") != intent) fail("VAULT_IMMUTABLE_INTENT")
               item.put("intentId", intent)
               if (input.has("evidenceId")) {
@@ -152,7 +168,11 @@ internal class NativeVault private constructor(private val context: Context) {
               }
               persist(item)
             }
-            "markAwaitingReceipt" -> { mutable(item); item.put("state", "awaiting_receipt"); persist(item) }
+            "markAwaitingReceipt" -> {
+              mutable(item)
+              if (item.has("discardRequestedAt")) fail("VAULT_DISCARD_REQUESTED")
+              item.put("state", "awaiting_receipt"); persist(item)
+            }
             "markFailed" -> {
               mutable(item)
               val code = text(input, "errorCode")
@@ -165,6 +185,15 @@ internal class NativeVault private constructor(private val context: Context) {
               if (input.optString("status") != "available" || !item.has("intentId") || !item.has("evidenceId") || item.getString("evidenceId") != input.optString("evidenceId") || item.getString("sha256") != input.optString("sha256") || item.getLong("byteSize") != input.optLong("byteSize", -1)) fail("VAULT_RECEIPT_MISMATCH")
               item.put("state", "server_confirmed").put("receiptConfirmedAt", Instant.now().toString()); persist(item)
               cleanup(item)
+            }
+            "requestDiscard" -> {
+              // The server may still receive it: hold it, never send it again, delete once the server says it did not.
+              if (input.optBoolean("confirmed") != true) fail("VAULT_CONFIRMATION_REQUIRED")
+              mutable(item)
+              val running = synchronized(cancellation) { if (connectionId == id) { uploadGeneration++; connection } else null }
+              disconnectLater(running)
+              if (!item.has("discardRequestedAt")) { item.put("discardRequestedAt", Instant.now().toString()); persist(item) }
+              result = publicItem(item)
             }
             "discard" -> {
               if (input.optBoolean("confirmed") != true) fail("VAULT_CONFIRMATION_REQUIRED")
@@ -189,6 +218,35 @@ internal class NativeVault private constructor(private val context: Context) {
       val message = error.message.orEmpty()
       throw IllegalStateException(if (Regex("^VAULT_[A-Z_]+$").matches(message)) message else "VAULT_OPERATION_FAILED")
     }
+  }
+  /**
+   * Deletes every item of every identity: the journal may not open, so it cannot be
+   * scoped. Keys first, then files; reports which parts are gone, never paths.
+   */
+  private fun wipe(input: JSONObject): JSONObject {
+    if (input.optBoolean("confirmed") != true) fail("VAULT_CONFIRMATION_REQUIRED")
+    val running = synchronized(cancellation) { identity = null; generation++; uploadGeneration++; connection }
+    disconnectLater(running)
+    runCatching { database?.close() }
+    database = null; initialized = false; origins = emptySet()
+    val keysDeleted = runCatching {
+      val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+      store.aliases().toList().filter { it.startsWith(KEY_PREFIX) }.forEach { store.deleteEntry(it) }
+      store.aliases().toList().none { it.startsWith(KEY_PREFIX) }
+    }.getOrDefault(false)
+    root.deleteRecursively()
+    val directoryDeleted = !root.exists()
+    // A directory that survives and cannot be listed counts as not deleted.
+    val ciphertextDeleted = directoryDeleted || (root.listFiles()?.none { it.extension in listOf("vault", "part", "import") } ?: false)
+    return JSONObject().put("keysDeleted", keysDeleted).put("ciphertextDeleted", ciphertextDeleted).put("directoryDeleted", directoryDeleted)
+  }
+  private val installation = File(File(context.noBackupFilesDir, "goproceed-installation"), "marker")
+  /** A fresh installation has neither this marker nor a vault directory; an update keeps both. */
+  private fun installationFresh() = !installation.exists() && !root.exists()
+  private fun installationMark() {
+    val directory = installation.parentFile!!
+    if (!directory.mkdirs() && !directory.isDirectory) fail("VAULT_JOURNAL_UNAVAILABLE")
+    if (!installation.exists()) installation.writeText(UUID.randomUUID().toString())
   }
   private fun selfTest() {
     val probe = File(root, "selftest.probe"); val sealed = File(root, "selftest.sealed")
@@ -222,11 +280,18 @@ internal class NativeVault private constructor(private val context: Context) {
   private fun openJournal() {
     if (database != null) return
     if (!root.mkdirs() && !root.isDirectory) fail("VAULT_JOURNAL_UNAVAILABLE")
-    val db = SQLiteDatabase.openDatabase(File(root, "journal.sqlite").path, null, SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING)
+    // Never the platform's default handler: it deletes a corrupt journal, and the sweep
+    // below would then delete every identity's photos without anyone deciding to. A corrupt
+    // journal fails the open instead (the error state, where the user may choose a wipe).
+    val keep = DatabaseErrorHandler { }
+    val db = SQLiteDatabase.openDatabase(File(root, "journal.sqlite").path, null, SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING, keep)
     database = db
     try {
       // PRAGMAs that return a row are refused by execSQL; read them through rawQuery.
       for (pragma in listOf("PRAGMA synchronous=FULL", "PRAGMA secure_delete=ON")) db.rawQuery(pragma, null).use { it.moveToFirst() }
+      // Corruption the open did not touch (an index, a page) must not surface later as a
+      // sign-out that cannot lock photos: it is the error state, where a wipe is offered.
+      db.rawQuery("PRAGMA quick_check", null).use { if (!it.moveToFirst() || it.getString(0) != "ok") fail("VAULT_JOURNAL_CORRUPT") }
       db.execSQL("CREATE TABLE IF NOT EXISTS captures(id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL)")
       db.execSQL("CREATE INDEX IF NOT EXISTS captures_owner ON captures(owner)")
       rows(null).forEach {
@@ -356,11 +421,14 @@ internal class NativeVault private constructor(private val context: Context) {
     if (cap <= 0 || origin !in listOf("native_camera", "photo_picker") || mime !in listOf("image/jpeg", "image/png", "image/heic", "image/heif", "image/webp")) fail("VAULT_INVALID_IMPORT")
     val capturedAt = text(input, "claimedCaptureTime"); Instant.parse(capturedAt)
     val appVersion = text(input, "sourceAppVersion"); if (appVersion.length > 50) fail("VAULT_INVALID_ARGUMENT")
+    val requirement = label(input, "requirementLabel")
     val id = UUID.randomUUID().toString()
     val item = JSONObject().put("id", id).put("subjectId", actor.getString("subjectId")).put("workspaceId", actor.getString("workspaceId"))
       .put("assignmentId", uuid(input, "assignmentId")).put("occurrenceId", uuid(input, "occurrenceId"))
       .put("originMethod", origin).put("mimeType", mime).put("claimedCaptureTime", capturedAt).put("sourceAppVersion", appVersion)
       .put("createdAt", Instant.now().toString()).put("createIdempotencyKey", UUID.randomUUID().toString()).put("finalizeIdempotencyKey", UUID.randomUUID().toString()).put("state", "importing")
+    // Shown on the queue card offline; never part of the ciphertext binding.
+    if (requirement != null) item.put("requirementLabel", requirement)
     val key = VaultCrypto.key()
     try {
       wrap(key, item); persist(item)
@@ -390,6 +458,7 @@ internal class NativeVault private constructor(private val context: Context) {
   private fun upload(item: JSONObject, input: JSONObject): JSONObject {
     if (!initialized) fail("VAULT_NOT_INITIALIZED")
     mutable(item)
+    if (item.has("discardRequestedAt")) fail("VAULT_DISCARD_REQUESTED")
     val raw = input.getString("url")
     if (!item.has("intentId") || origin(raw) !in origins) fail("VAULT_INVALID_UPLOAD")
     val headers = input.getJSONObject("headers")

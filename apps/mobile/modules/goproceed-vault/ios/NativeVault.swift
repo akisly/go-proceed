@@ -11,6 +11,19 @@ private func string(_ map: [String: Any], _ key: String) throws -> String {
   guard let value = map[key] as? String, !value.isEmpty, value.count <= 256, !value.contains("\n"), !value.contains("\0") else { throw failure("VAULT_INVALID_ARGUMENT") }
   return value
 }
+/** Requirement text is stored verbatim (content rules): newlines allowed, no NUL, bounded. */
+private func label(_ map: [String: Any], _ key: String) throws -> String? {
+  guard let raw = map[key] else { return nil }
+  guard let value = raw as? String, !value.isEmpty, value.utf16.count <= 2000, !value.contains("\0") else { throw failure("VAULT_INVALID_ARGUMENT") }
+  return value
+}
+private func vaultRoot() throws -> URL {
+  try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("GoProceedVault", isDirectory: true)
+}
+private func installationMarker() throws -> URL {
+  try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    .appendingPathComponent("GoProceedInstallation", isDirectory: true).appendingPathComponent("marker")
+}
 private func uuid(_ map: [String: Any], _ key: String) throws -> String {
   let value = try string(map, key)
   guard UUID(uuidString: value) != nil else { throw failure("VAULT_INVALID_ARGUMENT") }
@@ -68,6 +81,13 @@ final class NativeVault {
   func call(_ operation: String, _ json: String) throws -> String {
     work.lock(); defer { work.unlock() }
     guard let data = json.data(using: .utf8), let input = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw failure("VAULT_INVALID_ARGUMENT") }
+    // These never open the journal: they must work when it cannot be opened.
+    switch operation {
+    case "wipe": return try encode(try wipe(input))
+    case "installationCheck": return try encode(try installationCheck())
+    case "installationMark": try installationMark(); return "null"
+    default: break
+    }
     try openJournal()
     var result: Any = NSNull()
     switch operation {
@@ -105,6 +125,8 @@ final class NativeVault {
       case "setUploadIntent":
         try mutable(item)
         let intent = try uuid(input, "intentId")
+        // A photo the user asked to delete never gets a new upload intent.
+        if item["discardRequestedAt"] != nil && item["intentId"] == nil { throw failure("VAULT_DISCARD_REQUESTED") }
         if let existing = item["intentId"] as? String, existing != intent { throw failure("VAULT_IMMUTABLE_INTENT") }
         item["intentId"] = intent
         if input["evidenceId"] != nil {
@@ -113,7 +135,10 @@ final class NativeVault {
           item["evidenceId"] = evidence
         }
         try persist(item)
-      case "markAwaitingReceipt": try mutable(item); item["state"] = "awaiting_receipt"; try persist(item)
+      case "markAwaitingReceipt":
+        try mutable(item)
+        if item["discardRequestedAt"] != nil { throw failure("VAULT_DISCARD_REQUESTED") }
+        item["state"] = "awaiting_receipt"; try persist(item)
       case "markFailed":
         try mutable(item)
         let code = try string(input, "errorCode")
@@ -129,6 +154,17 @@ final class NativeVault {
         item["state"] = "server_confirmed"; item["receiptConfirmedAt"] = now()
         try persist(item) // FULL synchronous commit precedes deletion.
         try cleanup(item)
+      case "requestDiscard":
+        // The server may still receive it: hold it, never send it again, delete once the server says it did not.
+        guard input["confirmed"] as? Bool == true else { throw failure("VAULT_CONFIRMATION_REQUIRED") }
+        try mutable(item)
+        cancellation.lock()
+        var running: URLSessionTask?
+        if taskId == id { uploadGeneration += 1; running = task }
+        cancellation.unlock()
+        running?.cancel()
+        if item["discardRequestedAt"] == nil { item["discardRequestedAt"] = now(); try persist(item) }
+        result = item
       case "discard":
         guard input["confirmed"] as? Bool == true else { throw failure("VAULT_CONFIRMATION_REQUIRED") }
         // Bytes already accepted by storage may still be finalized: «not received» would be false.
@@ -143,13 +179,62 @@ final class NativeVault {
       default: throw failure("VAULT_UNKNOWN_OPERATION")
       }
     }
-    return String(data: try JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed, .sortedKeys]), encoding: .utf8)!
+    return try encode(result)
+  }
+  private func encode(_ result: Any) throws -> String {
+    String(data: try JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed, .sortedKeys]), encoding: .utf8)!
+  }
+
+  /**
+   * Deletes every item of every identity: the journal may not open, so it cannot be
+   * scoped. Keys first, then files; reports which parts are gone, never paths.
+   */
+  private func wipe(_ input: [String: Any]) throws -> [String: Bool] {
+    guard input["confirmed"] as? Bool == true else { throw failure("VAULT_CONFIRMATION_REQUIRED") }
+    cancellation.lock(); identity = nil; generation += 1; uploadGeneration += 1; let running = task; cancellation.unlock()
+    running?.cancel()
+    if let db { sqlite3_close_v2(db) }
+    db = nil; initialized = false; origins = []
+    _ = SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService] as CFDictionary)
+    // Deleted means none is left, not that the delete call returned success.
+    let keysDeleted = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService, kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, nil) == errSecItemNotFound
+    let fm = FileManager.default
+    let directory = try vaultRoot()
+    if fm.fileExists(atPath: directory.path) { try? fm.removeItem(at: directory) }
+    let directoryDeleted = !fm.fileExists(atPath: directory.path)
+    // A directory that survives and cannot be listed counts as not deleted.
+    let ciphertextDeleted: Bool
+    if directoryDeleted { ciphertextDeleted = true }
+    else if let left = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+      ciphertextDeleted = !left.contains { ["vault", "part", "import"].contains($0.pathExtension) }
+    } else { ciphertextDeleted = false }
+    return ["keysDeleted": keysDeleted, "ciphertextDeleted": ciphertextDeleted, "directoryDeleted": directoryDeleted]
+  }
+  /**
+   * A fresh installation has neither this marker nor a vault directory. An app update
+   * keeps both directories, so it is never mistaken for a reinstall.
+   */
+  private func installationCheck() throws -> [String: Bool] {
+    let fm = FileManager.default
+    if fm.fileExists(atPath: try installationMarker().path) { return ["fresh": false] }
+    return ["fresh": !fm.fileExists(atPath: try vaultRoot().path)]
+  }
+  private func installationMark() throws {
+    let fm = FileManager.default
+    let marker = try installationMarker()
+    var directory = marker.deletingLastPathComponent()
+    try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
+    var values = URLResourceValues(); values.isExcludedFromBackup = true
+    try directory.setResourceValues(values)
+    if !fm.fileExists(atPath: marker.path) {
+      try Data(UUID().uuidString.utf8).write(to: marker, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
   }
 
   private func openJournal() throws {
     if db != nil { return }
     let fm = FileManager.default
-    root = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("GoProceedVault", isDirectory: true)
+    root = try vaultRoot()
     try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.complete])
     var values = URLResourceValues(); values.isExcludedFromBackup = true
     try root.setResourceValues(values)
@@ -161,6 +246,8 @@ final class NativeVault {
     }
     guard sqlite3_open_v2(root.appendingPathComponent("journal.sqlite").path, &db, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_UNAVAILABLE") }
     do {
+      // Corruption the open did not touch must land in the error state, not in a sign-out that cannot lock photos.
+      try quickCheck()
       try sql("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS captures (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL); CREATE INDEX IF NOT EXISTS captures_owner ON captures(owner);")
       let all = try rows(nil)
       for var item in all {
@@ -175,6 +262,12 @@ final class NativeVault {
         if url.pathExtension == "part" || !retained.contains(url.deletingPathExtension().lastPathComponent) { try fm.removeItem(at: url) }
       }
     } catch { sqlite3_close(db); db = nil; throw error }
+  }
+  private func quickCheck() throws {
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "PRAGMA quick_check", -1, &statement, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_CORRUPT") }
+    defer { sqlite3_finalize(statement) }
+    guard sqlite3_step(statement) == SQLITE_ROW, let text = sqlite3_column_text(statement, 0), String(cString: text) == "ok" else { throw failure("VAULT_JOURNAL_CORRUPT") }
   }
   private func sql(_ statement: String) throws {
     guard sqlite3_exec(db, statement, nil, nil, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_WRITE_FAILED") }
@@ -240,6 +333,8 @@ final class NativeVault {
     defer { sqlite3_finalize(statement) }
     sqlite3_bind_text(statement, 1, id, -1, sqlTransient); sqlite3_bind_text(statement, 2, try owner(item), -1, sqlTransient)
     guard sqlite3_step(statement) == SQLITE_DONE else { throw failure("VAULT_JOURNAL_WRITE_FAILED") }
+    // secure_delete clears the pages; the WAL keeps old frames until a checkpoint. Best effort.
+    sqlite3_wal_checkpoint_v2(db, nil, SQLITE_CHECKPOINT_TRUNCATE, nil, nil)
   }
   private func remove(_ item: [String: Any]) throws {
     var deleting = item; deleting["state"] = "discarded"; try persist(deleting); try cleanup(deleting)
@@ -263,8 +358,11 @@ final class NativeVault {
     guard date.date(from: time) != nil || ISO8601DateFormatter().date(from: time) != nil else { throw failure("VAULT_INVALID_ARGUMENT") }
     let appVersion = try string(input, "sourceAppVersion")
     guard appVersion.count <= 50 else { throw failure("VAULT_INVALID_ARGUMENT") }
+    let requirement = try label(input, "requirementLabel")
     let id = UUID().uuidString.lowercased()
     var item: [String: Any] = ["id": id, "subjectId": actor["subjectId"]!, "workspaceId": actor["workspaceId"]!, "assignmentId": try uuid(input, "assignmentId"), "occurrenceId": try uuid(input, "occurrenceId"), "originMethod": origin, "mimeType": mime, "claimedCaptureTime": time, "sourceAppVersion": appVersion, "createdAt": now(), "createIdempotencyKey": UUID().uuidString.lowercased(), "finalizeIdempotencyKey": UUID().uuidString.lowercased(), "state": "importing"]
+    // Shown on the queue card offline; never part of the ciphertext binding.
+    if let requirement { item["requirementLabel"] = requirement }
     var key = [UInt8](repeating: 0, count: 32)
     guard gp_random_key(&key) == 0 else { throw failure("VAULT_CRYPTO_UNAVAILABLE") }
     defer { gp_wipe(&key, key.count) }
@@ -296,6 +394,7 @@ final class NativeVault {
   private func upload(_ source: [String: Any], _ input: [String: Any]) throws -> [String: Int] {
     guard initialized else { throw failure("VAULT_NOT_INITIALIZED") }
     try mutable(source)
+    if source["discardRequestedAt"] != nil { throw failure("VAULT_DISCARD_REQUESTED") }
     guard source["intentId"] != nil, let raw = input["url"] as? String, origins.contains(try origin(raw)), let url = URL(string: raw), let headers = input["headers"] as? [String: String] else { throw failure("VAULT_INVALID_UPLOAD") }
     guard headers.allSatisfy({ $0.key.lowercased() == "content-type" && $0.value == source["mimeType"] as? String }) else { throw failure("VAULT_INVALID_UPLOAD_HEADER") }
     let id = try uuid(source, "id"), aad = try binding(source), expectedHash = try string(source, "sha256")

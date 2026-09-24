@@ -7,7 +7,7 @@ import { File, Paths } from "expo-file-system";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listRequirementOccurrencesWithReferenceImagesResponse } from "@goproceed/contracts";
 import { apiGet } from "../lib/api";
-import { mediaList, megabytes } from "../lib/native/item-labels";
+import { mediaList, megabytes, requirementLabel } from "../lib/native/item-labels";
 import type { CaptureImport } from "../lib/native/runtime";
 import { MobileGlassSurface } from "../ui/mobile-glass-surface";
 import { AppText, Button, Loading, Notice, Page } from "../ui/primitives";
@@ -105,7 +105,8 @@ export function Capture() {
     if (!target) return;
     setPhase("saving"); setMessage(null);
     try {
-      await runtime.importPhoto({ ...input, assignmentId, occurrenceId, maxBytes: target.maxBytes, workspaceId: target.workspaceId });
+      await runtime.importPhoto({ ...input, assignmentId, occurrenceId, maxBytes: target.maxBytes, workspaceId: target.workspaceId,
+        requirementLabel: requirementLabel(target.criterion) });
       setPhase("saved");
     } catch {
       dropPlaintext(input.uri);

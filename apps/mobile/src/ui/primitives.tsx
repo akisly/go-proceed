@@ -12,8 +12,10 @@ export function AppText({ variant = "body", secondary = false, style, ...props }
     color: palette[secondary ? "text-secondary" : "text-primary"] }, style]} />;
 }
 
-export function Button({ label, onPress, disabled = false, secondary = false, testID, accessibilityLabel }: {
+export function Button({ label, onPress, disabled = false, secondary = false, destructive = false, testID, accessibilityLabel }: {
   label: string; onPress: () => void; disabled?: boolean; secondary?: boolean; testID?: string;
+  /** An irreversible action: the secondary shape in the attention role (as the queue's discard). */
+  destructive?: boolean;
   /** When several buttons share a label, say which one this is. */
   accessibilityLabel?: string;
 }) {
@@ -22,10 +24,10 @@ export function Button({ label, onPress, disabled = false, secondary = false, te
     onPress={onPress} testID={testID} style={({ pressed }) => ({ minHeight: touchHeight,
       paddingHorizontal: unit * 4, paddingVertical: unit * 3, borderRadius: corners.control,
       justifyContent: "center", alignItems: "center", opacity: disabled ? 0.5 : 1,
-      backgroundColor: secondary ? palette[pressed ? "action-ghost-hover" : "bg-subtle"]
+      backgroundColor: secondary || destructive ? palette[pressed ? "action-ghost-hover" : "bg-subtle"]
         : palette[pressed ? "action-primary-hover" : "action-primary-bg"] })}>
     <AppText selectable={false} style={{ textAlign: "center", fontFamily: fonts.semibold,
-      color: palette[secondary ? "text-brand" : "action-primary-fg"] }}>{label}</AppText>
+      color: palette[destructive ? "status-attention-fg" : secondary ? "text-brand" : "action-primary-fg"] }}>{label}</AppText>
   </Pressable>;
 }
 
