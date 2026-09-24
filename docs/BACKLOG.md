@@ -134,7 +134,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-103](#bl-103) | P2 | closed → DEV-020 | A repeat of an idempotent command replays its stored response before membership is checked |
 | [BL-104](#bl-104) | P1 | closed → DEV-019 | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
-| [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
+| [BL-106](#bl-106) | P3 | scheduled → DEV-055 | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
@@ -165,15 +165,22 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-134](#bl-134) | P3 | open | Dashboard follow-ups the DEV-035 UI review named and left out of scope |
 | [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
 | [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
-| [BL-137](#bl-137) | P2 | open | A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension |
-| [BL-138](#bl-138) | P3 | open | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
+| [BL-137](#bl-137) | P3 | open | A project whose only administrator has left cannot be recovered through the product, and a future suspend must not orphan one |
+| [BL-138](#bl-138) | P3 | scheduled → DEV-052 | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
-| [BL-140](#bl-140) | P3 | open | A member's `project.view` can lapse before the action capabilities it was added for |
-| [BL-141](#bl-141) | P3 | open | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
+| [BL-140](#bl-140) | P3 | scheduled → DEV-049 | A member's `project.view` can lapse before the action capabilities it was added for |
+| [BL-141](#bl-141) | P3 | scheduled → DEV-048 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
-| [BL-143](#bl-143) | P3 | open | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
-| [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
+| [BL-143](#bl-143) | P3 | scheduled → DEV-047 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
+| [BL-144](#bl-144) | P3 | scheduled → DEV-053 | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone |
+| [BL-146](#bl-146) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
+| [BL-147](#bl-147) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
+| [BL-148](#bl-148) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
+| [BL-149](#bl-149) | P3 | scheduled → DEV-054 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
+| [BL-150](#bl-150) | P2 | scheduled → DEV-055 | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
+| [BL-151](#bl-151) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
+| [BL-152](#bl-152) | P2 | open | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -330,6 +337,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** offboarding is one-way; a rehired foreman cannot get back in.
 - **Evidence:** `0011:188-191`, the `ALREADY_MEMBER` guard, has no status filter; `apps/app/app/v1/workspaces/[workspaceId]/members/route.ts` exports only `GET`; no scope row reactivates a membership.
 - **Depends on:** membership lifecycle commands, a governance decision with its own audit and capability.
+- **Acceptance (DEV-051, owner 2026-09-24):** a suspend or end command refuses with 409 `PROJECT_FINAL_ADMIN`, naming the projects in `details`, when the member is the last active holder of a live undated `project.admin` grant on any project, and decides under a lock the revoke shares (a per-project advisory lock in project-id order, or the revoke's locked select taking the memberships too). A workspace owner's recovery of an orphaned project (BL-137) is decided with this item.
 - **Deadline:** none recorded.
 
 <a id="bl-015"></a>
@@ -1316,9 +1324,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-106"></a>
 ### BL-106 — P3 — `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it
 
-- **State:** open
+- **State:** scheduled → DEV-055
 - **Legacy cite:** none
-- **Why:** DEV-017's `gp-security` review (S1-06). `app.service_workspace()` (`0062`) is an invoker `sql` function reading `current_setting('app.organization_id', true)` with no `set search_path` and an unqualified `current_setting`. Every service-plane policy resolves through it — the Telegram tables, the two readiness projections (`0086`) and now `ce_insert_server` (`0087`) — so it is load-bearing. Exploiting it needs a role able to create a shadowing `current_setting` in a schema that precedes `pg_catalog` on the search path, which `goproceed_app` and `goproceed_service` should not have; this is hardening, not an observed hole. The fix is a later migration adding `set search_path to ''` and `pg_catalog.current_setting`, and the same review for `app.current_actor()`. Ranked by DEV-017.
+- **Why:** *[2026-09-24, DEV-055: the fix is qualified names, not a SET clause — a SET clause would stop the function being inlined; `0100` re-creates it with `pg_catalog.current_setting` and `pg_catalog.uuid`.]* DEV-017's `gp-security` review (S1-06). `app.service_workspace()` (`0062`) is an invoker `sql` function reading `current_setting('app.organization_id', true)` with no `set search_path` and an unqualified `current_setting`. Every service-plane policy resolves through it — the Telegram tables, the two readiness projections (`0086`) and now `ce_insert_server` (`0087`) — so it is load-bearing. Exploiting it needs a role able to create a shadowing `current_setting` in a schema that precedes `pg_catalog` on the search path, which `goproceed_app` and `goproceed_service` should not have; this is hardening, not an observed hole. The fix is a later migration adding `set search_path to ''` and `pg_catalog.current_setting`, and the same review for `app.current_actor()`. Ranked by DEV-017.
 - **Evidence:** observed 2026-09-18 at `e7e35aa`: the function definition in the local database at `0087`. Unverified: whether any role in a hosted project holds `CREATE` on a schema that precedes `pg_catalog`.
 - **Depends on:** none.
 - **Deadline:** none recorded.
@@ -1657,19 +1665,19 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** before a pilot foreman signs in on the field origin.
 
 <a id="bl-137"></a>
-### BL-137 — P2 — A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension
+### BL-137 — P3 — A project whose only administrator has left cannot be recovered through the product, and a future suspend must not orphan one
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-043's `gp-architect` design and `gp-security` review (S1-02). `project_access.revoke` refuses to take away a live `project.admin` grant unless another active member keeps an undated one (INV-110; the owner ruled on 2026-09-23 that a dated survivor does not count, which closed the two-step path of granting admin for a minute and then revoking one's own), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so a project whose admin grants are all dated can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting — including one committed while a revoke runs, since the revoke locks grant rows, not memberships. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
-- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (`validUntil` on any capability); `supabase/migrations/0011_workspace_access_security.sql` (`app.project_has_grants`, `pag_insert`); INV-110's «Not covered».
-- **Depends on:** a decision between refusing a dated `project.admin` grant when no undated one remains, and a recovery path for a workspace owner (an ADR: it would give a workspace role a project capability).
+- **Why:** *[2026-09-24, DEV-051: `gp-architect` showed neither path is reachable through the product in v0.1 — a dated `project.admin` can exist only beside the creator's undated one (the grant route never touches an existing admin row), and no product command suspends a membership. The owner ruled «Зафиксировать + BL-014»: the records are corrected (INV-110, ADR-014's amendment, the tenancy paragraph), the priority drops to P3, and what remains — an only administrator who has left, and a workspace owner's recovery path — is decided with BL-014, which now carries the refusal. The text below is kept as written.]* DEV-043's `gp-architect` design and `gp-security` review (S1-02). `project_access.revoke` refuses to take away a live `project.admin` grant unless another active member keeps an undated one (INV-110; the owner ruled on 2026-09-23 that a dated survivor does not count, which closed the two-step path of granting admin for a minute and then revoking one's own), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so a project whose admin grants are all dated can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting — including one committed while a revoke runs, since the revoke locks grant rows, not memberships. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
+- **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (`app.project_has_grants`, `pag_insert`: no bootstrap once a project has grants); INV-110's «Not covered»; [DEV-051](tasks/DEV-051-last-admin-records.md) row 1 (why the lapse and suspension paths are not reachable through the product). *[Until DEV-051 this line cited `validUntil` on any capability in the grant route as the cause.]*
+- **Depends on:** BL-014 (the suspend or end refusal and a workspace owner's recovery path; an ADR if a workspace role gains a project capability). *[Until DEV-051 this line offered refusing a dated `project.admin` grant, which the owner did not choose on 2026-09-24.]*
 - **Deadline:** before a pilot workspace has more than one project administrator to lose.
 
 <a id="bl-138"></a>
 ### BL-138 — P3 — Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant
 
-- **State:** open
+- **State:** scheduled → DEV-052
 - **Legacy cite:** none
 - **Why:** DEV-043 narrowed `goproceed_app`'s `UPDATE` on `project_access_grants` to `revoked_at` and `version` (`0096`), and RLS cannot compare the old row with the new one, so a defect in the application can still set `revoked_at` back to null. A trigger that refuses clearing `revoked_at` (and any change of the other columns) would close it; it fires for superusers too, and at least ten fixture sites un-revoke, delete or re-date grants (`m2-rls.test.ts`, `m1-rules-rls.test.ts`, `m2-policy-gaps.test.ts`, `m3-closure-rls.test.ts`, `project-communications.int.test.ts`, `telegram-evidence.int.test.ts`), so it needs their rework. Ranked by DEV-043.
 - **Evidence:** DEV-043's `gp-architect` design, point f; `supabase/migrations/0096_the_grant_that_could_be_rewritten.sql` «What this does not change».
@@ -1689,7 +1697,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-140"></a>
 ### BL-140 — P3 — A member's `project.view` can lapse before the action capabilities it was added for
 
-- **State:** open
+- **State:** scheduled → DEV-049
 - **Legacy cite:** none
 - **Why:** the grant route adds `project.view` to any action capability but skips a still-unrevoked `project.view` as a duplicate without aligning its window, so a member can hold an action capability whose `project.view` lapses first. The Telegram evidence resolver checks `evidence.record` alone (`0084`), so such a member could still file evidence on a project they cannot see. INV-111 covers the revoke only. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the duplicate skip); `supabase/migrations/0084_the_button_that_carried_a_normative_string.sql`; INV-111.
@@ -1699,7 +1707,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-141"></a>
 ### BL-141 — P3 — The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row
 
-- **State:** open
+- **State:** scheduled → DEV-048
 - **Legacy cite:** none
 - **Why:** DEV-043's `gp-architect` design. `project_access.grant` and `project_responsibilities.assign` pass the path's project id to a `uuid` comparison without checking its form, so a malformed id raises a cast error that becomes 500 `INTERNAL_ERROR`; the revoke and end routes check it first and answer 404, as `invitations.revoke` does. And `technical/error-catalog.csv` marks `VERSION_CONFLICT` retryable while the revoke routes (DEV-021, DEV-043, DEV-044) send `retryable: false`, because retrying the same revoke cannot succeed. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` and `responsibilities/route.ts` (no UUID check); `technical/error-catalog.csv` row `VERSION_CONFLICT`; `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts`.
@@ -1711,7 +1719,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-043's `gp-security` review. `project_access.revoke` of `project.view` removes a member from a project in the product, and ADR-014 deliberately cascades nothing else: the person stays in the project's bound Telegram group and keeps seeing the cards posted there, their Telegram member link survives, and every external review link they issued stays live until `external_grants.revoke_reissue` retires it (v0.1 has no plain external revoke). The Telegram resolvers check the grant at each action, so they can no longer act, but they can still read. An offboarding step or checklist is needed before a pilot relies on the revoke to remove someone. Ranked by DEV-043.
+- **Why:** *[2026-09-24, DEV-050: the owner ruled «Только отчёт» and «Решить при BL-024» (ADR-014 decision 5). A removal now answers with `remaining`: the member's active, unexpired review links on the project (id, version, expiry; no address) and `telegramGroupBound`, and cascades nothing. What stays open here is the group half — whether the product removes the person from the group or records that the office must, and the person's Telegram member link, which is neither reported nor ended — decided with BL-024; and a checklist for the office. The text below is kept as written.]* DEV-043's `gp-security` review. `project_access.revoke` of `project.view` removes a member from a project in the product, and ADR-014 deliberately cascades nothing else: the person stays in the project's bound Telegram group and keeps seeing the cards posted there, their Telegram member link survives, and every external review link they issued stays live until `external_grants.revoke_reissue` retires it (v0.1 has no plain external revoke). The Telegram resolvers check the grant at each action, so they can no longer act, but they can still read. An offboarding step or checklist is needed before a pilot relies on the revoke to remove someone. Ranked by DEV-043.
 - **Evidence:** ADR-014 «What this decision does NOT authorise»; DEV-043's `gp-security` report, «Record these, don't fix them here».
 - **Depends on:** the Telegram webhook's enablement (BL-024) for the group half; an owner decision on whether offboarding kicks from the group or only records it.
 - **Deadline:** before the Telegram webhook is enabled anywhere, and before a pilot offboards a member.
@@ -1719,7 +1727,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-143"></a>
 ### BL-143 — P3 — The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one
 
-- **State:** open
+- **State:** scheduled → DEV-047
 - **Legacy cite:** none
 - **Why:** DEV-043's `gp-security` review. The three SECURITY DEFINER helpers from `0011`, on which every workspace-access policy rests — including `0097`'s `prae_select` and `prae_insert` — set `search_path = public` instead of the empty path the project's definer rule asks for. Every table reference in them is schema-qualified, so the risk is low; the same class as BL-106 and BL-110. Ranked by DEV-043.
 - **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (the three `create or replace function` statements).
@@ -1729,9 +1737,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-144"></a>
 ### BL-144 — P3 — `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test
 
-- **State:** open
+- **State:** scheduled → DEV-053
 - **Legacy cite:** none
-- **Why:** DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
+- **Why:** *[2026-09-24, DEV-053: all three items have their change — (1) the end table is in `m1-schema.test.ts`'s lists, closed on the same four checks run by SQL on the local database, the file's own run owed to the first CI run after the billing block; (2) and (3) have tests. The text below is kept as written.]* DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
 - **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
 - **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
 - **Deadline:** none recorded.
@@ -1745,3 +1753,73 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** DEV-042's record row 13; session scratchpad logs `app-suite.log`, `app-suite2.log`, `app-suite3.log`.
 - **Depends on:** nothing. Scope the query to the case's own workspace or aggregate id.
 - **Deadline:** none recorded.
+
+<a id="bl-146"></a>
+### BL-146 — P3 — Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** *[2026-09-24, DEV-055: each body read must include bare casts to generic types and plpgsql `declare`/`%rowtype` types, not only table names; SQL keyword types are not exposed — see BL-152.]* DEV-047 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; those eleven are the lower risk because `pg_temp` is searched last there (PostgreSQL's documentation shows a trusted schema before `pg_temp`; whether `public` is trusted depends on who holds CREATE on it — `0009` revokes it from PUBLIC only, and Supabase's direct grants to `anon`, `authenticated` and `service_role` are unchecked). `public.drain_outbox` (`0005`, `search_path = public`) is outside the query's `app` scope; only a superuser executes it since `0036`. Ranked by DEV-047.
+- **Evidence:** on the local database at `0098`, 2026-09-24: `select p.oid::regprocedure, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.prosecdef and p.proconfig is distinct from array['search_path=""']`. [DEV-047](tasks/DEV-047-access-helpers-search-path.md) row 5.
+- **Depends on:** a body read per function (`gp-architect`, `gp-security`); BL-106 and BL-110 are the same class.
+- **Deadline:** none recorded.
+
+<a id="bl-147"></a>
+### BL-147 — P3 — Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-049's `gp-architect` design. `project_access.grant` treats any unrevoked row of a capability as held, live or not, so granting again a capability whose grant lapsed through `valid_until` answers 201 with that capability missing from `granted` and nothing written; the office must first revoke the lapsed row (ADR-014 decision 1 made that possible). A re-grant with a later `validUntil` does not extend a live grant either. DEV-049 fixed both for `project.view` only, because BL-140 was about the view. Ranked by DEV-049.
+- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the per-capability duplicate check); `supabase/migrations/0010_workspace_access_module.sql` (`project_access_active_unique` over unrevoked rows); [DEV-049](tasks/DEV-049-project-view-window.md) row 4.
+- **Depends on:** a decision whether a re-grant replaces a lapsed action row (as the view now is) or answers 409 naming it.
+- **Deadline:** before the dashboard offers grants to a pilot user (BL-045).
+
+<a id="bl-148"></a>
+### BL-148 — P3 — `external_access_grants` has no row in `technical/data-access-surface.csv`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-050's `gp-reviewer` R1-05 and `gp-security`. The BFF reads, inserts and updates `public.external_access_grants` as `goproceed_app` (`occurrence_grants.issue`, `external_grants.revoke_reissue`, and since DEV-050 `project_access.revoke`'s report), under `eag_select`, `eag_insert`, `eag_update` and `eag_external_select` (`0049`), and the file has no row for the table; its RLS coverage is in `technical/database/rls-coverage.csv` only. The gap predates DEV-050, which did not widen it. Ranked by DEV-050.
+- **Evidence:** `grep external_access_grants technical/data-access-surface.csv` (none); `supabase/migrations/0049_the_link_that_decides_one_obligation.sql` (grants and policies); [DEV-050](tasks/DEV-050-removal-reports-remaining.md) row 5.
+- **Depends on:** a read of the table's current grants (column grants included) across the migrations after `0049`.
+- **Deadline:** none recorded.
+
+<a id="bl-149"></a>
+### BL-149 — P3 — A grant or assignment whose `validUntil` does not come after its start answers 500, not 422
+
+- **State:** scheduled → DEV-054
+- **Legacy cite:** none
+- **Why:** DEV-051's `gp-architect`. `project_access.grant` and `project_responsibilities.assign` accepted any datetime as `validUntil`; the insert then hit the tables' CHECK `valid_until > valid_from` (a grant starts at `now()`, an assignment at `validFrom` or `now()`), raised 23514, which no route maps, and answered 500 `INTERNAL_ERROR`. Observed on the local database by DEV-054's failing test (three 500s); a grant that would write nothing answered 201 instead. Ranked by DEV-051.
+- **Evidence:** `supabase/migrations/0010_workspace_access_module.sql` (the two CHECKs); `packages/contracts/src/project-access.ts` (the two request schemas); [DEV-054](tasks/DEV-054-window-ends-after-start.md) row 1.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-150"></a>
+### BL-150 — P2 — `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers
+
+- **State:** scheduled → DEV-055
+- **Legacy cite:** none
+- **Why:** DEV-047's late `gp-reviewer` (R1-01) and `gp-security` (S1-03) reviews, 2026-09-24. `app.current_actor()` (`0003`) is `nullif(current_setting(…), '')::uuid` with no `SET` clause, so it is inlined and parsed under its caller's path. Inside the three workspace-access definers that path is empty since `0098` (it was `public` before), and PostgreSQL still searches the session's temporary schema first for type names. A session with arbitrary SQL as `goproceed_app` (PUBLIC holds TEMP on the database; no migration revokes it) can create `pg_temp.uuid` — a table, which makes the helpers fail closed, or a domain whose CHECK calls a `pg_temp` function, which the reviewer reads as running with the helper owner's rights. Pre-existing; `0098` neither causes nor fixes it. `app.current_actor()::text` (`0007`) is the same class.
+- **Evidence:** `supabase/migrations/0003_roles_and_grants.sql` (`app.current_actor`); `0011` (the helpers); PostgreSQL 17 «search_path»; [DEV-047](tasks/DEV-047-access-helpers-search-path.md) findings.
+- **Depends on:** a migration that rewrites `app.current_actor()` with `::pg_catalog.uuid` (keeping it inlinable), and a decision on revoking TEMP from PUBLIC (`gp-architect`, `gp-security`).
+- **Deadline:** before the product runs any SQL it did not write on the application connection.
+
+<a id="bl-151"></a>
+### BL-151 — P3 — Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-048's late `gp-reviewer` (R1-02), 2026-09-24. DEV-048 checks the path ids of the project tree in `commandRoute` and `queryRoute`; routes under `workspaces/[workspaceId]`, `grants/[grantId]`, `parties/[partyId]`, `contracts/[contractId]`, `import-batches/[batchId]`, `assignments/[assignmentId]`, `stages/[stageId]` and `statutory-act-versions/[actVersionId]` only check `if (!id)` and pass the value to a `uuid` comparison, so PostgreSQL's 22P02 becomes 500 `INTERNAL_ERROR`; only `invitations/[invitationId]/revoke` checks the form. Not every param is a UUID (`contracts/[contractId]/versions/[versionNo]`), so each route should declare its ids through `pathIds`, and the walk should cover all of `app/v1`. Separately, the dry-run compares the version's `project_id` with the path's as strings, so an upper-case project id is 404 there. Ranked by DEV-048.
+- **Evidence:** the route files named above; `apps/app/tests/project-path-ids.test.ts` (the walk's root); [DEV-048](tasks/DEV-048-project-path-ids.md) findings.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-152"></a>
+### BL-152 — P2 — Definer function bodies name types unqualified, which a session's temporary schema can shadow
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-055's `gp-architect` design, 2026-09-24. `0100` qualified the three SQL helpers inlined into definers (BL-150), but many SECURITY DEFINER functions whose path is `''` or `public` name generic types without a schema in their own bodies — casts (`::text`, `::uuid`, `::jsonb`, `::timestamptz`) and plpgsql `declare` or `%rowtype`/`%type` references (for example `0006` `org_has_members` (`org::text` under `public`), `0007` `delete_expired_idempotency`, `0011` `accept_invitation`, `0060` (`v_member uuid`, `v_status text`), `0092` (`v_actor uuid`)); SQL keyword types (`boolean`, `integer`, `bigint`, `numeric`, `timestamp`, `interval`, `varchar`) parse as `pg_catalog.*` and are not exposed; a grep's 161 bare casts in 38 migration files is an upper bound, not all in definers. PostgreSQL searches the session's temporary schema first for type and relation names, so a session with arbitrary SQL on an application connection could shadow one — and since a PL/pgSQL domain-typed variable runs its CHECK when the block starts, a temporary domain `uuid` with a CHECK calling a `pg_temp` function would run that function with the definer owner's rights: `app.accept_invitation` (`0011`, path `public`, `new_membership uuid`, executable by the application role) is a concrete path (DEV-055's `gp-security` S1-01, reasoned, not run). The body read must also cover `%rowtype`/`%type` on unqualified relations, whether `record` declarations resolve through the path, and invoker helpers that definers call. The eleven `public, pg_temp` definers are not exposed (listing `pg_temp` puts it last). Three fixes: `alter function … set search_path = public, pg_temp` on the ten `public` definers and `pg_catalog, pg_temp` on the `''` ones — PostgreSQL's documented pattern, no body rewritten, recommended by `gp-security` (it amends the empty-path rule in `agents/COMMON.md`, the owner's call); revoke TEMP from PUBLIC (later defence in depth: hosted database ownership and the Supabase roles' TEMP needs are unverified, and a non-owner's revoke only warns); or qualify every body by hand.
+- **Evidence:** DEV-055's architect design; `supabase/migrations/` (the files named above); [DEV-055](tasks/DEV-055-inlined-helpers-qualified.md).
+- **Depends on:** a decision between the three fixes (`gp-architect`, `gp-security`; the owner for a rule change). Revoking TEMP from PUBLIC must also rewrite DEV-055's temporary-table case in `workspace-access-rls.test.ts`, which creates its object on the application connection (DEV-055 review R1-02).
+- **Deadline:** before the product runs any SQL it did not write on an application connection.

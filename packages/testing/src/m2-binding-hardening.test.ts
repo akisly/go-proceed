@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor, asService } from "./pg";
+import { adminClient, asActor, asService, bypassingGuards } from "./pg";
 import {
   seedM2World, grantM2Capabilities, seedAssignment, dropM2Workspaces, type M2Fixture,
 } from "./m2-fixture";
@@ -374,7 +374,7 @@ describe("evidence is created only by the finalization command", () => {
        returning id`,
       [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), revokedKey]);
 
-    await c.query(
+    await bypassingGuards(
       `delete from public.project_access_grants
         where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
       [a.workspaceId, a.memberId]);
@@ -600,7 +600,7 @@ describe("a valuation allocation is bound to the fact it values", () => {
   it("requires progress.adjust to value an adjustment, not progress.record", async () => {
     await c.query(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability = 'progress.adjust'`,
+        where workspace_id = $1 and member_id = $2 and capability = 'progress.adjust' and revoked_at is null`,
       [a.workspaceId, a.memberId]);
     try {
       const code = await sqlstate(() => asActor(USER_A, WS_A, (cl) => cl.query(
@@ -615,7 +615,7 @@ describe("a valuation allocation is bound to the fact it values", () => {
       // valuing an adjustment.
       expect(code).toBe("42501");
     } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2`, [a.workspaceId, a.memberId]);
     }

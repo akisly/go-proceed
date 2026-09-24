@@ -148,4 +148,4 @@ export const POST = commandRoute(retryProjectCommunicationRequest, async (a) => 
     };
   }));
   return { status: result.status, body: result.body, expiresAt: result.expiresAt };
-});
+}, { pathIds: { messageId: "Повідомлення не знайдено." } });

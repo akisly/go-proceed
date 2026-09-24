@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { dropWorkspaces } from "../../../packages/testing/src/pg";
+import { qBypassingGuards } from "./helpers/fixtures";
 import {
   grantM2Capabilities, seedM2World, type M2Fixture,
 } from "../../../packages/testing/src/m2-fixture";
@@ -220,7 +221,7 @@ databaseDescribe("project communication member API", () => {
     // Break caught: project visibility is not authority to speak into the field group.
     const { POST } = await import("../app/v1/projects/[projectId]/communications/route");
     await client.query(`update public.project_access_grants set revoked_at=now()
-      where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='communication.reply'`, [
+      where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='communication.reply' and revoked_at is null`, [
       primary.workspaceId, primary.projectId, primary.memberId,
     ]);
     const denied = await POST(jsonRequest(
@@ -229,7 +230,8 @@ databaseDescribe("project communication member API", () => {
     ), { params: Promise.resolve({ projectId: primary.projectId }) });
     expect(denied.status).toBe(403);
 
-    await client.query(`update public.project_access_grants set revoked_at=null
+    // Un-revoking goes past 0099's guard (DEV-052).
+    await qBypassingGuards(`update public.project_access_grants set revoked_at=null
       where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='communication.reply'`, [
       primary.workspaceId, primary.projectId, primary.memberId,
     ]);

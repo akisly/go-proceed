@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  endResponsibilityRequest, endResponsibilityResponse,
+  assignResponsibilityRequest, endResponsibilityRequest, endResponsibilityResponse, grantProjectAccessRequest,
   projectAccessNotHeldDetails, revokeProjectAccessRequest, revokeProjectAccessResponse,
 } from "./project-access";
 
@@ -25,6 +25,29 @@ describe("project access revoke contracts", () => {
     expect(revokeProjectAccessResponse.parse(body)).toEqual(body);
     expect(() => revokeProjectAccessResponse.parse({ ...body, memberId })).toThrow();
     expect(() => revokeProjectAccessResponse.parse({ revoked: [{ capability: "contracts.edit", grantId, revokedBy: memberId }] })).toThrow();
+  });
+
+  // DEV-050 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member
+  // (revoking project.view) reports what the revoke leaves live.
+  it("a removal may report what stays live: the member's external links, without the recipient's address, and the Telegram group", () => {
+    const link = {
+      grantId, requirementOccurrenceId: crypto.randomUUID(), version: 1,
+      expiresAt: "2026-10-01T00:00:00.000Z", exchanged: false, decidesEvidence: true,
+    };
+    const body = { revoked: [{ capability: "project.view", grantId }], remaining: { externalGrants: [link], telegramGroupBound: true } };
+    expect(revokeProjectAccessResponse.parse(body)).toEqual(body);
+    expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [{ ...link, recipientEmail: "a@b.c" }], telegramGroupBound: true } })).toThrow();
+    expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [] } })).toThrow();
+    expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [], telegramGroupBound: false, telegramLinked: true } })).toThrow();
+  });
+
+  // DEV-053 / BL-144 (DEV-043/044's gp-qa follow-up 3): the list is bounded by
+  // the vocabulary, so a request cannot carry more entries than there are
+  // capabilities.
+  it("the capability list holds at most one entry per known capability", () => {
+    const all = revokeProjectAccessRequest.shape.capabilities.element.options;
+    expect(revokeProjectAccessRequest.parse({ memberId, capabilities: [...all] }).capabilities).toHaveLength(all.length);
+    expect(() => revokeProjectAccessRequest.parse({ memberId, capabilities: [...all, "project.view"] })).toThrow();
   });
 
   it("the not-held conflict names the capabilities and nothing else", () => {
@@ -53,5 +76,33 @@ describe("responsibility end contracts", () => {
     expect(endResponsibilityResponse.parse(body)).toEqual(body);
     expect(() => endResponsibilityResponse.parse({ ...body, memberId })).toThrow();
     expect(() => endResponsibilityResponse.parse({ ended: [{ assignmentId, endedAt: "2026-09-23T00:00:00Z" }] })).toThrow();
+  });
+});
+
+// DEV-054 / BL-149: an assignment's window must end after its start when both
+// are sent. An end relative to now is the route's check, not the schema's: the
+// clock must not turn a legitimate idempotent replay into 422.
+describe("grant and assign windows end after they start", () => {
+  const memberId = crypto.randomUUID();
+  const at = (ms: number) => new Date(Date.now() + ms).toISOString();
+  const pathOf = (r: { success: boolean; error?: { issues: { path: PropertyKey[] }[] } }) =>
+    r.error?.issues.map((i) => i.path.join("."));
+
+  it("the grant schema does not look at the clock: a past validUntil parses, and the route refuses it", () => {
+    expect(grantProjectAccessRequest.safeParse({ memberId, capabilities: ["contracts.edit"], validUntil: at(-60_000) }).success).toBe(true);
+  });
+
+  it("an assignment's validUntil must be later than its validFrom; without validFrom the schema leaves it to the route", () => {
+    const from = at(86_400_000);
+    expect(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: from, validUntil: at(2 * 86_400_000) }).success).toBe(true);
+    expect(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: at(-2 * 86_400_000), validUntil: at(-86_400_000) }).success).toBe(true);
+    expect(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validUntil: at(-60_000) }).success).toBe(true);
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: from, validUntil: from }))).toEqual(["validUntil"]);
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: from, validUntil: at(3_600_000) }))).toEqual(["validUntil"]);
+  });
+
+  it("a malformed date is reported once, on its own field (R1-02)", () => {
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: "2026-13-01T00:00:00Z", validUntil: at(86_400_000) }))).toEqual(["validFrom"]);
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: at(0), validUntil: "2026-13-01T00:00:00Z" }))).toEqual(["validUntil"]);
   });
 });

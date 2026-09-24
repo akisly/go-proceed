@@ -262,4 +262,21 @@ describe("POST /v1/projects/{projectId}/responsibilities/end (BL-015, ADR-014 de
       [projectId, memberIds.member]);
     expect(g).toHaveLength(1);
   });
+
+  // DEV-053 / BL-144 (DEV-044's gp-qa follow-up 2): the route lower-cases the
+  // member id, so an upper-case spelling is the same member — in the lookup,
+  // the end, and the audit record.
+  it("an upper-case member id is the same member, and the audit record names it in lower case", async () => {
+    const projectId = await project();
+    const performer = await assign(projectId, memberIds.member!, "performer");
+    current = ADMIN;
+    const res = await end(projectId, { memberId: memberIds.member!.toUpperCase(), responsibility: "performer" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ended: [{ assignmentId: performer }] });
+    const audit = await q<{ details: Record<string, unknown> }>(
+      "select details from public.audit_events where organization_id = $1 and action = 'project_responsibility.ended' and object_id = $2",
+      [WS.a, performer]);
+    expect(audit).toHaveLength(1);
+    expect(audit[0]!.details).toMatchObject({ memberId: memberIds.member });
+  });
 });
