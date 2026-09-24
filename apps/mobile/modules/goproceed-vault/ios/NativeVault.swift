@@ -11,6 +11,19 @@ private func string(_ map: [String: Any], _ key: String) throws -> String {
   guard let value = map[key] as? String, !value.isEmpty, value.count <= 256, !value.contains("\n"), !value.contains("\0") else { throw failure("VAULT_INVALID_ARGUMENT") }
   return value
 }
+/** Requirement text is stored verbatim (content rules): newlines allowed, no NUL, bounded. */
+private func label(_ map: [String: Any], _ key: String) throws -> String? {
+  guard let raw = map[key] else { return nil }
+  guard let value = raw as? String, !value.isEmpty, value.utf16.count <= 2000, !value.contains("\0") else { throw failure("VAULT_INVALID_ARGUMENT") }
+  return value
+}
+private func vaultRoot() throws -> URL {
+  try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("GoProceedVault", isDirectory: true)
+}
+private func installationMarker() throws -> URL {
+  try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    .appendingPathComponent("GoProceedInstallation", isDirectory: true).appendingPathComponent("marker")
+}
 private func uuid(_ map: [String: Any], _ key: String) throws -> String {
   let value = try string(map, key)
   guard UUID(uuidString: value) != nil else { throw failure("VAULT_INVALID_ARGUMENT") }
@@ -68,6 +81,13 @@ final class NativeVault {
   func call(_ operation: String, _ json: String) throws -> String {
     work.lock(); defer { work.unlock() }
     guard let data = json.data(using: .utf8), let input = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw failure("VAULT_INVALID_ARGUMENT") }
+    // These never open the journal: they must work when it cannot be opened.
+    switch operation {
+    case "wipe": return try encode(try wipe(input))
+    case "installationCheck": return try encode(try installationCheck())
+    case "installationMark": try installationMark(); return "null"
+    default: break
+    }
     try openJournal()
     var result: Any = NSNull()
     switch operation {
@@ -78,7 +98,10 @@ final class NativeVault {
       let next = ["subjectId": try uuid(input, "subjectId"), "workspaceId": try uuid(input, "workspaceId")]
       let previous = try? context()
       if previous != next { try quarantineRows() }
-      cancellation.lock(); identity = next; generation += 1; uploadGeneration += 1; cancellation.unlock()
+      // Cancel a transfer of the previous identity now: its producer may already have
+      // handed the last chunk to the stream and stopped checking (DEV-070 S-2).
+      cancellation.lock(); identity = next; generation += 1; uploadGeneration += 1; let running = task; cancellation.unlock()
+      running?.cancel()
     case "quarantine":
       // Close the identity here too, so an authenticate reordered before it cannot leave it open.
       cancellation.lock(); identity = nil; generation += 1; uploadGeneration += 1; let running = task; cancellation.unlock()
@@ -105,6 +128,8 @@ final class NativeVault {
       case "setUploadIntent":
         try mutable(item)
         let intent = try uuid(input, "intentId")
+        // A photo the user asked to delete never gets a new upload intent.
+        if item["discardRequestedAt"] != nil && item["intentId"] == nil { throw failure("VAULT_DISCARD_REQUESTED") }
         if let existing = item["intentId"] as? String, existing != intent { throw failure("VAULT_IMMUTABLE_INTENT") }
         item["intentId"] = intent
         if input["evidenceId"] != nil {
@@ -113,7 +138,10 @@ final class NativeVault {
           item["evidenceId"] = evidence
         }
         try persist(item)
-      case "markAwaitingReceipt": try mutable(item); item["state"] = "awaiting_receipt"; try persist(item)
+      case "markAwaitingReceipt":
+        try mutable(item)
+        if item["discardRequestedAt"] != nil { throw failure("VAULT_DISCARD_REQUESTED") }
+        item["state"] = "awaiting_receipt"; try persist(item)
       case "markFailed":
         try mutable(item)
         let code = try string(input, "errorCode")
@@ -129,6 +157,17 @@ final class NativeVault {
         item["state"] = "server_confirmed"; item["receiptConfirmedAt"] = now()
         try persist(item) // FULL synchronous commit precedes deletion.
         try cleanup(item)
+      case "requestDiscard":
+        // The server may still receive it: hold it, never send it again, delete once the server says it did not.
+        guard input["confirmed"] as? Bool == true else { throw failure("VAULT_CONFIRMATION_REQUIRED") }
+        try mutable(item)
+        cancellation.lock()
+        var running: URLSessionTask?
+        if taskId == id { uploadGeneration += 1; running = task }
+        cancellation.unlock()
+        running?.cancel()
+        if item["discardRequestedAt"] == nil { item["discardRequestedAt"] = now(); try persist(item) }
+        result = item
       case "discard":
         guard input["confirmed"] as? Bool == true else { throw failure("VAULT_CONFIRMATION_REQUIRED") }
         // Bytes already accepted by storage may still be finalized: «not received» would be false.
@@ -143,13 +182,62 @@ final class NativeVault {
       default: throw failure("VAULT_UNKNOWN_OPERATION")
       }
     }
-    return String(data: try JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed, .sortedKeys]), encoding: .utf8)!
+    return try encode(result)
+  }
+  private func encode(_ result: Any) throws -> String {
+    String(data: try JSONSerialization.data(withJSONObject: result, options: [.fragmentsAllowed, .sortedKeys]), encoding: .utf8)!
+  }
+
+  /**
+   * Deletes every item of every identity: the journal may not open, so it cannot be
+   * scoped. Keys first, then files; reports which parts are gone, never paths.
+   */
+  private func wipe(_ input: [String: Any]) throws -> [String: Bool] {
+    guard input["confirmed"] as? Bool == true else { throw failure("VAULT_CONFIRMATION_REQUIRED") }
+    cancellation.lock(); identity = nil; generation += 1; uploadGeneration += 1; let running = task; cancellation.unlock()
+    running?.cancel()
+    if let db { sqlite3_close_v2(db) }
+    db = nil; initialized = false; origins = []
+    _ = SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService] as CFDictionary)
+    // Deleted means none is left, not that the delete call returned success.
+    let keysDeleted = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService, kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, nil) == errSecItemNotFound
+    let fm = FileManager.default
+    let directory = try vaultRoot()
+    if fm.fileExists(atPath: directory.path) { try? fm.removeItem(at: directory) }
+    let directoryDeleted = !fm.fileExists(atPath: directory.path)
+    // A directory that survives and cannot be listed counts as not deleted.
+    let ciphertextDeleted: Bool
+    if directoryDeleted { ciphertextDeleted = true }
+    else if let left = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+      ciphertextDeleted = !left.contains { ["vault", "part", "import"].contains($0.pathExtension) }
+    } else { ciphertextDeleted = false }
+    return ["keysDeleted": keysDeleted, "ciphertextDeleted": ciphertextDeleted, "directoryDeleted": directoryDeleted]
+  }
+  /**
+   * A fresh installation has neither this marker nor a vault directory. An app update
+   * keeps both directories, so it is never mistaken for a reinstall.
+   */
+  private func installationCheck() throws -> [String: Bool] {
+    let fm = FileManager.default
+    if fm.fileExists(atPath: try installationMarker().path) { return ["fresh": false] }
+    return ["fresh": !fm.fileExists(atPath: try vaultRoot().path)]
+  }
+  private func installationMark() throws {
+    let fm = FileManager.default
+    let marker = try installationMarker()
+    var directory = marker.deletingLastPathComponent()
+    try fm.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
+    var values = URLResourceValues(); values.isExcludedFromBackup = true
+    try directory.setResourceValues(values)
+    if !fm.fileExists(atPath: marker.path) {
+      try Data(UUID().uuidString.utf8).write(to: marker, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
   }
 
   private func openJournal() throws {
     if db != nil { return }
     let fm = FileManager.default
-    root = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true).appendingPathComponent("GoProceedVault", isDirectory: true)
+    root = try vaultRoot()
     try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.complete])
     var values = URLResourceValues(); values.isExcludedFromBackup = true
     try root.setResourceValues(values)
@@ -161,6 +249,8 @@ final class NativeVault {
     }
     guard sqlite3_open_v2(root.appendingPathComponent("journal.sqlite").path, &db, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_UNAVAILABLE") }
     do {
+      // Corruption the open did not touch must land in the error state, not in a sign-out that cannot lock photos.
+      try quickCheck()
       try sql("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS captures (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL); CREATE INDEX IF NOT EXISTS captures_owner ON captures(owner);")
       let all = try rows(nil)
       for var item in all {
@@ -175,6 +265,12 @@ final class NativeVault {
         if url.pathExtension == "part" || !retained.contains(url.deletingPathExtension().lastPathComponent) { try fm.removeItem(at: url) }
       }
     } catch { sqlite3_close(db); db = nil; throw error }
+  }
+  private func quickCheck() throws {
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "PRAGMA quick_check", -1, &statement, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_CORRUPT") }
+    defer { sqlite3_finalize(statement) }
+    guard sqlite3_step(statement) == SQLITE_ROW, let text = sqlite3_column_text(statement, 0), String(cString: text) == "ok" else { throw failure("VAULT_JOURNAL_CORRUPT") }
   }
   private func sql(_ statement: String) throws {
     guard sqlite3_exec(db, statement, nil, nil, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_WRITE_FAILED") }
@@ -240,6 +336,8 @@ final class NativeVault {
     defer { sqlite3_finalize(statement) }
     sqlite3_bind_text(statement, 1, id, -1, sqlTransient); sqlite3_bind_text(statement, 2, try owner(item), -1, sqlTransient)
     guard sqlite3_step(statement) == SQLITE_DONE else { throw failure("VAULT_JOURNAL_WRITE_FAILED") }
+    // secure_delete clears the pages; the WAL keeps old frames until a checkpoint. Best effort.
+    sqlite3_wal_checkpoint_v2(db, nil, SQLITE_CHECKPOINT_TRUNCATE, nil, nil)
   }
   private func remove(_ item: [String: Any]) throws {
     var deleting = item; deleting["state"] = "discarded"; try persist(deleting); try cleanup(deleting)
@@ -263,8 +361,11 @@ final class NativeVault {
     guard date.date(from: time) != nil || ISO8601DateFormatter().date(from: time) != nil else { throw failure("VAULT_INVALID_ARGUMENT") }
     let appVersion = try string(input, "sourceAppVersion")
     guard appVersion.count <= 50 else { throw failure("VAULT_INVALID_ARGUMENT") }
+    let requirement = try label(input, "requirementLabel")
     let id = UUID().uuidString.lowercased()
     var item: [String: Any] = ["id": id, "subjectId": actor["subjectId"]!, "workspaceId": actor["workspaceId"]!, "assignmentId": try uuid(input, "assignmentId"), "occurrenceId": try uuid(input, "occurrenceId"), "originMethod": origin, "mimeType": mime, "claimedCaptureTime": time, "sourceAppVersion": appVersion, "createdAt": now(), "createIdempotencyKey": UUID().uuidString.lowercased(), "finalizeIdempotencyKey": UUID().uuidString.lowercased(), "state": "importing"]
+    // Shown on the queue card offline; never part of the ciphertext binding.
+    if let requirement { item["requirementLabel"] = requirement }
     var key = [UInt8](repeating: 0, count: 32)
     guard gp_random_key(&key) == 0 else { throw failure("VAULT_CRYPTO_UNAVAILABLE") }
     defer { gp_wipe(&key, key.count) }
@@ -296,6 +397,7 @@ final class NativeVault {
   private func upload(_ source: [String: Any], _ input: [String: Any]) throws -> [String: Int] {
     guard initialized else { throw failure("VAULT_NOT_INITIALIZED") }
     try mutable(source)
+    if source["discardRequestedAt"] != nil { throw failure("VAULT_DISCARD_REQUESTED") }
     guard source["intentId"] != nil, let raw = input["url"] as? String, origins.contains(try origin(raw)), let url = URL(string: raw), let headers = input["headers"] as? [String: String] else { throw failure("VAULT_INVALID_UPLOAD") }
     guard headers.allSatisfy({ $0.key.lowercased() == "content-type" && $0.value == source["mimeType"] as? String }) else { throw failure("VAULT_INVALID_UPLOAD_HEADER") }
     let id = try uuid(source, "id"), aad = try binding(source), expectedHash = try string(source, "sha256")
@@ -303,9 +405,10 @@ final class NativeVault {
     var key = try loadKey(source); defer { gp_wipe(&key, key.count) }
     guard gp_verify_file(location(id).path, key, aad, expectedHash, size) == 0 else { throw failure("VAULT_CIPHERTEXT_CORRUPT") }
     let version = currentUpload()
-    let stream = try VaultInputStream(path: location(id).path, key: key, binding: aad, hash: expectedHash, size: size, cancelled: { self.currentUpload() != version })
-    defer { stream.close() }
-    let delegate = VaultUploadDelegate(stream: stream)
+    let body = try VaultBody(path: location(id).path, key: key, binding: aad, hash: expectedHash, size: size, cancelled: { self.currentUpload() != version })
+    // Runs after the session is invalidated (defers run in reverse); a second stop is a no-op.
+    defer { body.stop() }
+    let delegate = VaultUploadDelegate(stream: body.stream)
     let config = URLSessionConfiguration.ephemeral
     config.urlCache = nil; config.httpCookieStorage = nil; config.urlCredentialStorage = nil
     config.timeoutIntervalForRequest = 60; config.timeoutIntervalForResource = 180
@@ -314,7 +417,6 @@ final class NativeVault {
     var request = URLRequest(url: url); request.httpMethod = "PUT"
     request.setValue(String(size), forHTTPHeaderField: "Content-Length")
     request.setValue(source["mimeType"] as? String, forHTTPHeaderField: "Content-Type")
-    request.httpBodyStream = stream
     let running = session.uploadTask(withStreamedRequest: request)
     cancellation.lock()
     // One transfer slot natively, not only by the JavaScript single-flight.
@@ -329,7 +431,8 @@ final class NativeVault {
     cancellation.lock()
     let valid = [generation, uploadGeneration] == version && identity != nil
     cancellation.unlock()
-    if valid { running.resume() } else { running.cancel() }
+    body.onFailure = { running.cancel() }
+    if valid { body.start(); running.resume() } else { running.cancel() }
     // The journal is released for the transfer so imports, listing and quarantine
     // are not held behind a slow network. call() holds `work` exactly once here.
     work.unlock()
@@ -346,7 +449,9 @@ final class NativeVault {
       throw failure("VAULT_UPLOAD_INTERRUPTED")
     }
     item = latest
-    guard completed, currentUpload() == version, delegate.error == nil, let status = delegate.status else {
+    // A 2xx counts only if the producer sent the whole authenticated body.
+    let bodyComplete = body.stop()
+    guard completed, currentUpload() == version, delegate.error == nil, let status = delegate.status, bodyComplete else {
       item["state"] = currentUpload() == version ? "failed" : "not_sent"; try persist(item)
       throw failure("VAULT_UPLOAD_INTERRUPTED")
     }
@@ -355,37 +460,124 @@ final class NativeVault {
   }
 }
 
-private final class VaultInputStream: InputStream {
-  // URLSession reads on its own thread while the uploader may close on timeout.
-  private let access = NSLock()
-  private var reader: OpaquePointer?
+/**
+ * The upload body as a bound stream pair (Apple DTS's pattern for streamed bodies): a
+ * producer thread decrypts chunks into the output side, URLSession reads the input side.
+ * An InputStream subclass is not a supported URLSession body: CFNetwork's HTTP/2 path
+ * calls -setDelegate: on it and the process died (DEV-070).
+ *
+ * Only the producer touches the reader once started, and it frees the reader on its own
+ * exit, so it is never read after it is closed (DEV-042 N5). One chunk is held back until
+ * the next read succeeds, so the final bytes leave only after the authenticated EOF.
+ * On failure the producer asks for the task to be cancelled (asynchronous, best effort)
+ * and leaves the body without its end; `stop()` closes it once the producer has exited.
+ * What guarantees no partial body counts as sent is `Content-Length`, the server's hash
+ * check at finalize, and `upload()` requiring `stop() == true`.
+ */
+private final class VaultBody: @unchecked Sendable {
+  let stream: InputStream
+  private let output: OutputStream
+  private let reader: OpaquePointer
+  private let expected: UInt64
   private let cancelled: () -> Bool
-  private var status: Stream.Status = .notOpen
+  private let state = NSLock()
+  private var started = false
+  private var stopped = false
+  private var complete = false
+  private var exited = false
+  /** Cancels the task: a short body alone is not a guaranteed failure on every protocol. */
+  var onFailure: (() -> Void)?
+  private let finished = DispatchSemaphore(value: 0)
+
   init(path: String, key: [UInt8], binding: String, hash: String, size: UInt64, cancelled: @escaping () -> Bool) throws {
-    self.cancelled = cancelled
-    reader = gp_reader_open(path, key, binding, hash, size)
-    guard reader != nil else { throw failure("VAULT_CIPHERTEXT_CORRUPT") }
-    super.init(data: Data())
+    guard let reader = gp_reader_open(path, key, binding, hash, size) else { throw failure("VAULT_CIPHERTEXT_CORRUPT") }
+    var input: InputStream?, output: OutputStream?
+    Stream.getBoundStreams(withBufferSize: Int(GP_VAULT_CHUNK_BYTES), inputStream: &input, outputStream: &output)
+    guard let input, let output else { gp_reader_close(reader); throw failure("VAULT_STREAM_FAILED") }
+    self.reader = reader; self.stream = input; self.output = output; self.expected = size; self.cancelled = cancelled
   }
-  override func open() { access.lock(); status = .open; access.unlock() }
-  override func close() {
-    access.lock(); defer { access.unlock() }
-    if let reader { gp_reader_close(reader); self.reader = nil }; status = .closed
+
+  func start() {
+    state.lock(); defer { state.unlock() }
+    guard !started, !stopped else { return }
+    started = true
+    let thread = Thread { [self] in produce() }
+    thread.name = "goproceed-vault-body"
+    thread.start()
   }
-  override var streamStatus: Stream.Status { access.lock(); defer { access.unlock() }; return status }
-  override var hasBytesAvailable: Bool { streamStatus == .open }
-  override var streamError: Error? { streamStatus == .error ? failure("VAULT_STREAM_FAILED") : nil }
-  override func read(_ buffer: UnsafeMutablePointer<UInt8>, maxLength len: Int) -> Int {
-    access.lock(); defer { access.unlock() }
-    guard !cancelled(), let reader else { status = .error; return -1 }
-    let count = Int(gp_reader_read(reader, buffer, len))
-    if count == 0 { status = .atEnd }; if count < 0 { status = .error }
-    return count
+
+  /**
+   * Stops the producer and waits for it (bounded). True only when it wrote the whole
+   * authenticated body. A producer that does not stop in time is left, never raced:
+   * the reader stays its own.
+   */
+  @discardableResult func stop() -> Bool {
+    state.lock()
+    let wasStarted = started, first = !stopped
+    stopped = true
+    state.unlock()
+    if !wasStarted {
+      if first { gp_reader_close(reader); output.close() }
+      return false
+    }
+    if first { _ = finished.wait(timeout: .now() + 2) } // the producer notices within one poll
+    state.lock(); let done = exited, ok = complete; state.unlock()
+    // A failed body was left open so the cancel, not a short body, ends the request.
+    if first && done && !ok { output.close() }
+    return ok
   }
-  override func getBuffer(_ buffer: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>, length len: UnsafeMutablePointer<Int>) -> Bool { false }
-  override func schedule(in aRunLoop: RunLoop, forMode mode: RunLoop.Mode) {}
-  override func remove(from aRunLoop: RunLoop, forMode mode: RunLoop.Mode) {}
-  deinit { close() }
+
+  private var halted: Bool {
+    state.lock(); let stop = stopped; state.unlock()
+    return stop || cancelled() // never under `state`: cancelled() takes the vault's own lock
+  }
+
+  private func produce() {
+    let capacity = Int(GP_VAULT_CHUNK_BYTES)
+    let first = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
+    let second = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
+    var current = first, next = second
+    var ok = false
+    output.open()
+    defer {
+      if ok { output.close() } else { onFailure?() }
+      gp_wipe(first, capacity); gp_wipe(second, capacity)
+      first.deallocate(); second.deallocate()
+      gp_reader_close(reader)
+      state.lock(); complete = ok; exited = true; state.unlock()
+      finished.signal()
+    }
+    var sent: UInt64 = 0
+    var held = Int(gp_reader_read(reader, current, capacity))
+    while held > 0 {
+      if halted { return }
+      // Read ahead before sending: the last chunk leaves only after the EOF authenticates.
+      let following = Int(gp_reader_read(reader, next, capacity))
+      if following < 0 { return }
+      guard write(current, count: held) else { return }
+      sent += UInt64(held)
+      gp_wipe(current, held)
+      if following == 0 { ok = sent == expected; return }
+      swap(&current, &next)
+      held = following
+    }
+    ok = held == 0 && sent == expected // an empty photo is not a valid import, but stay exact
+  }
+
+  /** Writes all bytes, never blocking: the loop must notice a stop or cancel. */
+  private func write(_ bytes: UnsafeMutablePointer<UInt8>, count: Int) -> Bool {
+    var written = 0
+    while written < count {
+      if halted || output.streamStatus == .error || output.streamStatus == .closed { return false }
+      // 5 ms keeps a slow uplink from waking this thread 1,000 times a second. It caps
+      // the body near 100 Mbit/s (64 KiB per 5 ms), above a typical field uplink.
+      if !output.hasSpaceAvailable { usleep(5_000); continue }
+      let n = output.write(bytes + written, maxLength: count - written)
+      if n <= 0 { return false }
+      written += n
+    }
+    return true
+  }
 }
 private final class VaultUploadDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, @unchecked Sendable {
   let done = DispatchSemaphore(value: 0)
