@@ -13,7 +13,10 @@ import { TW_MERGE_EXTEND } from "../../ui/src/tw-merge.generated";
  * directions: that stock tailwind-merge really still breaks these pairs (so the
  * config is not cargo cult), and that the taught instance does not.
  */
-const cn = extendTailwindMerge({ extend: TW_MERGE_EXTEND });
+// The real `cn` from `cn.ts`, not a copy built here: a copy would stay green if
+// `cn.ts` itself went back to `override` (gp-qa Q1, DEV-073).
+import { cn } from "../../ui/src/components/cn";
+const built = extendTailwindMerge({ extend: TW_MERGE_EXTEND });
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
@@ -69,6 +72,12 @@ describe("tailwind-merge is taught this theme", () => {
     expect(cn("text-data text-[13px]")).toBe("text-[13px]");
     expect(cn("h-(--gp-control-height-desk) h-(--gp-control-height-touch)"))
       .toBe("h-(--gp-control-height-touch)");
+  });
+
+  it("cn.ts extends the generated config exactly as this file does", () => {
+    for (const pair of ["text-sm text-ink", "text-sm text-data", "max-w-md max-w-content", "rounded-md rounded-panel"]) {
+      expect(cn(pair), pair).toBe(built(pair));
+    }
   });
 
   it("the config is generated, not hand-listed", () => {

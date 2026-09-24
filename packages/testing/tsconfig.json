@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
-  // tw-merge.test.ts asserts packages/ui's GENERATED override by importing the
-  // artifact itself, deliberately, rather than the package barrel — so the file
-  // has to be listed here or tsc refuses it (TS6307).
-  "include": ["src", "../ui/src/tw-merge.generated.ts"]
+  // tw-merge.test.ts asserts packages/ui's GENERATED merge config and the real
+  // `cn` that uses it (gp-qa Q1, DEV-073) by importing the files themselves,
+  // deliberately, rather than the package barrel — so both have to be listed
+  // here or tsc refuses them (TS6307).
+  "include": ["src", "../ui/src/tw-merge.generated.ts", "../ui/src/components/cn.ts"]
 }
