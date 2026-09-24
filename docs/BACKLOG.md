@@ -183,6 +183,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-152](#bl-152) | P2 | open | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
+| [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1845,3 +1846,21 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/mobile/src/screens/assignment.tsx` (the list and its closing `model.disclaimer`); `apps/mobile/src/lib/field/obligations.ts` (`buildObligationScreen`); `hidden-works-content-rules.md` §"Required disclaimers".
 - **Depends on:** nothing. The fix needs `gp-ui-reviewer` and a §6 screenshot of an obligation list with a project-sourced item, and a byte-for-byte guard against the content rules like `apps/mobile/src/lib/field/disclaimer.test.ts`.
 - **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client. *[2026-09-24, [DEV-058](tasks/DEV-058-field-project-sourced-disclaimer.md): `buildObligationScreen` exposes the note when an item's `normRef.verification` is `PROJECT_DOCUMENTATION`, and `assignment.tsx` prints it right after the довідковий text. `disclaimer.test.ts` compares it byte for byte with the content rules. Seen in the iOS simulator with fixture data only; the real route, a screen reader and Android are NOT RUN. Merged in #127 (`5c5bbb0c`, 2026-09-24).]*
+
+<a id="bl-156"></a>
+### BL-156 — P2 — The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-058's `gp-reviewer` raised this as a separate question, and the owner asked on 2026-09-24 for it to be filed. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires the довідковий disclaimer «Under every generated requirement list, never collapsed», and the project-sourced items disclaimer «only on a list that also carries project-sourced items, immediately after it». The act (`apps/app/src/lib/statutory-act-form.ts`) prints both. Since DEV-058 the native field obligation screen prints both too. Two other surfaces print requirement citations with their verification label, including «за робочою документацією об'єкта», and print neither disclaimer:
+  - the Telegram assignment card and the requirement-choice prompt. Both come from `renderRequirements` in `apps/app/src/lib/telegram/cards.ts`, a numbered «Вимоги» list with a «Джерела» block;
+  - the office's blocked-reasons list in the project money overview, where each reason shows its `normRef` with the label (`apps/app/src/components/projects/blocked-reasons-list.tsx`).
+
+  Undecided:
+  - whether each surface is a «generated requirement list» in the rules' sense. The Telegram card plainly lists requirements; the blocked-reasons list lists reasons that cite one requirement each;
+  - for Telegram, how two disclaimers of about 330 and 190 characters fit the card's 4096-character budget (`MAX_TELEGRAM_MESSAGE_CHARACTERS`), which publication already gates.
+
+  Ranked by DEV-058.
+- **Evidence:** `apps/app/src/lib/telegram/cards.ts` (`renderRequirements`, `MAX_TELEGRAM_MESSAGE_CHARACTERS`); `apps/app/src/components/projects/blocked-reasons-list.tsx` (the `normRef` paragraph); `grep -rn DOVIDKOVYI_DISCLAIMER_TEXT apps/app/src` finds only `statutory-act-form.ts`; `hidden-works-content-rules.md` §"Required disclaimers".
+- **Depends on:** a reading of the content rules for each surface, owner or `gp-architect`. Telegram needs a budget decision: one sentence per card, the disclaimers only when the list carries such items, or a link. A change needs `gp-ui-reviewer`, and a byte-for-byte guard against the content rules like `apps/app/tests/act-content-fidelity.test.ts`.
+- **Deadline:** before a pilot workspace connects a Telegram group or opens the money overview with published requirements.
