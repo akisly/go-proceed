@@ -1,7 +1,7 @@
 // Ported from apps/app/src/lib/field/obligations.ts, which DEV-035 deleted with the field PWA
 // (2026-09-23): this copy is the only one now, so fix bugs here.
 
-import { DOVIDKOVYI_DISCLAIMER_TEXT } from "./disclaimer";
+import { DOVIDKOVYI_DISCLAIMER_TEXT, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT } from "./disclaimer";
 
 // Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
 // importing the types is a backlog entry) — same
@@ -184,18 +184,30 @@ export interface ObligationScreen {
    * not composed per branch, so there is no branch that could omit it.
    */
   disclaimer: string;
+  /**
+   * hidden-works-content-rules.md §"Required disclaimers": «only on a list
+   * that also carries project-sourced items, immediately after» `disclaimer`.
+   * The text when at least one item's `normRef.verification` is
+   * `PROJECT_DOCUMENTATION`, `null` otherwise — decided here, so the screen
+   * only prints what it is given, right after `disclaimer`.
+   */
+  projectSourcedDisclaimer: string | null;
 }
 
 export function buildObligationScreen(
   response: ListRequirementOccurrencesResponse,
 ): ObligationScreen {
+  const items = response.occurrences.map(occurrenceToItem);
   return {
     workAssignmentId: response.workAssignmentId,
     contractVersionId: response.contractVersionId,
-    items: response.occurrences.map(occurrenceToItem),
+    items,
     coverage: response.coverage,
     coverageMessage: COVERAGE_MESSAGE[response.coverage],
     disclaimer: DOVIDKOVYI_DISCLAIMER_TEXT,
+    projectSourcedDisclaimer: items.some((i) => i.normRef?.verification === "PROJECT_DOCUMENTATION")
+      ? PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT
+      : null,
   };
 }
 

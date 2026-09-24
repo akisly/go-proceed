@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildObligationScreen, COVERAGE_MESSAGE } from "./obligations";
-import { DOVIDKOVYI_DISCLAIMER_TEXT } from "./disclaimer";
+import { DOVIDKOVYI_DISCLAIMER_TEXT, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT } from "./disclaimer";
 
 /**
  * Ported from apps/app/src/lib/field/obligations.test.ts, deleted with the
@@ -182,6 +182,69 @@ describe("the довідковий disclaimer — mandatory, never collapsed, im
   it("is present, byte-identical to DOVIDKOVYI_DISCLAIMER_TEXT, for every coverage value", () => {
     for (const coverage of ALL_COVERAGE) {
       const screen = buildObligationScreen(RESPONSE({ coverage, occurrences: [] }));
+      expect(screen.disclaimer).toBe(DOVIDKOVYI_DISCLAIMER_TEXT);
+    }
+  });
+});
+
+describe("the project-sourced items disclaimer — only on a list that carries such an item", () => {
+  const ALL_COVERAGE = [
+    "covered", "no_bindings", "no_matching_rule", "work_type_unresolved",
+  ] as const;
+  const citation = (verification: NormativeCitation["verification"]): NormativeCitation => ({
+    text: "Дослівний текст пункту.",
+    verification,
+    source: "Робоча документація, аркуш 3, креслення ЕМ-12",
+  });
+
+  it("is absent from an empty list, for every coverage value", () => {
+    for (const coverage of ALL_COVERAGE) {
+      const screen = buildObligationScreen(RESPONSE({ coverage, occurrences: [] }));
+      expect(screen.projectSourcedDisclaimer).toBeNull();
+    }
+  });
+
+  it("is absent when no item is project-sourced — standard citations and no citation at all", () => {
+    const screen = buildObligationScreen(RESPONSE({
+      occurrences: [
+        OCCURRENCE({ occurrenceId: "occ-1", normRef: null }),
+        OCCURRENCE({ occurrenceId: "occ-2", normRef: citation("VERIFIED_PRIMARY") }),
+        OCCURRENCE({ occurrenceId: "occ-3", normRef: citation("VERIFIED_SECONDARY") }),
+      ],
+    }));
+    expect(screen.projectSourcedDisclaimer).toBeNull();
+  });
+
+  it("is present, byte-identical to PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT, wherever the one project item sits", () => {
+    const others = [
+      OCCURRENCE({ occurrenceId: "occ-a", normRef: citation("VERIFIED_PRIMARY") }),
+      OCCURRENCE({ occurrenceId: "occ-b", normRef: null }),
+    ];
+    const project = OCCURRENCE({ occurrenceId: "occ-p", normRef: citation("PROJECT_DOCUMENTATION") });
+    for (const occurrences of [
+      [project, ...others], [others[0]!, project, others[1]!], [...others, project],
+    ]) {
+      const screen = buildObligationScreen(RESPONSE({ occurrences }));
+      // A string, not merely equal: an unexported constant and an absent field
+      // would both be undefined, and that must not pass here.
+      expect(typeof screen.projectSourcedDisclaimer).toBe("string");
+      expect(screen.projectSourcedDisclaimer).toBe(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+    }
+  });
+
+  it("is present when every item is project-sourced", () => {
+    const screen = buildObligationScreen(RESPONSE({
+      occurrences: [
+        OCCURRENCE({ occurrenceId: "occ-1", normRef: citation("PROJECT_DOCUMENTATION") }),
+        OCCURRENCE({ occurrenceId: "occ-2", normRef: citation("PROJECT_DOCUMENTATION") }),
+      ],
+    }));
+    expect(screen.projectSourcedDisclaimer).toBe(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+  });
+
+  it("never replaces the довідковий disclaimer, with or without a project item", () => {
+    for (const normRef of [null, citation("VERIFIED_SECONDARY"), citation("PROJECT_DOCUMENTATION")]) {
+      const screen = buildObligationScreen(RESPONSE({ occurrences: [OCCURRENCE({ normRef })] }));
       expect(screen.disclaimer).toBe(DOVIDKOVYI_DISCLAIMER_TEXT);
     }
   });
