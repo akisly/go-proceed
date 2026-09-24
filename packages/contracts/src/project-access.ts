@@ -56,7 +56,7 @@ export const projectCapability = z.enum([
 ]);
 export type ProjectCapabilityValue = z.infer<typeof projectCapability>;
 
-// DEV-054 / BL-148: a window must end after it starts. Both tables CHECK
+// DEV-054 / BL-149: a window must end after it starts. Both tables CHECK
 // `valid_until > valid_from` (0010), and a violation raised 23514 and became
 // 500. The schema compares the two values when both are sent, which never
 // depends on the clock; an end not after the transaction's `now()` — the start

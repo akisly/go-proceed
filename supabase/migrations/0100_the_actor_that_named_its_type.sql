@@ -1,4 +1,4 @@
--- The actor that named its type (DEV-055, BL-149).
+-- The actor that named its type (DEV-055, BL-150).
 --
 -- WHAT WAS WRONG. `app.current_actor()` (0003), `app.current_external_session()`
 -- (0049) and `app.service_workspace()` (0062) are small invoker SQL functions
@@ -18,7 +18,7 @@
 -- comment. A SET clause would have fixed the path and stopped the inlining.
 --
 -- WHAT THIS DOES NOT CHANGE. Unqualified type names in the bodies of the
--- definer functions themselves (casts and plpgsql declarations; BL-151), and
+-- definer functions themselves (casts and plpgsql declarations; BL-152), and
 -- PUBLIC's TEMP privilege on the database (a separate decision).
 --
 -- Rollback: re-create the three with their original bodies (0003:68-71,

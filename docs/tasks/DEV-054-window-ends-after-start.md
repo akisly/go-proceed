@@ -1,4 +1,4 @@
-# DEV-054 — BL-148: a grant or assignment window that ends before it starts is 422, not 500
+# DEV-054 — BL-149: a grant or assignment window that ends before it starts is 422, not 500
 
 ## Assignment
 
@@ -8,9 +8,9 @@
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a validation defect on two existing `/v1` commands, found by DEV-051's `gp-architect`: failing test → contract → `gp-reviewer` → `gp-qa`. The request shape and the error code are unchanged, so `gp-architect` is not re-run.
 - **Triggered stages and why:** none beyond `gp-reviewer` and `gp-qa`. `gp-security`: not triggered (no RLS, grant, auth, secret or personal-data path; a request that failed with 500 now fails with 422 earlier). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (Zod 4's `superRefine` is the pattern already installed, `^4.4.3`).
-- **Owning module and allowed edit paths:** `packages/contracts/src/project-access.ts` and its test; `apps/app/src/lib/grant-window.ts` (new); the grant and assign routes; `apps/app/tests/project-access-dates.int.test.ts` (new); `docs/BACKLOG.md` (BL-148); this record; `docs/tasks/README.md`.
+- **Owning module and allowed edit paths:** `packages/contracts/src/project-access.ts` and its test; `apps/app/src/lib/grant-window.ts` (new); the grant and assign routes; `apps/app/tests/project-access-dates.int.test.ts` (new); `docs/BACKLOG.md` (BL-149); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; `supabase/migrations/0010_workspace_access_module.sql` (the two CHECKs); `apps/app/src/lib/command.ts` (the body parse and its `fieldErrors`); the grant and assign routes.
-- **Linked spec, ADR or earlier task:** BL-148, found by [DEV-051](DEV-051-last-admin-records.md)'s `gp-architect`; cluster DEV-047 to DEV-054.
+- **Linked spec, ADR or earlier task:** BL-149, found by [DEV-051](DEV-051-last-admin-records.md)'s `gp-architect`; cluster DEV-047 to DEV-054.
 - **Baseline:** `18319158` (DEV-050); DEV-051's change touches none of these files.
 - **Dependencies / constraints / out of scope:** a past `validFrom` on an assignment stays accepted, as before, and so does a window entirely in the past when both dates are sent (the CHECK compares only the two).
 - **Required acceptance criteria:**
@@ -29,7 +29,7 @@
 
 1. Failing integration test for both routes.
 2. One refinement shared by both request schemas.
-3. BL-148 filed and scheduled.
+3. BL-149 filed and scheduled.
 
 ## Progress and decisions
 
@@ -49,7 +49,7 @@
 |---|---|---|---|---|---|
 | R1-01 | major | the schema's `Date.now()` branch; `command.ts` parses before the replay lookup | a replay after the end passed got 422 instead of the stored 201 | coordinator | fixed: the check moved into `withIdempotency`'s body (`grant-window.ts`), compared with the transaction's `now()`; the replay case in the dates suite |
 | R1-02 | minor | `endsAfterStart` | a malformed date produced a second issue, and a malformed `validFrom` blamed `validUntil` | coordinator | fixed: NaN guard; contract case «a malformed date is reported once» |
-| R1-03 | minor | the record; BL-148 | a past-end grant that wrote nothing answered 201 and is now 422 | coordinator | recorded in the objective and BL-148; the check runs first; pinned by the repeat case (R2-01) |
+| R1-03 | minor | the record; BL-149 | a past-end grant that wrote nothing answered 201 and is now 422 | coordinator | recorded in the objective and BL-149; the check runs first; pinned by the repeat case (R2-01) |
 | R2-01 | minor | the R1-03 test | the view-only case was already 422 at the baseline (DEV-049's rule), so it could not tell the change | coordinator | fixed: replaced by a repeat of the held `contracts.edit` with a past end, which answered 201 at the baseline; asserts the row count unchanged |
 | R2-02 | minor | the replay test | the host clock chose the end and the wait while the routes compare with the database's | coordinator | fixed: `until` from the database's `now()`; the wait polls the database until the end has passed |
 | R2-03 | minor | criterion 1's wording | overstated which cases were red at the baseline | coordinator | fixed in criterion 1 |
@@ -74,7 +74,7 @@ Rework count and hypothesis changes: one rework after R1 (the clock check moved 
 
 ## Completion / handoff
 
-- Changed / inspected files: the two request schemas and their tests, `apps/app/src/lib/grant-window.ts`, the grant and assign routes, the new dates suite, BL-148, this record and the task index.
+- Changed / inspected files: the two request schemas and their tests, `apps/app/src/lib/grant-window.ts`, the grant and assign routes, the new dates suite, BL-149, this record and the task index.
 - Review independence: `gp-reviewer` (two rounds) and `gp-qa` ran as independent native subagents.
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task».

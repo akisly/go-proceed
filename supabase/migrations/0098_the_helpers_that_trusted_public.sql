@@ -19,7 +19,7 @@
 -- the bodies' qualified table names — not the path — are what keep a temporary
 -- table from masking `public.memberships` or `public.project_access_grants`. A type name is
 -- the exception: the inlined `app.current_actor()` casts to an unqualified
--- `uuid`, which a session's temporary schema can shadow (pre-existing; BL-149). It copies no body, so it keeps each function's owner, its EXECUTE
+-- `uuid`, which a session's temporary schema can shadow (pre-existing; BL-150). It copies no body, so it keeps each function's owner, its EXECUTE
 -- grants and its volatility; a definer function with a SET clause was never
 -- inlined, so plans do not change. The assertion below fails the migration if
 -- any of the three is not a definer with exactly the empty path afterwards, or

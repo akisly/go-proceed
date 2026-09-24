@@ -31,7 +31,7 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       },
     }, async () => {
-      // DEV-054 / BL-148: first, so an end already past is 422 even where the grant would be a no-op.
+      // DEV-054 / BL-149: first, so an end already past is 422 even where the grant would be a no-op.
       await refuseEndNotAfterNow(tx, a.requestId, a.body.validUntil);
       // Target must be an ACTIVE membership of the same workspace.
       const target = await tx.query(
@@ -98,7 +98,7 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
         await insert(cap, a.body.validUntil ?? null);
       }
       // gp-security S1-02: only the actions actually inserted widen the view. A
-      // requested action skipped as a held duplicate (BL-146) does not.
+      // requested action skipped as a held duplicate (BL-147) does not.
       const insertedActions = granted.length > 0;
 
       // project.view: needed when the member holds or is now granted an

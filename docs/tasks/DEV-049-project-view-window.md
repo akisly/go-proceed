@@ -8,11 +8,11 @@
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** an access rule on an existing `/v1` command, designed by `gp-architect` → failing test → route and invariant → `gp-reviewer` + `gp-security` → `gp-qa`.
 - **Triggered stages and why:** `gp-architect` (a capability rule on `project_access.grant`); `gp-security` (the grant writes `revoked_at` on the member's view and widens nothing else; authorization of a command that grants access). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered.
-- **Owning module and allowed edit paths:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts`; `apps/app/tests/project-access-grant.int.test.ts` (new); `technical/database/invariant-catalog.csv` (INV-111); `docs/BACKLOG.md` (BL-140, BL-146); this record; `docs/tasks/README.md`.
+- **Owning module and allowed edit paths:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts`; `apps/app/tests/project-access-grant.int.test.ts` (new); `technical/database/invariant-catalog.csv` (INV-111); `docs/BACKLOG.md` (BL-140, BL-147); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`, `apps/app/AGENTS.md`; ADR-014 decision 1; `supabase/migrations/0010`, `0011`, `0096`; INV-111; `apps/app/src/lib/project-access-lock.ts`.
 - **Linked spec, ADR or earlier task:** BL-140, filed by [DEV-043](DEV-043-project-access-revoke.md); INV-111; cluster DEV-047 to DEV-053.
 - **Baseline:** `31eaf36` (DEV-048) on `origin/main` `20f2b67`.
-- **Dependencies / constraints / out of scope:** no migration. The Telegram evidence resolver (`0084`) still checks `evidence.record` alone; with the grant rule, a product-written member can no longer hold it past their view, so the resolver is left to BL-024. Re-granting a lapsed *action* capability is still skipped as a duplicate (BL-146).
+- **Dependencies / constraints / out of scope:** no migration. The Telegram evidence resolver (`0084`) still checks `evidence.record` alone; with the grant rule, a product-written member can no longer hold it past their view, so the resolver is left to BL-024. Re-granting a lapsed *action* capability is still skipped as a duplicate (BL-147).
 - **Required acceptance criteria:**
   1. `apps/app/tests/project-access-grant.int.test.ts` (truncates nothing; its own `de48…` workspace) fails at the baseline and passes after the change. The cases: a covering undated view is left alone; a view ending tomorrow is replaced by an undated one for an undated action, the old one is revoked, and the audit record names it; a view is extended to a dated action's end; the view covers the member's other unexpired actions too; a lapsed unrevoked view is re-granted; a view-only grant ending before the actions is 422 on `validUntil` and writes nothing; a lapsed action does not hold the view open; a covering view is never shortened.
   2. `project-access-revoke.int.test.ts` and the suites that drive the grant route still pass (the cluster's final run).
@@ -31,7 +31,7 @@
 
 1. Failing test: the eight cases above.
 2. The route: compute the member's required view end from unexpired actions and the ones requested; refuse a short view-only grant; insert actions as before; keep, or revoke and replace, `project.view`; name replaced ids in the audit record.
-3. INV-111; BL-140 scheduled; BL-146 filed.
+3. INV-111; BL-140 scheduled; BL-147 filed.
 
 ## Progress and decisions
 
@@ -40,7 +40,7 @@
 | 1 | gp-architect | Align the view's window under the existing member lock; a view-only grant ending before live actions is 422; no migration, no ADR (it strengthens «an action capability adds view» inside the existing operation) | architect report, 2026-09-24 | failing test |
 | 2 | coordinator | Red: 5 failed, 3 passed (the three that pass are guards: a covering view left alone, a lapsed action, never shortened) | `scratchpad/dev048-red.txt` (HEAD `31eaf36` + the test) | route |
 | 3 | coordinator | Green: 8 passed on three consecutive runs; the first run after the change timed out in `beforeAll` (10 s) with no lock waiter visible afterwards (only an autovacuum of `pg_class`), recorded, not explained. `tsc --noEmit -p apps/app` exit 0 | `scratchpad/dev048-green.txt` | catalogs, review |
-| 4 | coordinator | Re-granting a lapsed, unrevoked *action* capability is still skipped as a duplicate, and a re-grant never extends an action's window; outside BL-140, filed as BL-146 | `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the duplicate check) | — |
+| 4 | coordinator | Re-granting a lapsed, unrevoked *action* capability is still skipped as a duplicate, and a re-grant never extends an action's window; outside BL-140, filed as BL-147 | `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the duplicate check) | — |
 | 5 | coordinator | The commit (`0d0968d`) was made before its review stages ran; `gp-reviewer` and `gp-security` ran late on `git show 0d0968d4`, 2026-09-24 | `scratchpad/dev048.diff` | reviews |
 | 6 | gp-reviewer | R1 HOLD on R1-01 medium (a view not yet valid — a concurrent grant's — was revoked and could be replaced by a shorter one); R1-02, R1-03 low | reviewer report, 2026-09-24 | fixes |
 | 7 | gp-security | S1 PASS: S1-01 low (a short action grant can silently give an undated view; owner's choice), S1-02 low (a skipped lapsed duplicate still widened the view), S1-03 low (the audit event lacked the view change); S1-04, S1-05 info | security report, 2026-09-24 | fixes, owner |
@@ -58,7 +58,7 @@
 | R1-02 | low | the grant suite | the not-yet-valid case missing; the lapsed-action case did not check the view's end | coordinator | fixed: both |
 | R1-03 | low | the action insert | a millisecond `Date` replaced the request's string | coordinator | fixed: the string is written |
 | S1-01 | low | the window alignment | an action granted for a day can give the member an undated view if they hold an undated action, silently | owner | owner chose «Раскрывать»: each granted row in the response carries `validUntil`; test «each granted row names the end it was written with» |
-| S1-02 | low | the window computation | a requested action skipped as a lapsed duplicate (BL-146) still widened the view | coordinator | fixed: only inserted actions and an explicit view request count; test |
+| S1-02 | low | the window computation | a requested action skipped as a lapsed duplicate (BL-147) still widened the view | coordinator | fixed: only inserted actions and an explicit view request count; test |
 | S1-03 | low | the audit event | no record of the view change or the window asked for | coordinator | fixed: `grantIds`, `validUntil`, `view` |
 | S1-04 | info | INV-111; this record | rows written before DEV-049 can still be in the BL-140 state until the next grant to that member | coordinator | INV-111 «Not covered» and «What is not true» amended |
 | S1-05 | info | time precision | a microsecond end can be covered by a view 1 ms short | coordinator | corrected: R1-03 created the new source (R2-01), which the round-2 fix removes; rows written before still carry it |
@@ -81,7 +81,7 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 - A future-dated view or action written outside the product is started early by the next grant (gp-security S2-02).
 - Grant rows written outside the product (a superuser session, the fixtures) can still leave an action without a covering view.
 - The Telegram evidence resolver still checks `evidence.record` alone (BL-024).
-- Re-granting a lapsed action capability is still a silent no-op (BL-146).
+- Re-granting a lapsed action capability is still a silent no-op (BL-147).
 
 ## Acceptance evidence
 
@@ -97,7 +97,7 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 
 ## Completion / handoff
 
-- Changed / inspected files: the grant route, its suite, the grant response type, INV-111, BL-140, BL-146, this record.
+- Changed / inspected files: the grant route, its suite, the grant response type, INV-111, BL-140, BL-147, this record.
 - Review independence: `gp-reviewer` (two rounds), `gp-security` (two rounds) and `gp-qa` ran late, as independent native subagents, after the commit; rows 5–12.
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task».

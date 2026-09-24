@@ -533,7 +533,7 @@ describe("the workspace-access helpers pin an empty search_path (DEV-047)", () =
 });
 
 /**
- * DEV-055 / BL-149 (migration 0100): the SQL helpers that definer functions
+ * DEV-055 / BL-150 (migration 0100): the SQL helpers that definer functions
  * inline — `app.current_actor()`, `app.current_external_session()`,
  * `app.service_workspace()` — name `pg_catalog.uuid` and
  * `pg_catalog.current_setting`. An inlined helper is parsed under its caller's
@@ -543,7 +543,7 @@ describe("the workspace-access helpers pin an empty search_path (DEV-047)", () =
  *
  * The regression case creates that object in a transaction it rolls back.
  */
-describe("the inlined helpers name their types (DEV-055, BL-149)", () => {
+describe("the inlined helpers name their types (DEV-055, BL-150)", () => {
   const HELPERS = ["app.current_actor()", "app.current_external_session()", "app.service_workspace()"];
 
   it("each stays an inlinable invoker SQL STABLE function and names pg_catalog.uuid and pg_catalog.current_setting", async () => {
@@ -575,7 +575,7 @@ describe("the inlined helpers name their types (DEV-055, BL-149)", () => {
 
   it("a temporary object named uuid does not change what the owner of A reads", async () => {
     // The application's own connection: PUBLIC holds TEMP on the database, so it can create one.
-    // Revoking TEMP from PUBLIC (BL-151) must rewrite this case.
+    // Revoking TEMP from PUBLIC (BL-152) must rewrite this case.
     const c = appClient();
     await c.connect();
     try {

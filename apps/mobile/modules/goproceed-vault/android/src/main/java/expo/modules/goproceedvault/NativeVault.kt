@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.system.Os
@@ -17,6 +18,8 @@ import java.security.KeyStore
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -24,6 +27,11 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.net.ssl.HttpsURLConnection
 
 private const val MAXIMUM_BYTES = 20L * 1024 * 1024
+// HttpsURLConnection has no write timeout: bound the whole transfer, as iOS does.
+private const val TRANSFER_DEADLINE_MS = 185_000L
+private const val KEY_PREFIX = "goproceed.vault."
+// An item key (owner hash + item id) or an earlier build's per-identity key; never the self-test alias.
+private val KEY_ALIAS = Regex(Regex.escape(KEY_PREFIX) + "[0-9a-f]{64}(?:\\.([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?")
 private fun fail(code: String): Nothing = throw IllegalStateException(code)
 private fun text(data: JSONObject, key: String): String {
   val value = data.opt(key) as? String ?: fail("VAULT_INVALID_ARGUMENT")
@@ -39,26 +47,53 @@ private fun hash(value: String) = MessageDigest.getInstance("SHA-256").digest(va
 private fun owner(item: JSONObject) = hash(text(item, "subjectId") + "\n" + text(item, "workspaceId"))
 private fun binding(item: JSONObject) = listOf("subjectId", "workspaceId", "id", "assignmentId", "occurrenceId", "originMethod", "mimeType", "claimedCaptureTime", "sourceAppVersion").joinToString("\n") { text(item, it) }
 
-internal class NativeVault(private val context: Context) {
-  private val lock = Any()
+internal class NativeVault private constructor(private val context: Context) {
+  companion object {
+    @Volatile private var instance: NativeVault? = null
+    /**
+     * One vault per process: its lock guards the journal and the key sweep. A JS reload
+     * creates a new module while the old one may still be importing; a second instance
+     * would sweep a key between its generation and the journal write.
+     */
+    fun shared(context: Context): NativeVault = instance ?: synchronized(this) {
+      instance ?: NativeVault(context.applicationContext).also { instance = it }
+    }
+  }
+  // Journal lock. Reentrant so upload() can release it (held exactly once by call())
+  // for the transfer and take it back.
+  private val lock = ReentrantLock()
   private val cancellation = Any()
+  // Identity generation changes only with authenticate/quarantine, so an import
+  // survives backgrounding; the upload generation also changes on a plain pause.
   @Volatile private var generation = 0L
+  @Volatile private var uploadGeneration = 0L
   @Volatile private var identity: JSONObject? = null
   @Volatile private var connection: HttpsURLConnection? = null
+  @Volatile private var connectionId: String? = null
   private var database: SQLiteDatabase? = null
   private val root = File(context.noBackupFilesDir, "goproceed-vault")
   private var origins = emptySet<String>()
   private var initialized = false
 
+  /** Lock-only: never waits behind a running call. */
   fun cancel(quarantine: Boolean) {
-    synchronized(cancellation) { generation++; if (quarantine) identity = null }
-    connection?.disconnect()
+    val running = synchronized(cancellation) {
+      uploadGeneration++
+      if (quarantine) { generation++; identity = null }
+      connection
+    }
+    disconnectLater(running)
   }
+  /** A socket or TLS close can block; never on the caller's (JS) thread. */
+  private fun disconnectLater(running: HttpsURLConnection?) {
+    if (running != null) Thread({ runCatching { running.disconnect() } }, "goproceed-vault-cancel").start()
+  }
+  private fun uploadVersion() = synchronized(cancellation) { listOf(generation, uploadGeneration) }
   private fun actor() = identity ?: fail("VAULT_AUTH_REQUIRED")
   private fun file(id: String, suffix: String = ".vault") = File(root, id + suffix)
   private fun publicItem(item: JSONObject): JSONObject = JSONObject(item.toString()).also { it.remove("wrappedKey"); it.remove("keyIV") }
 
-  fun call(operation: String, payload: String): String = synchronized(lock) {
+  fun call(operation: String, payload: String): String = lock.withLock {
     try {
       openJournal()
       val input = JSONObject(payload)
@@ -67,14 +102,29 @@ internal class NativeVault(private val context: Context) {
         "initialize" -> {
           val values = input.optJSONArray("storageOrigins") ?: fail("VAULT_INVALID_ORIGIN")
           if (values.length() == 0) fail("VAULT_INVALID_ORIGIN")
-          origins = (0 until values.length()).map { origin(values.getString(it), true) }.toSet(); initialized = true
+          val allowed = (0 until values.length()).map { origin(values.getString(it), true) }.toSet()
+          // Fail closed at start, not after the shutter: load the native library and
+          // round-trip a few bytes through it before reporting ready. A failed re-run
+          // leaves the vault uninitialized.
+          initialized = false
+          selfTest()
+          origins = allowed; initialized = true
         }
         "authenticate" -> {
           val next = JSONObject().put("subjectId", uuid(input, "subjectId")).put("workspaceId", uuid(input, "workspaceId"))
-          if (identity == null || owner(identity!!) != owner(next)) quarantineRows()
-          synchronized(cancellation) { identity = next; generation++ }
+          // One read: cancel(true) may null it concurrently from the JS thread.
+          val previous = synchronized(cancellation) { identity }
+          val changed = previous == null || owner(previous) != owner(next)
+          if (changed) quarantineRows()
+          val running = synchronized(cancellation) { identity = next; generation++; uploadGeneration++; if (changed) connection else null }
+          disconnectLater(running)
         }
-        "quarantine" -> quarantineRows()
+        "quarantine" -> {
+          // Close the identity here too, so an authenticate reordered before it cannot leave it open.
+          val running = synchronized(cancellation) { identity = null; generation++; uploadGeneration++; connection }
+          disconnectLater(running)
+          quarantineRows()
+        }
         "list" -> result = JSONArray(rows(owner(actor())).filter { it.optString("state") != "server_confirmed" }.map(::publicItem))
         "importPhoto" -> result = publicItem(importPhoto(input))
         "restore" -> rows(owner(actor())).filter { it.optString("state") == "quarantined" }.forEach {
@@ -116,16 +166,57 @@ internal class NativeVault(private val context: Context) {
               item.put("state", "server_confirmed").put("receiptConfirmedAt", Instant.now().toString()); persist(item)
               cleanup(item)
             }
-            "discard" -> { if (input.optBoolean("confirmed") != true) fail("VAULT_CONFIRMATION_REQUIRED"); remove(item) }
+            "discard" -> {
+              if (input.optBoolean("confirmed") != true) fail("VAULT_CONFIRMATION_REQUIRED")
+              // Bytes already accepted by storage may still be finalized: «not received» would be false.
+              if (item.optString("state") == "awaiting_receipt") fail("VAULT_ITEM_LOCKED")
+              // A discard promises the server never gets the photo: stop its transfer first.
+              val running = synchronized(cancellation) { if (connectionId == id) { uploadGeneration++; connection } else null }
+              disconnectLater(running)
+              remove(item)
+            }
             else -> fail("VAULT_UNKNOWN_OPERATION")
           }
         }
       }
       if (result === JSONObject.NULL) "null" else result.toString()
-    } catch (error: Exception) {
+    } catch (error: Throwable) {
       // Network errors may include signed URLs. Never bridge their messages.
+      // Throwable: a missing native library is an Error (UnsatisfiedLinkError).
+      if (error is UnsatisfiedLinkError || error is ExceptionInInitializerError || error is NoClassDefFoundError) {
+        throw IllegalStateException("VAULT_CRYPTO_UNAVAILABLE")
+      }
       val message = error.message.orEmpty()
       throw IllegalStateException(if (Regex("^VAULT_[A-Z_]+$").matches(message)) message else "VAULT_OPERATION_FAILED")
+    }
+  }
+  private fun selfTest() {
+    val probe = File(root, "selftest.probe"); val sealed = File(root, "selftest.sealed")
+    // A process killed mid-test leaves these; encrypt opens its output with O_EXCL.
+    probe.delete(); sealed.delete()
+    val key = VaultCrypto.key()
+    try {
+      probe.writeBytes(ByteArray(4096) { it.toByte() })
+      val result = VaultCrypto.encrypt(probe.path, sealed.path, key, "selftest", 8192).split('|')
+      if (result.size != 2 || !VaultCrypto.verify(sealed.path, key, "selftest", result[0], result[1].toLong())) fail("VAULT_CRYPTO_UNAVAILABLE")
+      keystoreSelfTest(key)
+    } finally { key.fill(0); probe.delete(); sealed.delete() }
+  }
+  /** Keystore is first needed at import, after the shutter: prove it works before reporting ready. */
+  private fun keystoreSelfTest(key: ByteArray) {
+    val alias = KEY_PREFIX + "selftest"
+    try {
+      val secret = generateWrappingKey(alias)
+      val sealer = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, secret) }
+      val wrapped = sealer.doFinal(key)
+      val opener = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, secret, GCMParameterSpec(128, sealer.iv)) }
+      val opened = opener.doFinal(wrapped)
+      try { if (!opened.contentEquals(key)) fail("VAULT_KEYSTORE_UNAVAILABLE") } finally { opened.fill(0) }
+    } catch (error: Exception) {
+      if (error.message == "VAULT_KEYSTORE_UNAVAILABLE") throw error
+      fail("VAULT_KEYSTORE_UNAVAILABLE")
+    } finally {
+      runCatching { KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(alias) }
     }
   }
   private fun openJournal() {
@@ -134,7 +225,8 @@ internal class NativeVault(private val context: Context) {
     val db = SQLiteDatabase.openDatabase(File(root, "journal.sqlite").path, null, SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING)
     database = db
     try {
-      db.execSQL("PRAGMA synchronous=FULL"); db.execSQL("PRAGMA secure_delete=ON")
+      // PRAGMAs that return a row are refused by execSQL; read them through rawQuery.
+      for (pragma in listOf("PRAGMA synchronous=FULL", "PRAGMA secure_delete=ON")) db.rawQuery(pragma, null).use { it.moveToFirst() }
       db.execSQL("CREATE TABLE IF NOT EXISTS captures(id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL)")
       db.execSQL("CREATE INDEX IF NOT EXISTS captures_owner ON captures(owner)")
       rows(null).forEach {
@@ -147,7 +239,23 @@ internal class NativeVault(private val context: Context) {
       root.listFiles()?.filter { it.extension in listOf("part", "vault", "import") }?.forEach {
         if (it.extension != "vault" || it.nameWithoutExtension !in retained) { if (!it.delete()) fail("VAULT_CLEANUP_FAILED") }
       }
+      sweepKeys(retained)
     } catch (error: Exception) { db.close(); database = null; throw error }
+  }
+  /**
+   * A key whose row is gone (a process killed between key generation and the
+   * journal write, or a per-identity key from an earlier build) opens nothing and
+   * is deleted. Best effort: the next start tries again.
+   */
+  private fun sweepKeys(retained: Set<String>) {
+    runCatching {
+      val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+      for (alias in store.aliases().toList()) {
+        val match = KEY_ALIAS.matchEntire(alias) ?: continue
+        val id = match.groupValues[1]
+        if (id.isEmpty() || id !in retained) runCatching { store.deleteEntry(alias) }
+      }
+    }
   }
   private fun rows(owner: String?): List<JSONObject> {
     val rows = mutableListOf<JSONObject>()
@@ -171,42 +279,74 @@ internal class NativeVault(private val context: Context) {
   private fun quarantineRows() {
     rows(null).filter { it.optString("state") !in listOf("server_confirmed", "discarded", "importing") }.forEach { it.put("state", "quarantined"); persist(it) }
   }
+  // One key per item, as on iOS: deleting the item deletes the only key that opens it.
+  private fun alias(item: JSONObject) = KEY_PREFIX + owner(item) + "." + uuid(item, "id")
   private fun wrappingKey(item: JSONObject, create: Boolean): SecretKey {
-    val alias = "goproceed.vault." + owner(item)
+    val alias = alias(item)
     val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     (store.getKey(alias, null) as? SecretKey)?.let { return it }
     if (!create) fail("VAULT_KEY_UNAVAILABLE")
+    return generateWrappingKey(alias)
+  }
+  private fun generateWrappingKey(alias: String): SecretKey {
     val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-    generator.init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+    val spec = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
       .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-      .setKeySize(256).setRandomizedEncryptionRequired(true).build())
+      .setKeySize(256).setRandomizedEncryptionRequired(true)
+    // Usable only while the phone is unlocked, like iOS WhenUnlockedThisDeviceOnly. Android
+    // 12–14 cannot create such keys without a secure lock screen and delete them when it
+    // is removed; the platform documentation says to use it on Android 15 and later only.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) spec.setUnlockedDeviceRequired(true)
+    generator.init(spec.build())
     return generator.generateKey()
   }
+  // Error codes as on iOS: a store that cannot seal is unavailable; a key that cannot open is gone.
   private fun wrap(key: ByteArray, item: JSONObject) {
-    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-    cipher.init(Cipher.ENCRYPT_MODE, wrappingKey(item, true)); cipher.updateAAD(binding(item).toByteArray(Charsets.UTF_8))
-    item.put("wrappedKey", Base64.encodeToString(cipher.doFinal(key), Base64.NO_WRAP)).put("keyIV", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+    val sealed = try {
+      val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+      cipher.init(Cipher.ENCRYPT_MODE, wrappingKey(item, true)); cipher.updateAAD(binding(item).toByteArray(Charsets.UTF_8))
+      cipher.doFinal(key) to cipher.iv
+    } catch (error: Exception) { fail("VAULT_KEYSTORE_UNAVAILABLE") }
+    item.put("wrappedKey", Base64.encodeToString(sealed.first, Base64.NO_WRAP)).put("keyIV", Base64.encodeToString(sealed.second, Base64.NO_WRAP))
   }
   private fun unwrap(item: JSONObject): ByteArray {
-    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-    cipher.init(Cipher.DECRYPT_MODE, wrappingKey(item, false), GCMParameterSpec(128, Base64.decode(item.getString("keyIV"), Base64.NO_WRAP)))
-    cipher.updateAAD(binding(item).toByteArray(Charsets.UTF_8))
-    val key = cipher.doFinal(Base64.decode(item.getString("wrappedKey"), Base64.NO_WRAP))
-    if (key.size != 32) fail("VAULT_KEY_UNAVAILABLE")
+    val key = try {
+      val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+      cipher.init(Cipher.DECRYPT_MODE, wrappingKey(item, false), GCMParameterSpec(128, Base64.decode(item.getString("keyIV"), Base64.NO_WRAP)))
+      cipher.updateAAD(binding(item).toByteArray(Charsets.UTF_8))
+      cipher.doFinal(Base64.decode(item.getString("wrappedKey"), Base64.NO_WRAP))
+    } catch (error: Exception) { fail("VAULT_KEY_UNAVAILABLE") }
+    if (key.size != 32) { key.fill(0); fail("VAULT_KEY_UNAVAILABLE") }
     return key
   }
   private fun cleanup(item: JSONObject) {
     val id = uuid(item, "id")
+    // The key goes first, as on iOS: without it the ciphertext and any old WAL copy of
+    // the wrapped key open nothing. A failure keeps the row, so the next start retries.
+    try {
+      // A key already gone is success (iOS accepts errSecItemNotFound); some stores throw for it.
+      val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+      val alias = alias(item)
+      if (store.containsAlias(alias)) store.deleteEntry(alias)
+    } catch (error: Exception) { fail("VAULT_KEYSTORE_UNAVAILABLE") }
     for (suffix in listOf(".vault", ".part", ".import")) {
       val target = file(id, suffix)
       if (target.exists() && !target.delete()) fail("VAULT_CLEANUP_FAILED")
     }
-    if (database!!.delete("captures", "id=? AND owner=?", arrayOf(id, owner(item))) != 1) fail("VAULT_JOURNAL_WRITE_FAILED")
+    val db = database!!
+    if (db.delete("captures", "id=? AND owner=?", arrayOf(id, owner(item))) != 1) fail("VAULT_JOURNAL_WRITE_FAILED")
+    // secure_delete clears the database pages; the WAL keeps old frames until a checkpoint.
+    // Best effort: the row is already gone and the key with it, so never report a failure.
+    runCatching { db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() } }
   }
   private fun remove(item: JSONObject) { item.put("state", "discarded"); persist(item); cleanup(item) }
   private fun importPhoto(input: JSONObject): JSONObject {
     if (!initialized) fail("VAULT_NOT_INITIALIZED")
-    val actor = actor(); val version = generation
+    // Identity and generation read together, and checked against what the caller authorized.
+    val (current, version) = synchronized(cancellation) { identity to generation }
+    val actor = current ?: fail("VAULT_AUTH_REQUIRED")
+    if (actor.getString("subjectId") != input.optString("expectedSubjectId").lowercase()
+      || actor.getString("workspaceId") != input.optString("expectedWorkspaceId").lowercase()) fail("VAULT_IDENTITY_CHANGED")
     val uri = Uri.parse(input.getString("uri"))
     if (uri.scheme != "file" || uri.authority?.isNotEmpty() == true) fail("VAULT_INVALID_IMPORT")
     val source = File(uri.path ?: fail("VAULT_INVALID_IMPORT")).canonicalFile
@@ -229,7 +369,8 @@ internal class NativeVault(private val context: Context) {
       if (!source.renameTo(staging)) fail("VAULT_IMPORT_FAILED")
       val result = VaultCrypto.encrypt(staging.path, file(id, ".part").path, key, binding(item), minOf(cap, MAXIMUM_BYTES)).split('|')
       if (!file(id, ".part").renameTo(file(id))) fail("VAULT_IMPORT_FAILED")
-      val fd = Os.open(root.path, OsConstants.O_RDONLY or OsConstants.O_DIRECTORY, 0)
+      // android.system.OsConstants has no O_DIRECTORY; a read-only open of a directory is enough for fsync.
+      val fd = Os.open(root.path, OsConstants.O_RDONLY, 0)
       try { Os.fsync(fd) } finally { Os.close(fd) }
       item.put("sha256", result[0]).put("byteSize", result[1].toLong()).put("state", if (generation == version) "not_sent" else "quarantined")
       persist(item)
@@ -253,9 +394,11 @@ internal class NativeVault(private val context: Context) {
     if (!item.has("intentId") || origin(raw) !in origins) fail("VAULT_INVALID_UPLOAD")
     val headers = input.getJSONObject("headers")
     headers.keys().forEach { if (it.lowercase() != "content-type" || headers.getString(it) != item.getString("mimeType")) fail("VAULT_INVALID_UPLOAD_HEADER") }
-    val id = uuid(item, "id"); val key = unwrap(item); val version = generation
+    val id = uuid(item, "id"); val key = unwrap(item); val version = uploadVersion()
     var reader = 0L
     var request: HttpsURLConnection? = null
+    var claimed = false
+    var outcome: Int? = null
     try {
       if (!VaultCrypto.verify(file(id).path, key, binding(item), item.getString("sha256"), item.getLong("byteSize"))) fail("VAULT_CIPHERTEXT_CORRUPT")
       reader = VaultCrypto.open(file(id).path, key, binding(item), item.getString("sha256"), item.getLong("byteSize"))
@@ -265,25 +408,53 @@ internal class NativeVault(private val context: Context) {
       request.requestMethod = "PUT"; request.doOutput = true
       request.setFixedLengthStreamingMode(item.getLong("byteSize"))
       request.setRequestProperty("Content-Type", item.getString("mimeType"))
-      item.put("state", "sending"); persist(item)
-      synchronized(cancellation) { if (generation != version || identity == null) fail("VAULT_CANCELLED"); connection = request }
-      request.outputStream.use { output ->
-        while (true) {
-          if (generation != version) fail("VAULT_CANCELLED")
-          val chunk = VaultCrypto.read(reader)
-          try { if (chunk.isEmpty()) break; output.write(chunk) } finally { chunk.fill(0) }
-        }
-        output.flush()
+      // One transfer slot natively, not only by the JavaScript single-flight.
+      synchronized(cancellation) {
+        if (connection != null) fail("VAULT_UPLOAD_BUSY")
+        if (listOf(generation, uploadGeneration) != version || identity == null) fail("VAULT_CANCELLED")
+        connection = request; connectionId = id; claimed = true
       }
-      if (generation != version) fail("VAULT_CANCELLED")
-      val status = request.responseCode
-      item.put("state", if (status in 200..299) "awaiting_receipt" else "failed"); persist(item)
+      item.put("state", "sending"); persist(item)
+      // Created before the journal is released: a thread that cannot start must not
+      // leave the lock unowned.
+      val watchdog = java.util.Timer("goproceed-vault-deadline", true)
+      watchdog.schedule(object : java.util.TimerTask() {
+        // A deadline is a failed send (retryable), not a cancellation: only disconnect.
+        override fun run() { disconnectLater(request) }
+      }, TRANSFER_DEADLINE_MS)
+      // The journal is released for the transfer so imports, listing and quarantine
+      // are not held behind a slow network. call() holds the lock exactly once here.
+      lock.unlock()
+      try {
+        outcome = runCatching {
+          request.outputStream.use { output ->
+            while (true) {
+              if (uploadVersion() != version) fail("VAULT_CANCELLED")
+              val chunk = VaultCrypto.read(reader)
+              try { if (chunk.isEmpty()) break; output.write(chunk) } finally { chunk.fill(0) }
+            }
+            output.flush()
+          }
+          if (uploadVersion() != version) fail("VAULT_CANCELLED")
+          request.responseCode
+        }.getOrNull()
+      } finally {
+        // A close can block: do it before taking the journal back.
+        watchdog.cancel(); runCatching { request.disconnect() }; lock.lock()
+      }
+      // Another call may have quarantined or discarded the row meanwhile; never overwrite that.
+      val latest = rows(null).firstOrNull { it.optString("id") == id }
+      if (latest == null || latest.optString("state") != "sending") fail("VAULT_UPLOAD_INTERRUPTED")
+      val status = outcome
+      if (status == null || uploadVersion() != version) {
+        latest.put("state", if (uploadVersion() == version) "failed" else "not_sent"); persist(latest)
+        fail("VAULT_UPLOAD_INTERRUPTED")
+      }
+      latest.put("state", if (status in 200..299) "awaiting_receipt" else "failed"); persist(latest)
       return JSONObject().put("status", status)
-    } catch (error: Exception) {
-      item.put("state", if (generation == version) "failed" else "not_sent"); persist(item)
-      fail("VAULT_UPLOAD_INTERRUPTED")
     } finally {
-      connection = null; request?.disconnect(); if (reader != 0L) VaultCrypto.close(reader); key.fill(0)
+      if (claimed) synchronized(cancellation) { if (connection === request) { connection = null; connectionId = null } }
+      request?.disconnect(); if (reader != 0L) VaultCrypto.close(reader); key.fill(0)
     }
   }
 }

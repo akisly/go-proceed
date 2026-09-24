@@ -3,7 +3,7 @@ import { Client } from "pg";
 import { ADMIN_URL, q } from "./helpers/fixtures";
 
 /**
- * DEV-054 / BL-148: a grant or an assignment whose `validUntil` does not come
+ * DEV-054 / BL-149: a grant or an assignment whose `validUntil` does not come
  * after its start is 422 on `validUntil` — not 500. An end relative to now is
  * checked against the transaction's `now()` inside `withIdempotency`, so a replay
  * of a request that committed while its end was ahead still gets the stored
@@ -104,7 +104,7 @@ function expectValidUntil422(status: number, body: { code: string; fieldErrors?:
   expect(body.fieldErrors?.map((e) => e.path)).toEqual(["validUntil"]);
 }
 
-describe("a validUntil that does not come after the start is 422, not 500 (DEV-054, BL-148)", () => {
+describe("a validUntil that does not come after the start is 422, not 500 (DEV-054, BL-149)", () => {
   it("project_access.grant: a past validUntil is 422 and nothing is written", async () => {
     const res = await post("access-grants", { memberId: members.member, capabilities: ["contracts.edit"], validUntil: at(-60_000) });
     expectValidUntil422(res.status, await res.json());

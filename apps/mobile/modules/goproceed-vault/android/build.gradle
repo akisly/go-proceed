@@ -6,13 +6,74 @@ plugins {
 group = 'expo.modules.goproceedvault'
 version = '0.1.0'
 
+// Same source of truth as expo-modules-core: the app's reactNativeArchitectures.
+// An ABI directory without this library would install and crash on load.
+def vaultAbis() {
+  def value = project.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+def vaultRoot = file("${projectDir}/..")
+
 android {
+  // The NDK the app resolved (React Native 0.86 pins 27.1.12297006).
+  if (rootProject.hasProperty("ndkPath")) {
+    ndkPath rootProject.ext.ndkPath
+  }
+  if (rootProject.hasProperty("ndkVersion")) {
+    ndkVersion rootProject.ext.ndkVersion
+  }
   namespace "expo.modules.goproceedvault"
   defaultConfig {
     versionCode 1
     versionName "0.1.0"
+    ndk { abiFilters(*vaultAbis()) }
+    externalNativeBuild {
+      cmake {
+        // 16 KB page support the way expo-modules-core enables it.
+        arguments '-DANDROID_STL=none', '-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON'
+      }
+    }
+  }
+  externalNativeBuild {
+    cmake {
+      path 'src/main/cpp/CMakeLists.txt'
+      version '3.22.1'
+    }
   }
   lintOptions {
     abortOnError false
   }
 }
+
+// Builds the sha256-pinned libsodium for each ABI, one after another (the script
+// shares one extracted source tree), with the NDK and API level Gradle resolved.
+tasks.register('prepareSodium') {
+  inputs.file("${vaultRoot}/scripts/sodium-pin.json")
+  inputs.file("${vaultRoot}/scripts/prepare-sodium.mjs")
+  inputs.property('abis', vaultAbis().join(','))
+  outputs.upToDateWhen { false } // the script itself skips work that is already built
+  doLast {
+    def ndk = android.ndkDirectory.absolutePath
+    def api = android.defaultConfig.minSdkVersion?.apiLevel ?: 29
+    def node = System.getenv('NODE_BINARY') ?: 'node'
+    vaultAbis().each { abi ->
+      def result = providers.exec {
+        workingDir vaultRoot
+        commandLine node, 'scripts/prepare-sodium.mjs', 'android', abi, '', "${api}"
+        environment 'ANDROID_NDK_HOME', ndk
+        ignoreExitValue true
+      }
+      if (result.result.get().exitValue != 0) {
+        throw new GradleException("prepare-sodium failed for ${abi}:\n${result.standardError.asText.get()}")
+      }
+    }
+  }
+}
+tasks.named('preBuild') { dependsOn 'prepareSodium' }
+tasks.configureEach { task ->
+  if (task.name.startsWith('configureCMake') || task.name.startsWith('buildCMake')) task.dependsOn('prepareSodium')
+  // AGP's native clean re-runs CMake for every ABI it ever configured, which fails
+  // without that ABI's libsodium. Deleting the CMake tree is the whole clean.
+  if (task.name.startsWith('externalNativeBuildClean')) task.enabled = false
+}
+tasks.named('clean').configure { delete file("${projectDir}/.cxx") }

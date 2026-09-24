@@ -38,7 +38,7 @@
 | 2 | owner | «Зафиксировать + BL-014» | chat, 2026-09-24 | tests and records |
 | 3 | coordinator | Grant suite 10 passed (the two new cases are guards) | `scratchpad/dev050-run.txt` | review |
 | 4 | coordinator | The lapse case re-dates a grant by SQL; DEV-052's write-once trigger (BL-138) will refuse that outside replica mode, so DEV-052 reworks it with the other fixture sites | this record | DEV-052 |
-| 5 | gp-architect | Found on the way: a grant or assignment with a past `validUntil` hits the tables' CHECK and answers 500; the owner put it in the cluster as BL-148 / [DEV-054](DEV-054-window-ends-after-start.md) | architect report, 2026-09-24 | DEV-054 |
+| 5 | gp-architect | Found on the way: a grant or assignment with a past `validUntil` hits the tables' CHECK and answers 500; the owner put it in the cluster as BL-149 / [DEV-054](DEV-054-window-ends-after-start.md) | architect report, 2026-09-24 | DEV-054 |
 | 6 | gp-reviewer | R1 HOLD on R1-01 (records); the claim verified path by path in the code; R1-02 minor, R1-03 nit | reviewer report, 2026-09-24, on `scratchpad/dev050-r1.diff` | fixes |
 | 7 | coordinator | Stated fixes applied; grant suite 10 passed; `validate:canonical-docs` OK | `scratchpad/dev050-run-r2.txt` | gp-qa |
 | 8 | gp-qa | PASS on criteria 1–2; the three fixes in place; rework within them; revoke suite 20 passed alongside | QA report, 2026-09-24, on `scratchpad/dev050-r2.diff` | commit |

@@ -8,7 +8,7 @@
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a `/v1` response contract change on an existing command, with an ADR amendment: `gp-architect` (cluster design) → owner ruling → failing test → contract and route → `gp-reviewer` + `gp-security` → `gp-qa`.
 - **Triggered stages and why:** `gp-architect` (a `/v1` contract); `gp-security` (the response discloses external review links — capability links — and reads two more tables under the actor's RLS; personal data: the recipient's address must not leak). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (no UI, no field client, no third-party behaviour).
-- **Owning module and allowed edit paths:** `packages/contracts/src/project-access.ts` and its test; `apps/app/app/v1/projects/[projectId]/access-grants/revoke/route.ts`; `apps/app/tests/project-access-revoke.int.test.ts`; `docs/decisions/ADR-014-revoke-access-and-end-responsibility.md` (amendment) and `docs/decisions/README.md`; `docs/architecture/tenancy-and-security.md`; `technical/data-access-surface.csv` (DA-145); `docs/BACKLOG.md` (BL-142, BL-147); this record; `docs/tasks/README.md`.
+- **Owning module and allowed edit paths:** `packages/contracts/src/project-access.ts` and its test; `apps/app/app/v1/projects/[projectId]/access-grants/revoke/route.ts`; `apps/app/tests/project-access-revoke.int.test.ts`; `docs/decisions/ADR-014-revoke-access-and-end-responsibility.md` (amendment) and `docs/decisions/README.md`; `docs/architecture/tenancy-and-security.md`; `technical/data-access-surface.csv` (DA-145); `docs/BACKLOG.md` (BL-142, BL-148); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`, `apps/app/AGENTS.md`; ADR-014 decision 1 and «What this decision does NOT authorise»; `supabase/migrations/0049` (`eag_select`), `0062` (`telegram_chat_bindings_read`); INV-102 (no bearer secret in a stored idempotent body).
 - **Linked spec, ADR or earlier task:** BL-142, filed by [DEV-043](DEV-043-project-access-revoke.md)'s `gp-security` review; ADR-014 decision 5 (amendment of 2026-09-24); cluster DEV-047 to DEV-053.
 - **Baseline:** `0d0968d` (DEV-049) on `origin/main` `20f2b67`.
@@ -57,7 +57,7 @@
 | R1-03 / S1-04 | minor / nit | ADR-014 decision 5; tenancy paragraph | retiring a link needs `packages.submit`, which the docs did not say | coordinator | fixed: one sentence in each; self-removal case in «What is not true» |
 | S1-02 | minor | `0049` exchange bumps `version`; revoke-reissue 409 | a reported version goes stale once the link is opened | coordinator | recorded, not fixed («What is not true»); belongs with BL-139's list route |
 | R1-04 | nit | BL-142 annotation; ADR «Not decided here» | the Telegram member link was not accounted for | coordinator | fixed: stays open with the group half (BL-142, BL-024) |
-| R1-05 | nit | test comment; DA gap | «four columns» stale; the `external_access_grants` DA gap only in this record | coordinator | fixed: comment; filed BL-147 |
+| R1-05 | nit | test comment; DA gap | «four columns» stale; the `external_access_grants` DA gap only in this record | coordinator | fixed: comment; filed BL-148 |
 | S1-05 | nit | test | the address check covered the response only | coordinator | fixed: the test also checks the stored idempotent body and the audit details |
 
 Rework count and hypothesis changes: none (first review; fixes limited to the stated ones).
@@ -88,7 +88,7 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 
 ## Completion / handoff
 
-- Changed / inspected files: the contract and its test, the revoke route and its suite, ADR-014 and the ADR index, the tenancy paragraph, DA-145, BL-142 and BL-147, this record and the task index.
+- Changed / inspected files: the contract and its test, the revoke route and its suite, ADR-014 and the ADR index, the tenancy paragraph, DA-145, BL-142 and BL-148, this record and the task index.
 - Review independence: `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents on the diff file.
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task»; the cluster suites (DEV-053).

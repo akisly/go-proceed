@@ -79,7 +79,7 @@ describe("responsibility end contracts", () => {
   });
 });
 
-// DEV-054 / BL-148: an assignment's window must end after its start when both
+// DEV-054 / BL-149: an assignment's window must end after its start when both
 // are sent. An end relative to now is the route's check, not the schema's: the
 // clock must not turn a legitimate idempotent replay into 422.
 describe("grant and assign windows end after they start", () => {
