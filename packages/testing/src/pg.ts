@@ -17,8 +17,36 @@ const APP_URL = process.env.APP_DB_URL
 const SERVICE_URL = process.env.SERVICE_DB_URL
   ?? "postgresql://goproceed_service_login:service_pw@127.0.0.1:54322/postgres";
 
+// The purge worker's login. 'purge_pw' is local/CI-only, set by
+// scripts/set-local-app-password.mjs; CI sets PURGE_DB_URL to the same value.
+const PURGE_URL = process.env.PURGE_DB_URL
+  ?? "postgresql://goproceed_purge_worker_login:purge_pw@127.0.0.1:54322/postgres";
+
+// The local stack's real superuser (postgres is not one here). Only for a
+// harness that must hold TEMPORARY and then SET ROLE into a product role — the
+// one path that still reaches a temporary schema since 0102 (DEV-060, INV-116).
+// The same local literal as packages/database/src/tx.test.ts; never a hosted URL.
+const SUPERUSER_URL = "postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres";
+
 export function appClient(): Client { return new Client({ connectionString: APP_URL }); }
 export function serviceClient(): Client { return new Client({ connectionString: SERVICE_URL }); }
+export function purgeClient(): Client { return new Client({ connectionString: PURGE_URL }); }
+export function superuserClient(): Client {
+  // gp-security DEV-060 S1-06, S2-01; review R2-03: never pair the local superuser
+  // with product or admin connections pointed at another database — a split run
+  // could pass against the wrong one. Host, port and database must all match.
+  const local = new URL(SUPERUSER_URL);
+  for (const url of [APP_URL, SERVICE_URL, PURGE_URL, process.env.SUPABASE_DB_URL]) {
+    if (!url) continue;
+    const u = new URL(url);
+    const host = u.hostname === "localhost" ? "127.0.0.1" : u.hostname;
+    if (host !== local.hostname || u.port !== local.port || u.pathname !== local.pathname
+        || u.searchParams.has("host") || u.searchParams.has("port") || u.searchParams.has("dbname")) {
+      throw new Error("superuserClient() is local-only, but a database URL points at another database");
+    }
+  }
+  return new Client({ connectionString: SUPERUSER_URL });
+}
 
 // Superuser connection for fixtures/assertions that must bypass RLS.
 export async function adminClient(): Promise<Client> {

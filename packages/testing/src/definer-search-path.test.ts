@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Client } from "pg";
-import { adminClient, appClient, serviceClient } from "./pg";
+import { adminClient, superuserClient } from "./pg";
 
 /**
  * DEV-059 / BL-152 / INV-115 (migration 0101): every SECURITY DEFINER function,
@@ -10,14 +10,19 @@ import { adminClient, appClient, serviceClient } from "./pg";
  * schema FIRST for relation and type names — an empty path included. A definer
  * that named a generic type unqualified in its own body (a plpgsql DECLARE, a
  * cast, a default) resolved it through the caller's temporary schema with its
- * owner's rights. Each probe case below creates, on the application or service
- * connection (PUBLIC holds TEMP), a function in `pg_temp` whose only effect is
- * to raise a marker naming `current_user`, and a domain in `pg_temp` shadowing a
- * built-in type whose CHECK calls it. Before 0101 the definer runs the marker as
+ * owner's rights. Each probe case below creates a function in `pg_temp` whose
+ * only effect is to raise a marker naming `current_user`, and a domain in
+ * `pg_temp` shadowing a built-in type whose CHECK calls it, then switches to the
+ * application or service role. Before 0101 the definer runs the marker as
  * `postgres`; after it, the definer's own outcome comes back.
  *
+ * Since 0102 (DEV-060, INV-116) no product login can create the shadow itself:
+ * the probe is planted on the local superuser's connection, which holds TEMP,
+ * and `set local role` then puts the product role in a backend whose temporary
+ * schema exists. That keeps 0101 guarded on its own, whether or not 0102 holds.
+ *
  * THIS FILE WRITES NOTHING: every case runs in a transaction it rolls back, on
- * a dedicated connection. The probe cases need PUBLIC's TEMP (BL-155).
+ * a dedicated connection.
  */
 
 const NOBODY = "de560000-0000-4000-8000-0000000000c1";
@@ -26,13 +31,16 @@ type Plane = "app" | "service";
 
 /** Runs `call` with `pg_temp.<type>` shadowed by a domain whose CHECK raises a marker. Returns the error message, or "" when none. */
 async function probe(plane: Plane, type: "uuid" | "text", call: string, params: unknown[] = []): Promise<{ control: string; result: string }> {
-  const c: Client = plane === "app" ? appClient() : serviceClient();
+  const c: Client = superuserClient();
   await c.connect();
   try {
     await c.query("begin");
     await c.query(`create function pg_temp.bl152_probe(v pg_catalog.${type}) returns pg_catalog.bool language plpgsql as $$
       begin raise exception 'BL152-PROBE ran as %', current_user; end $$`);
     await c.query(`create domain pg_temp.${type} as pg_catalog.${type} check (pg_temp.bl152_probe(value))`);
+    // The superuser's default privileges are not ours to assume: the product role must be able to run the probe.
+    await c.query(`grant execute on function pg_temp.bl152_probe(pg_catalog.${type}) to public`);
+    await c.query(`grant usage on domain pg_temp.${type} to public`);
     await c.query(`set local role ${plane === "app" ? "goproceed_app" : "goproceed_service"}`);
     await c.query("select pg_catalog.set_config('app.actor_user_id', $1::pg_catalog.text, true)", [NOBODY]);
     const run = async (sql: string, p: unknown[]): Promise<string> => {

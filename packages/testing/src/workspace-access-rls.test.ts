@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import type { Client } from "pg";
-import { adminClient, appClient, asActor, asService, bypassingGuards, dropWorkspaces } from "./pg";
+import { adminClient, asActor, bypassingGuards, dropWorkspaces, superuserClient } from "./pg";
 
 /**
  * READINESS GATE 11, MODULE workspace_access (DEV-014, BL-098).
@@ -544,7 +544,12 @@ describe("the workspace-access helpers pin a search_path with pg_temp last (DEV-
  * type names even under an empty path, so a temporary object named `uuid`
  * used to shadow the cast inside the workspace-access definers.
  *
- * The regression case creates that object in a transaction it rolls back.
+ * The regression cases create that object in a transaction they roll back.
+ * Since 0102 (DEV-060, INV-116) no product login can create it, so they plant it
+ * on the local superuser's connection and then `set local role` into the
+ * product role. They are independent of 0102 but not of 0101, whose paths mask a
+ * regression of 0100 alone (DEV-060 R1-03): the catalog-shape case below is what
+ * guards 0100 by itself.
  */
 describe("the inlined helpers name their types (DEV-055, BL-150)", () => {
   const HELPERS = ["app.current_actor()", "app.current_external_session()", "app.service_workspace()"];
@@ -576,17 +581,32 @@ describe("the inlined helpers name their types (DEV-055, BL-150)", () => {
     expect(text).not.toMatch(/current_actor\(/);
   });
 
-  it("a temporary object named uuid does not change what the owner of A reads", async () => {
-    // The application's own connection: PUBLIC holds TEMP on the database, so it can create one.
-    // Revoking TEMP from PUBLIC (BL-155) must rewrite this case.
-    const c = appClient();
+  /** A superuser connection with a temporary table named uuid, switched into `role` with A's GUCs. */
+  async function shadowedAs(role: "goproceed_app" | "goproceed_service"): Promise<Client> {
+    const c = superuserClient();
     await c.connect();
     try {
       await c.query("begin");
       await c.query("create temp table uuid (x int)");
-      await c.query("set local role goproceed_app");
+      await c.query(`set local role ${role}`);
       await c.query("select set_config('app.actor_user_id', $1, true)", [USER_A]);
       await c.query("select set_config('app.organization_id', $1, true)", [WS_A]);
+      // Control: the shadow is live for the product role in this session.
+      const t = await c.query<{ t: string }>(
+        `select n.nspname as t from pg_catalog.pg_type ty join pg_catalog.pg_namespace n on n.oid = ty.typnamespace
+          where ty.oid = pg_catalog.to_regtype('uuid')`);
+      expect(t.rows[0]?.t).toMatch(/^pg_temp_\d+$/);
+      return c;
+    } catch (e) {
+      await c.end().catch(() => undefined);
+      throw e;
+    }
+  }
+
+  it("a temporary object named uuid does not change what the owner of A reads", async () => {
+    // Since 0102 the application's login cannot create it (INV-116): planted by the superuser, then SET ROLE.
+    const c = await shadowedAs("goproceed_app");
+    try {
       const r = await c.query<{ ws: string }>("select workspace_id as ws from public.projects");
       // Review R1-03: the owner of A reads A's projects and nothing else.
       expect(r.rows.length).toBeGreaterThan(0);
@@ -600,11 +620,14 @@ describe("the inlined helpers name their types (DEV-055, BL-150)", () => {
   // gp-security S1-04: the service plane inlines app.service_workspace() into its policies.
   it("a temporary object named uuid does not make the service plane's policies error", async () => {
     // The table has no rows here: the case pins the error the old body raised (gp-qa), not the scoping.
-    const r = await asService<{ ws: string }>(USER_A, WS_A, async (c) => {
-      await c.query("create temp table uuid (x int)");
-      return c.query("select workspace_id as ws from public.telegram_chat_bindings");
-    });
-    expect(Array.isArray(r.rows)).toBe(true);
-    expect(r.rows.every((row) => row.ws === WS_A)).toBe(true);
+    const c = await shadowedAs("goproceed_service");
+    try {
+      const r = await c.query<{ ws: string }>("select workspace_id as ws from public.telegram_chat_bindings");
+      expect(Array.isArray(r.rows)).toBe(true);
+      expect(r.rows.every((row) => row.ws === WS_A)).toBe(true);
+    } finally {
+      await c.query("rollback").catch(() => undefined);
+      await c.end().catch(() => undefined);
+    }
   });
 });
