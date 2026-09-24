@@ -49,6 +49,7 @@
 | 8 | gp-security | S1 PASS: S1-01 low (DA-198/199 name the wrong policies), S1-02..S1-05 info (EXECUTE positive test, `current_actor`'s type, the hosted owner check, a wrong migration in a comment) | security report, 2026-09-24 | fixes |
 | 9 | coordinator | Fixes: DA-198/199; `0098`'s comments (0011, not 0009; the type exception); STATUS («hosted head is `0097`»; the local migration-table observations reconciled); BL-146's wording; BL-150 filed; a positive EXECUTE test (workspace-access-rls 27 passed). The cited `scratchpad/dev046-*.txt` files are not in this session's scratchpad (the earlier session's folder is empty), so the baseline red run cannot be re-inspected; the green half is re-evidenced by the cluster's final run at a later revision | `scratchpad/cluster-final-run.txt` and the rerun after these fixes | gp-qa |
 | 10 | gp-qa | Late-review rework: every stated fix in place except DA-199, where the rework dropped `projects_update` (which calls `has_project_capability`, `0011`); fixed. `0098`'s assertion block probed in rolled-back transactions: passes as applied and raises for a `public` path, a non-definer, and EXECUTE for `anon` or `authenticated`. The baseline red run cannot be rebuilt without reverting `0098` | QA report, 2026-09-24 | commit |
+| 11 | Owner; coordinator (hosted push) | On the owner's word «запушь миграции 0098–0100 на hosted» (2026-09-24), before PR #123's merge: from a `git archive` copy of `supabase/` at `fa1d79fd`, `supabase link --project-ref asrvzhjaueyvrfozxpzo`, `supabase db push --linked --dry-run` (exactly `0098`, `0099`, `0100`; no seeds, no roles), then the push, 12:02:57–12:03:02 UTC, exit 0, Supabase CLI 2.114.0, login role through the access token. Preflight (read-only, connector): the six functions owned by `postgres`, the pushing role; no trigger on `project_access_grants`. After: versions `0096`–`0100`; the three helpers are definers with `search_path=""`, `anon` and `authenticated` cannot execute them, `goproceed_app` and `goproceed_service` can. Production runs `main`, whose only grant writes are inserts and the revoke `0099` allows | `scratchpad/push-0098-0100-dryrun.txt`, `push-0098-0100.txt` | — |
 
 ## Findings and rework
 
@@ -68,10 +69,8 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 
 ## What is not true after this task
 
-- Before pushing `0098` to the hosted project, check that the role `supabase db push` runs as owns the three helpers (`select oid::regprocedure, proowner::regrole from pg_proc where …`); `ALTER FUNCTION` needs ownership (gp-security S1-04).
 - `app.current_actor()`'s unqualified `::uuid` is still shadowable inside the helpers (BL-150).
 - The other 21 definer functions in `app` still pin `public` (BL-146, with BL-106 and BL-110).
-- `0098` is applied to the local database only; the hosted project needs the owner's push.
 
 ## Acceptance evidence
 
@@ -94,5 +93,5 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 - Review independence: `gp-reviewer`, `gp-security` and `gp-qa` ran late, as independent native subagents, after the commit; recorded in rows 6–10.
 - Verified scope: criteria 1–5, criterion 1's red half excepted.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-150 is DEV-055's.
-- Next bounded action and owner: pushing `0098` to the hosted project is the owner's.
+- Next bounded action and owner: merging PR #123 is the owner's; `0098` is on staging since 2026-09-24.
 - Final state and reason: verifying until the owner's merge.
