@@ -1,5 +1,6 @@
 // Deliberate duplicate of apps/app/src/lib/norm-ref-labels.ts, which the
-// office's act and the Telegram cards use: the labels stay byte-identical, and
+// project money overview's blocked-reasons list and the Telegram cards use: the
+// labels stay byte-identical, and
 // norm-ref-labels.test.ts compares them with the app's file.
 
 /**

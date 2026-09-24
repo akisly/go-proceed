@@ -1754,7 +1754,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-057's `gp-mobile` finding 3. `src/lib/field/assignments.ts`, `obligations.ts`, `load-assignments.ts`, `norm-ref-labels.ts` and their tests inline contract shapes (project and work-item rows, `NormativeCitation.verification`, evidence kinds) «by hand», from the time `apps/mobile` did not depend on `@goproceed/contracts`. Since DEV-042 it does (`apps/mobile/package.json`; `authorize.ts`, `queue.ts` and `runtime.tsx` import from it), so a contract change can leave these copies silently stale. DEV-057 corrected the comments that said the package was not a dependency; it did not switch the types. Ranked by DEV-057; the parallel «Доступ и админы» branch also numbers from BL-146, so whichever merges second renumbers.
-- **Evidence:** `grep -rn 'Inlined from @goproceed/contracts' apps/mobile/src`.
+- **Evidence:** `grep -rn -e 'Inlined from @goproceed/contracts' -e 'inlined here rather than imported' apps/mobile/src`.
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 

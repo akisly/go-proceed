@@ -7,8 +7,8 @@
 // Split into its own module here (the source keeps it inside the much larger
 // `statutory-act-form.ts`, which this app has no reason to port in full —
 // nothing under `apps/mobile` builds an acт form) so
-// `src/lib/field/obligations.ts` can import just the one string, the same
-// way its source does.
+// `src/lib/field/obligations.ts` can import just the one string, as the
+// retired `apps/app` copy of that file did.
 
 /**
  * hidden-works-content-rules.md §"Required disclaimers": mandatory, rendered

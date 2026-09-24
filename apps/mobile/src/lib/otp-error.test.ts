@@ -18,7 +18,7 @@ import {
  * answer.
  *
  * The decision lives in this module rather than inline in `otp-form.tsx` for
- * the reason `safe-next.ts` and `submit-guard.ts` do: `apps/app`'s vitest run
+ * the reason `apps/app`'s `safe-next.ts` and `submit-guard.ts` do: `apps/app`'s vitest run
  * is plain Node with no jsdom, so logic left inside a `"use client"` component
  * is reachable only by rendering it, which nothing here does. One module means
  * one 429 rule that both phases are forced through, instead of two lookalike

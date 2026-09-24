@@ -20,7 +20,7 @@
  * reports back through its `onChange` callback.
  *
  * WHAT IS "PORTED" HERE AND WHAT IS NEW. `otpErrorMessage` (imported, not
- * reimplemented — see `otp-error.ts`'s own PORT header) and the shape of the
+ * reimplemented — see `otp-error.ts`'s own header) and the shape of the
  * re-entrancy guard (`submit-guard.ts`'s `SubmitGuard`, inlined below as a
  * single private field rather than a separate class, since there is no
  * `useRef` identity problem to solve outside a component) are carried over

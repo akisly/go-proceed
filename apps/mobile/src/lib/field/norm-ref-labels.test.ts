@@ -67,8 +67,8 @@ describe("the norm-ref verification labels, byte-identical to the app's copy", (
 });
 
 /**
- * `apps/app/src/lib/norm-ref-labels.ts` prints the same three labels on the
- * office's act and on the Telegram cards. Its file is read as text, not
+ * `apps/app/src/lib/norm-ref-labels.ts` prints the same labels in the project
+ * money overview's blocked-reasons list and on the Telegram cards. Its file is read as text, not
  * imported (this package does not depend on `apps/app`), and every
  * `KEY: "label"` pair it declares must equal this map's, byte for byte.
  */
@@ -76,8 +76,9 @@ describe("the norm-ref verification labels, byte-identical to apps/app's copy", 
   it("declares the same keys with the same labels", () => {
     const source = readFileSync(
       new URL("../../../../app/src/lib/norm-ref-labels.ts", import.meta.url), "utf8");
-    const pairs = [...source.matchAll(/^\s*(VERIFIED_PRIMARY|VERIFIED_SECONDARY|PROJECT_DOCUMENTATION): ("(?:[^"\\]|\\.)*"),/gm)]
+    const pairs = [...source.matchAll(/^\s*([A-Z][A-Z_]*): ("(?:[^"\\]|\\.)*"),/gm)]
       .map((m) => [m[1] as NormRefVerificationTag, JSON.parse(m[2]!) as string] as const);
+    expect(pairs.length).toBeGreaterThan(0);
     expect(pairs.map(([key]) => key).sort()).toEqual(Object.keys(NORM_REF_VERIFICATION_LABELS).sort());
     for (const [key, label] of pairs) {
       expect(sameBytes(label, NORM_REF_VERIFICATION_LABELS[key]), key).toBe(true);
