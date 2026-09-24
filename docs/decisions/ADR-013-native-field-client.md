@@ -32,7 +32,7 @@ Topology: landing and office/BFF web deployments plus native binaries. Display n
 
 ## Amendment, 2026-09-24 — sign-out, wipe, discard hold and retention for the internal beta
 
-The owner decided these on 2026-09-24 (task [DEV-060](../tasks/DEV-060-field-client-decisions.md)). gp-architect and gp-mobile shaped the design. The approved spec's vault paragraph is corrected on the same date.
+The owner decided these on 2026-09-24 (task [DEV-061](../tasks/DEV-061-field-client-decisions.md)). gp-architect and gp-mobile shaped the design. The approved spec's vault paragraph is corrected on the same date.
 
 1. **Retention.** In the v0.1 internal beta, quarantine has no seven-day expiry and no warning ladder. Quarantined originals stay, encrypted and identity-isolated, until the same subject and workspace return. This replaces «Quarantine lasts seven days after a displayed warning» until a public store launch. The warned seven-day expiry returns before that launch.
 2. **Offline sign-out.** Sign-out works without a network. Success means that no session is readable through the storage adapter. Every removal passes the identity boundary, which quarantines before the session goes. With no network, the refresh token is deleted from the phone but not revoked on the server, and the owner accepts that. Signing out online still revokes the session when the request completes; after a bounded wait the phone removes its copy regardless.
