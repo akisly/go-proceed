@@ -1,4 +1,4 @@
-# DEV-054 — BL-149, BL-106: the helpers inlined into definers name their types
+# DEV-055 — BL-149, BL-106: the helpers inlined into definers name their types
 
 ## Assignment
 
@@ -10,11 +10,11 @@
 - **Triggered stages and why:** `gp-architect` (functions in `supabase/migrations` under RLS policies and definers); `gp-security` (the helpers every policy and definer resolves the actor, the external session and the service workspace through). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (PostgreSQL behaviour exercised by the local stack, 17.6).
 - **Owning module and allowed edit paths:** `supabase/migrations/0100_the_actor_that_named_its_type.sql` (new); `packages/testing/src/workspace-access-rls.test.ts`; `technical/database/invariant-catalog.csv` (INV-114); `docs/BACKLOG.md` (BL-106, BL-145, BL-149, BL-151); `docs/STATUS.md` (the migration marker); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; `supabase/migrations/0003` (`current_actor`), `0049` (`current_external_session`), `0062` (`service_workspace`), `0011`, `0098`; PostgreSQL 17 «search_path» and the inlining rules for SQL functions.
-- **Linked spec, ADR or earlier task:** BL-149, filed by [DEV-046](DEV-046-access-helpers-search-path.md)'s late reviews; BL-106 (DEV-017's `gp-security` S1-06); cluster «Доступ к проекту» DEV-046 to DEV-054.
+- **Linked spec, ADR or earlier task:** BL-149, filed by [DEV-047](DEV-047-access-helpers-search-path.md)'s late reviews; BL-106 (DEV-017's `gp-security` S1-06); cluster «Доступ к проекту» DEV-047 to DEV-055.
 - **Baseline:** `5ffc938d`; local database at `0099`.
 - **Dependencies / constraints / out of scope:** unqualified types in definer bodies themselves (BL-151, filed here) and PUBLIC's TEMP on the database (a separate decision) are out of scope. No ADR: no scope, contract or rule changes.
 - **Required acceptance criteria:**
-  1. `workspace-access-rls.test.ts` gains «the inlined helpers name their types (DEV-054, BL-149)»: each of the three is an invoker `sql` STABLE function without a SET clause whose body names `::pg_catalog.uuid` and no bare `::uuid` or `current_setting(`; `app.current_actor()` is still inlined for the application role (its `explain verbose` shows `current_setting`, not `current_actor(`); with a temporary table named `uuid` on the application's connection, the owner of A still reads A's projects. The first and third are red at `0099`, green at `0100`.
+  1. `workspace-access-rls.test.ts` gains «the inlined helpers name their types (DEV-055, BL-149)»: each of the three is an invoker `sql` STABLE function without a SET clause whose body names `::pg_catalog.uuid` and no bare `::uuid` or `current_setting(`; `app.current_actor()` is still inlined for the application role (its `explain verbose` shows `current_setting`, not `current_actor(`); with a temporary table named `uuid` on the application's connection, the owner of A still reads A's projects. The first and third are red at `0099`, green at `0100`.
   2. `0100` applies by hand as `postgres` on a database at `0099`; its assertion block passes; the three functions keep their OIDs and ACLs.
   3. The suites that exercise the member, external and service planes through these helpers pass one at a time.
   4. INV-114, BL-106, BL-149, BL-151 and the STATUS marker agree; `pnpm validate:canonical-docs` passes.
@@ -25,7 +25,7 @@
 | Date | Decision | Source |
 |---|---|---|
 | 2026-09-24 | Fix BL-149 in this cluster | chat, answer «Чинить сейчас (Рекоменд.)» |
-| 2026-09-24 | Which database runs: the coordinator chooses the necessary suites, one by one; truncating tenant tables is allowed; never a reset | the session's standing brief (DEV-046's record) |
+| 2026-09-24 | Which database runs: the coordinator chooses the necessary suites, one by one; truncating tenant tables is allowed; never a reset | the session's standing brief (DEV-047's record) |
 
 ## Plan
 
@@ -83,12 +83,12 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 
 ## Sources
 
-- PostgreSQL 17 documentation, «search_path»: the temporary schema is searched first for relation and type names, never for functions or operators, https://www.postgresql.org/docs/17/runtime-config-client.html (checked by DEV-046, 2026-09-24); reproduced on the local stack (PostgreSQL 17.6) by the red run.
+- PostgreSQL 17 documentation, «search_path»: the temporary schema is searched first for relation and type names, never for functions or operators, https://www.postgresql.org/docs/17/runtime-config-client.html (checked by DEV-047, 2026-09-24); reproduced on the local stack (PostgreSQL 17.6) by the red run.
 - PostgreSQL's inlining of SQL functions (a non-definer `language sql` function without SET clauses whose body is a single SELECT): observed with `explain (verbose)` on the local stack.
 
 ## Completion / handoff
 
-- Changed / inspected files: `0100`, the DEV-054 test block, INV-114, BL-106, BL-145, BL-149, BL-151, STATUS, this record and the task index.
+- Changed / inspected files: `0100`, the DEV-055 test block, INV-114, BL-106, BL-145, BL-149, BL-151, STATUS, this record and the task index.
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents before the commit.
 - Verified scope: criteria 1–4.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-151 (the owner's choice of fix).

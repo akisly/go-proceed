@@ -6,7 +6,7 @@ const M1_WORKSPACE_TABLES = [
   "invitations", "parties", "party_legal_profiles", "own_legal_entity_profiles",
   "party_contacts", "projects", "project_parties", "project_access_grants",
   "project_responsibility_assignments",
-  // DEV-044's end fact (0097), listed by DEV-052 (BL-144).
+  // DEV-044's end fact (0097), listed by DEV-053 (BL-144).
   "project_responsibility_assignment_ends",
 ];
 

@@ -51,7 +51,7 @@ export interface RouteOptions { pathIds?: Readonly<Record<string, string>> }
 const PROJECT_PATH_ID = { projectId: "Проєкт не знайдено." } as const;
 
 /**
- * DEV-047 / BL-141: a malformed path id is 404 RESOURCE_NOT_FOUND, answered
+ * DEV-048 / BL-141: a malformed path id is 404 RESOURCE_NOT_FOUND, answered
  * before the Idempotency-Key, the body and any database call. Unchecked, the id
  * reached a `uuid` comparison and PostgreSQL's cast error (22P02) became 500
  * INTERNAL_ERROR; checked after the body, a malformed id with a bad body was 422.

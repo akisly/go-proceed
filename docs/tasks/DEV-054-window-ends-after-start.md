@@ -1,4 +1,4 @@
-# DEV-053 — BL-148: a grant or assignment window that ends before it starts is 422, not 500
+# DEV-054 — BL-148: a grant or assignment window that ends before it starts is 422, not 500
 
 ## Assignment
 
@@ -6,12 +6,12 @@
 - **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
-- **Selected route and why (`agents/COORDINATION.md`):** a validation defect on two existing `/v1` commands, found by DEV-050's `gp-architect`: failing test → contract → `gp-reviewer` → `gp-qa`. The request shape and the error code are unchanged, so `gp-architect` is not re-run.
+- **Selected route and why (`agents/COORDINATION.md`):** a validation defect on two existing `/v1` commands, found by DEV-051's `gp-architect`: failing test → contract → `gp-reviewer` → `gp-qa`. The request shape and the error code are unchanged, so `gp-architect` is not re-run.
 - **Triggered stages and why:** none beyond `gp-reviewer` and `gp-qa`. `gp-security`: not triggered (no RLS, grant, auth, secret or personal-data path; a request that failed with 500 now fails with 422 earlier). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (Zod 4's `superRefine` is the pattern already installed, `^4.4.3`).
 - **Owning module and allowed edit paths:** `packages/contracts/src/project-access.ts` and its test; `apps/app/src/lib/grant-window.ts` (new); the grant and assign routes; `apps/app/tests/project-access-dates.int.test.ts` (new); `docs/BACKLOG.md` (BL-148); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; `supabase/migrations/0010_workspace_access_module.sql` (the two CHECKs); `apps/app/src/lib/command.ts` (the body parse and its `fieldErrors`); the grant and assign routes.
-- **Linked spec, ADR or earlier task:** BL-148, found by [DEV-050](DEV-050-last-admin-records.md)'s `gp-architect`; cluster DEV-046 to DEV-053.
-- **Baseline:** `18319158` (DEV-049); DEV-050's change touches none of these files.
+- **Linked spec, ADR or earlier task:** BL-148, found by [DEV-051](DEV-051-last-admin-records.md)'s `gp-architect`; cluster DEV-047 to DEV-054.
+- **Baseline:** `18319158` (DEV-050); DEV-051's change touches none of these files.
 - **Dependencies / constraints / out of scope:** a past `validFrom` on an assignment stays accepted, as before, and so does a window entirely in the past when both dates are sent (the CHECK compares only the two).
 - **Required acceptance criteria:**
   1. `apps/app/tests/project-access-dates.int.test.ts` (truncates nothing; its own `de53…` workspace): a grant with a past `validUntil` is 422 on `validUntil` and writes nothing; a future one is 201; an assignment with a past `validUntil` and no `validFrom` is 422 and writes nothing; one whose `validUntil` equals or precedes `validFrom` is 422; a later one is 201; a repeat of a held grant with a past end is 422 and writes nothing (it answered 201 with nothing granted); a grant and an assignment replayed with their key after the database's clock has passed their end return the stored 201. Of the first four, three were red at the baseline (500 `INTERNAL_ERROR`); the future grant and the replay case are green there, and the repeat case is red at the baseline (201). All green after.
@@ -50,7 +50,7 @@
 | R1-01 | major | the schema's `Date.now()` branch; `command.ts` parses before the replay lookup | a replay after the end passed got 422 instead of the stored 201 | coordinator | fixed: the check moved into `withIdempotency`'s body (`grant-window.ts`), compared with the transaction's `now()`; the replay case in the dates suite |
 | R1-02 | minor | `endsAfterStart` | a malformed date produced a second issue, and a malformed `validFrom` blamed `validUntil` | coordinator | fixed: NaN guard; contract case «a malformed date is reported once» |
 | R1-03 | minor | the record; BL-148 | a past-end grant that wrote nothing answered 201 and is now 422 | coordinator | recorded in the objective and BL-148; the check runs first; pinned by the repeat case (R2-01) |
-| R2-01 | minor | the R1-03 test | the view-only case was already 422 at the baseline (DEV-048's rule), so it could not tell the change | coordinator | fixed: replaced by a repeat of the held `contracts.edit` with a past end, which answered 201 at the baseline; asserts the row count unchanged |
+| R2-01 | minor | the R1-03 test | the view-only case was already 422 at the baseline (DEV-049's rule), so it could not tell the change | coordinator | fixed: replaced by a repeat of the held `contracts.edit` with a past end, which answered 201 at the baseline; asserts the row count unchanged |
 | R2-02 | minor | the replay test | the host clock chose the end and the wait while the routes compare with the database's | coordinator | fixed: `until` from the database's `now()`; the wait polls the database until the end has passed |
 | R2-03 | minor | criterion 1's wording | overstated which cases were red at the baseline | coordinator | fixed in criterion 1 |
 
@@ -66,7 +66,7 @@ Rework count and hypothesis changes: one rework after R1 (the clock check moved 
 |---|---|---|---|---|---|
 | 1 | yes | `b73b290b` + the working tree (`dev053-r3.diff`) | `npx vitest run tests/project-access-dates.int.test.ts` in `apps/app`: 6 passed, twice | PASS (`gp-qa`'s run) | the baseline red is on file for the first four cases; the repeat case's red is the coordinator's run with the check removed (its output not captured) |
 | 2 | yes | same | `npx vitest run src/project-access.test.ts` in `packages/contracts`: 9 passed | PASS (`gp-qa`'s run) | — |
-| 3 | yes | same | `project-access-grant` 10, `project-access-revoke` 20, `responsibility-end` 7 passed; `tsc --noEmit` for `packages/contracts` and `apps/app` exit 0; `validate:canonical-docs` OK | PASS (`gp-qa`'s run) | the cluster's final run is DEV-052's |
+| 3 | yes | same | `project-access-grant` 10, `project-access-revoke` 20, `responsibility-end` 7 passed; `tsc --noEmit` for `packages/contracts` and `apps/app` exit 0; `validate:canonical-docs` OK | PASS (`gp-qa`'s run) | the cluster's final run is DEV-053's |
 
 ## Sources
 
@@ -78,5 +78,5 @@ Rework count and hypothesis changes: one rework after R1 (the clock check moved 
 - Review independence: `gp-reviewer` (two rounds) and `gp-qa` ran as independent native subagents.
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: the cluster's final run (DEV-052); push and merge are the owner's.
+- Next bounded action and owner: the cluster's final run (DEV-053); push and merge are the owner's.
 - Final state and reason: verifying until the cluster's final run.

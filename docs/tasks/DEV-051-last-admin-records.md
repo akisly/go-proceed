@@ -1,4 +1,4 @@
-# DEV-050 — BL-137: the records say what the last-administrator rule already covers
+# DEV-051 — BL-137: the records say what the last-administrator rule already covers
 
 ## Assignment
 
@@ -10,8 +10,8 @@
 - **Triggered stages and why:** `gp-architect` (an invariant and a governance rule on project access). `gp-security`: not triggered — no RLS, grant, function, auth or secret changes, and no code outside a test. `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered.
 - **Owning module and allowed edit paths:** `apps/app/tests/project-access-grant.int.test.ts`; `technical/database/invariant-catalog.csv` (INV-110); `docs/decisions/ADR-014-revoke-access-and-end-responsibility.md` and `docs/decisions/README.md`; `docs/architecture/tenancy-and-security.md`; `docs/BACKLOG.md` (BL-137, BL-014); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; ADR-014 decision 1; INV-110; `apps/app/app/v1/workspaces/[workspaceId]/projects/route.ts`; the grant and revoke routes; `supabase/migrations/0011` (`pag_insert`, `app.project_has_grants`).
-- **Linked spec, ADR or earlier task:** BL-137, filed by [DEV-043](DEV-043-project-access-revoke.md); cluster DEV-046 to DEV-053.
-- **Baseline:** `18319158` (DEV-049).
+- **Linked spec, ADR or earlier task:** BL-137, filed by [DEV-043](DEV-043-project-access-revoke.md); cluster DEV-047 to DEV-054.
+- **Baseline:** `18319158` (DEV-050).
 - **Dependencies / constraints / out of scope:** no route, migration or contract change. A workspace owner's recovery path and the suspend guard belong to BL-014. A future membership command must refuse orphaning a project (BL-014's new acceptance line).
 - **Required acceptance criteria:**
   1. `apps/app/tests/project-access-grant.int.test.ts` gains two cases, both passing: a dated re-grant of `project.admin` to its undated holder is skipped and the grant stays undated; another member's dated admin grant, granted through the route and then lapsed, leaves the creator's undated grant, and the creator can still grant. They are guards of existing behaviour, green at the baseline by design. The file's other eight cases still pass.
@@ -22,7 +22,7 @@
 
 | Date | Decision | Source |
 |---|---|---|
-| 2026-09-24 | BL-137 is in this session's cluster | chat, answer «Доступ к проекту (Рекоменд.)» (DEV-046's record) |
+| 2026-09-24 | BL-137 is in this session's cluster | chat, answer «Доступ к проекту (Рекоменд.)» (DEV-047's record) |
 | 2026-09-24 | Correct the records, lower BL-137 to P3 and decide recovery with BL-014 | chat, answer «Зафиксировать + BL-014 (Рекоменд.)» |
 
 ## Plan
@@ -37,8 +37,8 @@
 | 1 | gp-architect | Proof by induction: `projects.create` inserts an undated admin (`workspaces/[workspaceId]/projects/route.ts:35-40`); the revoke keeps a live undated admin of an active member (`revoke/route.ts`); the grant skips a held capability as a duplicate and replaces only `project.view` (`access-grants/route.ts`). No product path suspends or ends a membership (members route is `GET` only; no UPDATE policy on `memberships`). Options A, A+, B, C | architect report, 2026-09-24 | owner |
 | 2 | owner | «Зафиксировать + BL-014» | chat, 2026-09-24 | tests and records |
 | 3 | coordinator | Grant suite 10 passed (the two new cases are guards) | `scratchpad/dev050-run.txt` | review |
-| 4 | coordinator | The lapse case re-dates a grant by SQL; DEV-051's write-once trigger (BL-138) will refuse that outside replica mode, so DEV-051 reworks it with the other fixture sites | this record | DEV-051 |
-| 5 | gp-architect | Found on the way: a grant or assignment with a past `validUntil` hits the tables' CHECK and answers 500; the owner put it in the cluster as BL-148 / [DEV-053](DEV-053-window-ends-after-start.md) | architect report, 2026-09-24 | DEV-053 |
+| 4 | coordinator | The lapse case re-dates a grant by SQL; DEV-052's write-once trigger (BL-138) will refuse that outside replica mode, so DEV-052 reworks it with the other fixture sites | this record | DEV-052 |
+| 5 | gp-architect | Found on the way: a grant or assignment with a past `validUntil` hits the tables' CHECK and answers 500; the owner put it in the cluster as BL-148 / [DEV-054](DEV-054-window-ends-after-start.md) | architect report, 2026-09-24 | DEV-054 |
 | 6 | gp-reviewer | R1 HOLD on R1-01 (records); the claim verified path by path in the code; R1-02 minor, R1-03 nit | reviewer report, 2026-09-24, on `scratchpad/dev050-r1.diff` | fixes |
 | 7 | coordinator | Stated fixes applied; grant suite 10 passed; `validate:canonical-docs` OK | `scratchpad/dev050-run-r2.txt` | gp-qa |
 | 8 | gp-qa | PASS on criteria 1–2; the three fixes in place; rework within them; revoke suite 20 passed alongside | QA report, 2026-09-24, on `scratchpad/dev050-r2.diff` | commit |
@@ -74,6 +74,6 @@ Rework count and hypothesis changes: none (first review HOLD on R1-01; fixes lim
 - Changed / inspected files: the grant suite, INV-110, ADR-014 and its index row, the tenancy paragraph, BL-137 and BL-014, this record and the task index.
 - Review independence: `gp-architect`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
 - Verified scope: criteria 1–2.
-- Remaining risks / blocked requirements: «What is not true after this task»; the lapse test's SQL re-dating is reworked by DEV-051.
-- Next bounded action and owner: the cluster's final run (DEV-052); push and merge are the owner's.
+- Remaining risks / blocked requirements: «What is not true after this task»; the lapse test's SQL re-dating is reworked by DEV-052.
+- Next bounded action and owner: the cluster's final run (DEV-053); push and merge are the owner's.
 - Final state and reason: verifying until the cluster's final run.

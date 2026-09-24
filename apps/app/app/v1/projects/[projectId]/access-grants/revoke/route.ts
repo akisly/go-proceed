@@ -78,7 +78,7 @@ type LockedGrant = {
  * compared for that reason too.
  */
 /**
- * What a removal leaves live (DEV-049, BL-142, ADR-014's amendment of
+ * What a removal leaves live (DEV-050, BL-142, ADR-014's amendment of
  * 2026-09-24): the member's still-active, unexpired review links on the
  * project, and whether it has a connected Telegram group, as of this read — a
  * link the member issues concurrently may commit after it. Read under the
@@ -193,7 +193,7 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
           }));
       }
 
-      // DEV-049 / BL-142: a removal reports what it leaves live, read BEFORE the
+      // DEV-050 / BL-142: a removal reports what it leaves live, read BEFORE the
       // update — a self-removal revokes the actor's own admin grant in it, and
       // eag_select and telegram_chat_bindings_read would then hide both.
       const remaining = requested.has("project.view") ? await remainingAfterRemoval(tx, workspaceId, projectId, memberId) : undefined;

@@ -273,7 +273,7 @@ describe("project_access_grants: the application role may revoke a grant and cha
 });
 
 /**
- * DEV-051 / BL-138 / INV-113 (migration 0099): a grant's `revoked_at` is written
+ * DEV-052 / BL-138 / INV-113 (migration 0099): a grant's `revoked_at` is written
  * once. The only change a grant accepts is the revoke — `revoked_at` from null
  * to the transaction's `now()`, `version` unchanged or up by one — and a revoked
  * grant never changes again; a grant is never deleted. The guard fires for every
@@ -285,7 +285,7 @@ describe("project_access_grants: the application role may revoke a grant and cha
  * superuser could rewrite or delete any grant. Seeded and removed here, on
  * MEMBER_A2, so the read tests above keep their counts.
  */
-describe("project_access_grants: revoked_at is written once (DEV-051, BL-138)", () => {
+describe("project_access_grants: revoked_at is written once (DEV-052, BL-138)", () => {
   let projectId: string;
   let memberId: string;
   const made: string[] = [];
@@ -491,14 +491,14 @@ describe("project_responsibility_assignment_ends (DEV-044)", () => {
 });
 
 /**
- * DEV-046 / BL-143 (migration 0098): the three SECURITY DEFINER helpers every
+ * DEV-047 / BL-143 (migration 0098): the three SECURITY DEFINER helpers every
  * workspace-access policy rests on — `app.active_member_id`,
  * `app.has_project_capability` and `app.project_has_grants` (0011) — pin the
  * empty search path the project's definer rule asks for, not `public`. Their
  * bodies qualify every name, so behaviour is unchanged: the isolation tests
  * above run every one of them through the policies after the change.
  */
-describe("the workspace-access helpers pin an empty search_path (DEV-046)", () => {
+describe("the workspace-access helpers pin an empty search_path (DEV-047)", () => {
   it("app.active_member_id, app.has_project_capability and app.project_has_grants are SECURITY DEFINER with search_path=\"\"", async () => {
     const r = await admin.query<{ fn: string; definer: boolean; config: string[] | null }>(
       `select p.oid::regprocedure::text as fn, p.prosecdef as definer, p.proconfig as config
@@ -521,7 +521,7 @@ describe("the workspace-access helpers pin an empty search_path (DEV-046)", () =
     expect(r.rows.every((row) => !row.anon && !row.authenticated)).toBe(true);
   });
 
-  // DEV-046 late review, gp-security S1-02: the roles whose policies call them keep EXECUTE.
+  // DEV-047 late review, gp-security S1-02: the roles whose policies call them keep EXECUTE.
   it("goproceed_app and goproceed_service can execute them", async () => {
     const r = await admin.query<{ fn: string; app: boolean; service: boolean }>(
       `select f as fn, has_function_privilege('goproceed_app', f, 'EXECUTE') as app,
@@ -533,7 +533,7 @@ describe("the workspace-access helpers pin an empty search_path (DEV-046)", () =
 });
 
 /**
- * DEV-054 / BL-149 (migration 0100): the SQL helpers that definer functions
+ * DEV-055 / BL-149 (migration 0100): the SQL helpers that definer functions
  * inline — `app.current_actor()`, `app.current_external_session()`,
  * `app.service_workspace()` — name `pg_catalog.uuid` and
  * `pg_catalog.current_setting`. An inlined helper is parsed under its caller's
@@ -543,7 +543,7 @@ describe("the workspace-access helpers pin an empty search_path (DEV-046)", () =
  *
  * The regression case creates that object in a transaction it rolls back.
  */
-describe("the inlined helpers name their types (DEV-054, BL-149)", () => {
+describe("the inlined helpers name their types (DEV-055, BL-149)", () => {
   const HELPERS = ["app.current_actor()", "app.current_external_session()", "app.service_workspace()"];
 
   it("each stays an inlinable invoker SQL STABLE function and names pg_catalog.uuid and pg_catalog.current_setting", async () => {

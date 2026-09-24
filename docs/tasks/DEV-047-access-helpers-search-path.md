@@ -1,4 +1,4 @@
-# DEV-046 — BL-143: the workspace-access helpers pin an empty search path
+# DEV-047 — BL-143: the workspace-access helpers pin an empty search path
 
 ## Assignment
 
@@ -10,14 +10,14 @@
 - **Triggered stages and why:** `gp-architect` (a `SECURITY DEFINER` function in `supabase/migrations`); `gp-security` (SECURITY DEFINER functions and the policies that rest on them). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (no UI, no field client, no library question beyond PostgreSQL behaviour the local stack exercises).
 - **Owning module and allowed edit paths:** `supabase/migrations/0098_the_helpers_that_trusted_public.sql` (new); `packages/testing/src/workspace-access-rls.test.ts`; `technical/data-access-surface.csv`; `docs/BACKLOG.md` (BL-143, BL-145); `docs/STATUS.md` (the migration marker); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; `agents/COORDINATION.md`; `supabase/migrations/0011_workspace_access_security.sql`; `docs/BACKLOG.md` BL-143, BL-106, BL-110.
-- **Linked spec, ADR or earlier task:** BL-143, filed by [DEV-043](DEV-043-project-access-revoke.md)'s `gp-security` review. The cluster «project access» is DEV-046 to DEV-052.
+- **Linked spec, ADR or earlier task:** BL-143, filed by [DEV-043](DEV-043-project-access-revoke.md)'s `gp-security` review. The cluster «project access» is DEV-047 to DEV-053.
 - **Baseline:** `origin/main` at `20f2b67` (after PR #119).
 - **Dependencies / constraints / out of scope:** the migration is applied to the local database by hand as `postgres` and recorded in `supabase_migrations.schema_migrations`; the hosted project is not touched without the owner. The other definer functions in `app` that pin `public` (21 of them, observed below) are out of scope and filed as BL-145; BL-106 and BL-110 stay open.
 - **Required acceptance criteria:**
   1. `packages/testing/src/workspace-access-rls.test.ts` (no `resetDb`; drops only its own `de14…` workspaces) fails at the baseline on the three helpers' `proconfig` and passes after `0098`: each is `SECURITY DEFINER` with exactly `{search_path=""}`, and neither `anon` nor `authenticated` can execute it.
   2. The file's existing isolation tests, which exercise `active_member_id` and `has_project_capability` through the policies, still pass after `0098`; `project_has_grants` (the bootstrap arm) is exercised by the route suites of criterion 4.
   3. `0098`'s own assertion block raises if any of the three is not a definer with exactly the empty path, or is executable by `anon` or `authenticated`.
-  4. The suites that drive the policies through the routes still pass after `0098` (the cluster's final run; see DEV-052's evidence).
+  4. The suites that drive the policies through the routes still pass after `0098` (the cluster's final run; see DEV-053's evidence).
   5. `technical/data-access-surface.csv` carries rows for the three helpers; `pnpm validate:canonical-docs` passes.
 - **Skipped stages and rationale:** see «Triggered stages».
 
@@ -60,7 +60,7 @@
 | R1-04 | low | this record | the red/green files cannot be inspected | coordinator | recorded (row 9); the green half re-evidenced by the final run |
 | R1-05 | low | criterion 2 | `project_has_grants` is not exercised by this file's isolation tests but by the route suites (`projects.create`'s first grant) | coordinator | criterion 2 reworded; the route suites are criterion 4's |
 | R1-06 | nit | BL-145 | «the pattern PostgreSQL's documentation shows» overstated; `public.drain_outbox` outside the query | coordinator | fixed |
-| S1-02 | info | the DEV-046 block | nothing asserted the policy roles keep EXECUTE | coordinator | fixed: `goproceed_app` and `goproceed_service` can execute the three |
+| S1-02 | info | the DEV-047 block | nothing asserted the policy roles keep EXECUTE | coordinator | fixed: `goproceed_app` and `goproceed_service` can execute the three |
 | S1-04 | info | hosted push | `ALTER FUNCTION` needs ownership on the hosted project | coordinator | recorded in «What is not true»; the push is the owner's |
 | S1-05 | info | `0098` comment | named `0009` for the EXECUTE revoke | coordinator | fixed: `0011` |
 
@@ -90,9 +90,9 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 
 ## Completion / handoff
 
-- Changed / inspected files: `0098`, the DEV-046 test block, DA-198..200, BL-143, BL-145, BL-149, STATUS, this record.
+- Changed / inspected files: `0098`, the DEV-047 test block, DA-198..200, BL-143, BL-145, BL-149, STATUS, this record.
 - Review independence: `gp-reviewer`, `gp-security` and `gp-qa` ran late, as independent native subagents, after the commit; recorded in rows 6–10.
 - Verified scope: criteria 1–5, criterion 1's red half excepted.
-- Remaining risks / blocked requirements: «What is not true after this task»; BL-149 is DEV-054's.
+- Remaining risks / blocked requirements: «What is not true after this task»; BL-149 is DEV-055's.
 - Next bounded action and owner: pushing `0098` to the hosted project is the owner's.
 - Final state and reason: verifying until the owner's merge.

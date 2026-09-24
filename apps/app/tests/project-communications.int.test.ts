@@ -230,7 +230,7 @@ databaseDescribe("project communication member API", () => {
     ), { params: Promise.resolve({ projectId: primary.projectId }) });
     expect(denied.status).toBe(403);
 
-    // Un-revoking goes past 0099's guard (DEV-051).
+    // Un-revoking goes past 0099's guard (DEV-052).
     await qBypassingGuards(`update public.project_access_grants set revoked_at=null
       where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='communication.reply'`, [
       primary.workspaceId, primary.projectId, primary.memberId,

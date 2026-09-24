@@ -3,7 +3,7 @@ import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 /**
- * DEV-047 / BL-141: every route under `/v1/projects/{projectId}` answers a
+ * DEV-048 / BL-141: every route under `/v1/projects/{projectId}` answers a
  * malformed project id — and the two nested routes a malformed message or
  * contract-version id — with 404 RESOURCE_NOT_FOUND, never 500.
  *
@@ -25,7 +25,7 @@ vi.mock("../src/lib/auth", () => ({
   requireUser: async () => ({ userId: "de470000-0000-4000-8000-0000000000a1" }),
 }));
 
-// DEV-047 review R1-01: a case must not pass because a handler reached the
+// DEV-048 review R1-01: a case must not pass because a handler reached the
 // database and found nothing there. Every transaction helper throws, so only
 // the wrapper's check can answer, and each param has its own detail.
 vi.mock("@goproceed/database", async (importOriginal) => {
@@ -68,7 +68,7 @@ const files = routeFiles(ROOT).sort();
 const modules = new Map<string, Record<string, unknown>>(
   await Promise.all(files.map(async (f) => [f, await import(f)] as const)));
 
-describe("every /v1/projects/{projectId} route refuses a malformed path id with 404 (DEV-047)", () => {
+describe("every /v1/projects/{projectId} route refuses a malformed path id with 404 (DEV-048)", () => {
   it("sweeps the whole tree", () => {
     // 17 route files on 2026-09-24; the sweep reads the tree, so this only guards the walk itself.
     expect(files.length).toBeGreaterThanOrEqual(17);

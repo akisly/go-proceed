@@ -165,7 +165,7 @@ export async function dropWorkspaces(
  * Runs one fixture statement with user triggers suppressed, in a transaction of
  * its own on a fresh superuser connection.
  *
- * DEV-051 / BL-138 (migration 0099): `project_access_grants` refuses every
+ * DEV-052 / BL-138 (migration 0099): `project_access_grants` refuses every
  * change but the revoke — no DELETE, no un-revoke, no re-dated window — and the
  * guard fires for superusers too. Fixtures that stage a lapsed, re-granted or
  * removed grant go through here; `session_replication_role = replica` is the

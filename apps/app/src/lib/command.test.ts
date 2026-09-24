@@ -155,7 +155,7 @@ describe("queryRoute", () => {
 });
 
 /**
- * DEV-047 / BL-141: a malformed path id is 404 before the Idempotency-Key, the
+ * DEV-048 / BL-141: a malformed path id is 404 before the Idempotency-Key, the
  * body and the handler. `projectId` is checked on every route; a route names its
  * own nested ids; any other parameter is left to the handler.
  */

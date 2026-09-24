@@ -432,7 +432,7 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
 });
 
 /**
- * DEV-049 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member from a
+ * DEV-050 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member from a
  * project (revoking `project.view`) cascades to nothing outside the project's
  * grants, and the response now reports what stays live — the external review
  * links the member issued there that are still active and unexpired, and
@@ -446,7 +446,7 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
  * the report reads a few columns of the link, not the contract and occurrence
  * chain behind it.
  */
-describe("a removal reports what stays live (DEV-049, BL-142)", () => {
+describe("a removal reports what stays live (DEV-050, BL-142)", () => {
   async function asReplica(sql: string, params: unknown[]): Promise<{ id: string }[]> {
     const c = new Client({ connectionString: ADMIN_URL });
     await c.connect();

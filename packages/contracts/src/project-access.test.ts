@@ -27,7 +27,7 @@ describe("project access revoke contracts", () => {
     expect(() => revokeProjectAccessResponse.parse({ revoked: [{ capability: "contracts.edit", grantId, revokedBy: memberId }] })).toThrow();
   });
 
-  // DEV-049 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member
+  // DEV-050 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member
   // (revoking project.view) reports what the revoke leaves live.
   it("a removal may report what stays live: the member's external links, without the recipient's address, and the Telegram group", () => {
     const link = {
@@ -41,7 +41,7 @@ describe("project access revoke contracts", () => {
     expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [], telegramGroupBound: false, telegramLinked: true } })).toThrow();
   });
 
-  // DEV-052 / BL-144 (DEV-043/044's gp-qa follow-up 3): the list is bounded by
+  // DEV-053 / BL-144 (DEV-043/044's gp-qa follow-up 3): the list is bounded by
   // the vocabulary, so a request cannot carry more entries than there are
   // capabilities.
   it("the capability list holds at most one entry per known capability", () => {
@@ -79,7 +79,7 @@ describe("responsibility end contracts", () => {
   });
 });
 
-// DEV-053 / BL-148: an assignment's window must end after its start when both
+// DEV-054 / BL-148: an assignment's window must end after its start when both
 // are sent. An end relative to now is the route's check, not the schema's: the
 // clock must not turn a legitimate idempotent replay into 422.
 describe("grant and assign windows end after they start", () => {

@@ -263,7 +263,7 @@ describe("POST /v1/projects/{projectId}/responsibilities/end (BL-015, ADR-014 de
     expect(g).toHaveLength(1);
   });
 
-  // DEV-052 / BL-144 (DEV-044's gp-qa follow-up 2): the route lower-cases the
+  // DEV-053 / BL-144 (DEV-044's gp-qa follow-up 2): the route lower-cases the
   // member id, so an upper-case spelling is the same member — in the lookup,
   // the end, and the audit record.
   it("an upper-case member id is the same member, and the audit record names it in lower case", async () => {

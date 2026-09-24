@@ -1,4 +1,4 @@
--- The actor that named its type (DEV-054, BL-149).
+-- The actor that named its type (DEV-055, BL-149).
 --
 -- WHAT WAS WRONG. `app.current_actor()` (0003), `app.current_external_session()`
 -- (0049) and `app.service_workspace()` (0062) are small invoker SQL functions

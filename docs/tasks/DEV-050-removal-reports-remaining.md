@@ -1,4 +1,4 @@
-# DEV-049 — BL-142: removing a member from a project reports what stays live
+# DEV-050 — BL-142: removing a member from a project reports what stays live
 
 ## Assignment
 
@@ -10,8 +10,8 @@
 - **Triggered stages and why:** `gp-architect` (a `/v1` contract); `gp-security` (the response discloses external review links — capability links — and reads two more tables under the actor's RLS; personal data: the recipient's address must not leak). `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (no UI, no field client, no third-party behaviour).
 - **Owning module and allowed edit paths:** `packages/contracts/src/project-access.ts` and its test; `apps/app/app/v1/projects/[projectId]/access-grants/revoke/route.ts`; `apps/app/tests/project-access-revoke.int.test.ts`; `docs/decisions/ADR-014-revoke-access-and-end-responsibility.md` (amendment) and `docs/decisions/README.md`; `docs/architecture/tenancy-and-security.md`; `technical/data-access-surface.csv` (DA-145); `docs/BACKLOG.md` (BL-142, BL-147); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`, `apps/app/AGENTS.md`; ADR-014 decision 1 and «What this decision does NOT authorise»; `supabase/migrations/0049` (`eag_select`), `0062` (`telegram_chat_bindings_read`); INV-102 (no bearer secret in a stored idempotent body).
-- **Linked spec, ADR or earlier task:** BL-142, filed by [DEV-043](DEV-043-project-access-revoke.md)'s `gp-security` review; ADR-014 decision 5 (amendment of 2026-09-24); cluster DEV-046 to DEV-052.
-- **Baseline:** `0d0968d` (DEV-048) on `origin/main` `20f2b67`.
+- **Linked spec, ADR or earlier task:** BL-142, filed by [DEV-043](DEV-043-project-access-revoke.md)'s `gp-security` review; ADR-014 decision 5 (amendment of 2026-09-24); cluster DEV-047 to DEV-053.
+- **Baseline:** `0d0968d` (DEV-049) on `origin/main` `20f2b67`.
 - **Dependencies / constraints / out of scope:** no migration. Removing the person from the Telegram group, or recording that the office must, is decided with BL-024 (owner, 2026-09-24); BL-142 stays open for that half. No list route for links (BL-139's class). The response key is `externalGrants`, not «…links»: `withIdempotency` refuses to store a body key ending in `link` (INV-102).
 - **Required acceptance criteria:**
   1. `packages/contracts/src/project-access.test.ts`: the response accepts `remaining` and refuses an extra key in a link (e.g. `recipientEmail`), a missing `telegramGroupBound`, and an unknown key in `remaining`. Red at the baseline, green after.
@@ -23,7 +23,7 @@
 
 | Date | Decision | Source |
 |---|---|---|
-| 2026-09-24 | BL-142 is in this session's cluster «Доступ к проекту» | chat, answer «Доступ к проекту (Рекоменд.)» (DEV-046's record) |
+| 2026-09-24 | BL-142 is in this session's cluster «Доступ к проекту» | chat, answer «Доступ к проекту (Рекоменд.)» (DEV-047's record) |
 | 2026-09-24 | A removal reports what it leaves live and cascades nothing | chat, answer «Только отчёт (Рекоменд.)» |
 | 2026-09-24 | The Telegram group (remove the person, or record it) is decided with BL-024 | chat, answer «Решить при BL-024 (Рекоменд.)» |
 
@@ -46,7 +46,7 @@
 | 6 | gp-reviewer | R1 PASS: no blocker or major; R1-01..R1-03 minor, R1-04..R1-05 nit | reviewer report, 2026-09-24, on `scratchpad/dev049-r1.diff` | fixes |
 | 7 | gp-security | S1 PASS: no blocker or major; S1-01..S1-03 minor (record), S1-04..S1-05 nit | security report, 2026-09-24, same diff | fixes |
 | 8 | coordinator | Stated fixes applied; route suite 20 passed, contract suite 6 passed, `tsc` exit 0, `validate:canonical-docs` OK | `scratchpad/dev049-green-r2.txt` | gp-qa |
-| 9 | gp-qa | PASS on criteria 1–3; every stated fix in place; the rework stayed within them, so no second review; the `scope_kind` filter is checked by reading only (no `package_version` fixture) | QA report, 2026-09-24, on `scratchpad/dev049-r2.diff` (byte-identical to the tree) | commit; the cluster's final run (DEV-052) |
+| 9 | gp-qa | PASS on criteria 1–3; every stated fix in place; the rework stayed within them, so no second review; the `scope_kind` filter is checked by reading only (no `package_version` fixture) | QA report, 2026-09-24, on `scratchpad/dev049-r2.diff` (byte-identical to the tree) | commit; the cluster's final run (DEV-053) |
 
 ## Findings and rework
 
@@ -80,7 +80,7 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 | 1 | yes | `0d0968d` + the working tree (`dev049-r2.diff`) | `npx vitest run src/project-access.test.ts` in `packages/contracts`: 6 passed; red at the baseline 1 failed, 5 passed | PASS (`gp-qa`'s run) | the red run is the coordinator's |
 | 2 | yes | same | `npx vitest run tests/project-access-revoke.int.test.ts` in `apps/app` (APP_DB_URL, SERVICE_DB_URL set): 20 passed; red at the baseline 3 failed, 17 passed | PASS (`gp-qa`'s run) | the red run is the coordinator's; no test drives a `package_version` link |
 | 3 | yes | same | ADR-014 decision 5 and its Approval; `pnpm validate:canonical-docs` OK; `npx tsc --noEmit -p apps/app` exit 0 | PASS (`gp-qa`'s run) | — |
-| Cluster suites | yes, at DEV-052 | — | `apps/app` and `packages/testing` suites that drive the revoke route | NOT RUN | deferred to the cluster's final run; CI blocked by billing |
+| Cluster suites | yes, at DEV-053 | — | `apps/app` and `packages/testing` suites that drive the revoke route | NOT RUN | deferred to the cluster's final run; CI blocked by billing |
 
 ## Sources
 
@@ -91,6 +91,6 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Changed / inspected files: the contract and its test, the revoke route and its suite, ADR-014 and the ADR index, the tenancy paragraph, DA-145, BL-142 and BL-147, this record and the task index.
 - Review independence: `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents on the diff file.
 - Verified scope: criteria 1–3.
-- Remaining risks / blocked requirements: «What is not true after this task»; the cluster suites (DEV-052).
-- Next bounded action and owner: the coordinator's cluster run at DEV-052; push and merge are the owner's.
+- Remaining risks / blocked requirements: «What is not true after this task»; the cluster suites (DEV-053).
+- Next bounded action and owner: the coordinator's cluster run at DEV-053; push and merge are the owner's.
 - Final state and reason: verifying until the cluster's final run.

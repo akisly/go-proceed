@@ -38,7 +38,7 @@ export const POST = commandRoute(assignResponsibilityRequest, async (a) => {
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       },
     }, async () => {
-      // DEV-053 / BL-148: without validFrom the assignment starts at now(); with
+      // DEV-054 / BL-148: without validFrom the assignment starts at now(); with
       // it, the schema has already compared the two.
       if (a.body.validFrom === undefined) await refuseEndNotAfterNow(tx, a.requestId, a.body.validUntil);
       const target = await tx.query(

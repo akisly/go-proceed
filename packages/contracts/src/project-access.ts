@@ -56,7 +56,7 @@ export const projectCapability = z.enum([
 ]);
 export type ProjectCapabilityValue = z.infer<typeof projectCapability>;
 
-// DEV-053 / BL-148: a window must end after it starts. Both tables CHECK
+// DEV-054 / BL-148: a window must end after it starts. Both tables CHECK
 // `valid_until > valid_from` (0010), and a violation raised 23514 and became
 // 500. The schema compares the two values when both are sent, which never
 // depends on the clock; an end not after the transaction's `now()` — the start
@@ -78,7 +78,7 @@ export const grantProjectAccessRequest = z.object({
 });
 export type GrantProjectAccessRequest = z.infer<typeof grantProjectAccessRequest>;
 
-// DEV-048 late review (gp-security S1-01, owner 2026-09-24 «Раскрывать»): each
+// DEV-049 late review (gp-security S1-01, owner 2026-09-24 «Раскрывать»): each
 // granted row names the end it was written with (null: none), so an
 // administrator sees when a covering project.view came out longer than asked.
 export interface GrantProjectAccessResponse {
@@ -97,7 +97,7 @@ export const revokeProjectAccessRequest = z.object({
 }).strict();
 export type RevokeProjectAccessRequest = z.infer<typeof revokeProjectAccessRequest>;
 
-// DEV-049 / BL-142 / ADR-014's amendment of 2026-09-24: a revoke that removes
+// DEV-050 / BL-142 / ADR-014's amendment of 2026-09-24: a revoke that removes
 // the member from the project (it names `project.view`) reports what it leaves
 // live, and cascades to none of it. `externalGrants` are the review links the
 // member issued on the project that are still active and unexpired — the ids

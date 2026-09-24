@@ -713,7 +713,7 @@ databaseDescribe("Telegram evidence bridge", () => {
       ["expired", "update public.project_access_grants set revoked_at=null,valid_from=now()-interval '2 days',valid_until=now()-interval '1 day' where workspace_id=$1 and capability='evidence.record'"],
     ] as const;
     for (const [index, [name, sql]] of cases.entries()) {
-      // The revoke is an ordinary write; un-revoking and re-dating go past 0099's guard (DEV-051).
+      // The revoke is an ordinary write; un-revoking and re-dating go past 0099's guard (DEV-052).
       if (name === "revoked") await client.query(sql, [rules.workspaceId]);
       else await qBypassingGuards(sql, [rules.workspaceId]);
       fakes.payloads.set(name, JPEG);

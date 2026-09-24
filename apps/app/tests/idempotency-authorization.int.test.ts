@@ -108,7 +108,7 @@ const createProject = (ws: string, raw: string, key: string) =>
 
 /**
  * Every live grant of `capabilities` held by U on the project lapses: its validity window moves into the past.
- * A grant's window is frozen by 0099 (DEV-051), so the fixture rewrites it past the guard.
+ * A grant's window is frozen by 0099 (DEV-052), so the fixture rewrites it past the guard.
  */
 async function expireGrants(ws: string, projectId: string, capabilities: string[]): Promise<void> {
   await qBypassingGuards(

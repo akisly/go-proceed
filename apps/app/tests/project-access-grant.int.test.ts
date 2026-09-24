@@ -3,7 +3,7 @@ import { Client } from "pg";
 import { ADMIN_URL, q, qBypassingGuards } from "./helpers/fixtures";
 
 /**
- * DEV-048 / BL-140: `project_access.grant` keeps a member's `project.view`
+ * DEV-049 / BL-140: `project_access.grant` keeps a member's `project.view`
  * window covering the action capabilities it was added for.
  *
  * Before it, the grant added `project.view` to any action capability but skipped
@@ -120,7 +120,7 @@ afterAll(async () => {
   await dropWorkspace(WS);
 });
 
-describe("project_access.grant keeps project.view covering the member's action capabilities (DEV-048, BL-140)", () => {
+describe("project_access.grant keeps project.view covering the member's action capabilities (DEV-049, BL-140)", () => {
   it("an undated view already covers a dated action: the view is left alone", async () => {
     const projectId = await project();
     const view = await give(projectId, members.member!, "project.view");
@@ -215,7 +215,7 @@ describe("project_access.grant keeps project.view covering the member's action c
   });
 });
 
-describe("the late review of DEV-048 (2026-09-24)", () => {
+describe("the late review of DEV-049 (2026-09-24)", () => {
   it("R1-01: a view not yet valid — as one a concurrent grant commits — is replaced by a live one, never a shorter one", async () => {
     const projectId = await project();
     const future = await give(projectId, members.member!, "project.view", "null", "now() + interval '1 minute'");
@@ -288,14 +288,14 @@ describe("the late review of DEV-048 (2026-09-24)", () => {
 });
 
 /**
- * DEV-050 / BL-137 (owner, 2026-09-24: «Зафиксировать + BL-014»): through the
+ * DEV-051 / BL-137 (owner, 2026-09-24: «Зафиксировать + BL-014»): through the
  * product a project keeps an active member with a live, undated
  * `project.admin` grant. `projects.create` gives the creator one; the revoke
  * refuses to take the last one (INV-110); and the grant never touches an
  * existing admin row, so a dated `project.admin` can only exist beside an
  * undated one and its lapse is harmless. These cases pin the grant's half.
  */
-describe("a dated administrator grant never displaces the undated one (DEV-050, BL-137)", () => {
+describe("a dated administrator grant never displaces the undated one (DEV-051, BL-137)", () => {
   const adminRows = (projectId: string, memberId: string) => q<{ until: Date | null; revoked: boolean }>(
     `select valid_until as until, revoked_at is not null as revoked from public.project_access_grants
       where workspace_id = $1 and project_id = $2 and member_id = $3 and capability = 'project.admin'`,

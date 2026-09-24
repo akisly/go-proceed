@@ -2,7 +2,7 @@ import type { Tx } from "@goproceed/database";
 import { HttpProblem, problem } from "./http";
 
 /**
- * DEV-053 / BL-148: a window that starts at the transaction's `now()` must end
+ * DEV-054 / BL-148: a window that starts at the transaction's `now()` must end
  * after it, or the insert's CHECK `valid_until > valid_from` (0010) raises 23514
  * and the route answers 500.
  *

@@ -132,12 +132,12 @@ for:
   stay live until `external_grants.revoke_reissue` retires them.
 - Keeping a project administrable when its only administrator grant lapses
   through `valid_until` or its holder's membership is suspended (BL-014); the
-  last-administrator rule covers revokes only. *[Amended 2026-09-24 (DEV-050):
+  last-administrator rule covers revokes only. *[Amended 2026-09-24 (DEV-051):
   neither path is reachable through the product in v0.1 — see «Amendment,
   2026-09-24 — what the last-administrator rule already covers».]*
 - A trigger that makes `revoked_at` write-once or the other grant columns
   immutable; with the column grant, the product can still clear `revoked_at`
-  through a defect. *[Amended 2026-09-24 (DEV-051): authorised and built — see
+  through a defect. *[Amended 2026-09-24 (DEV-052): authorised and built — see
   «Amendment, 2026-09-24 — a grant's revoke is written once».]*
 - Membership lifecycle commands or re-admission (BL-014).
 
@@ -170,7 +170,7 @@ lifecycle and approval»).
 
 ## Amendment, 2026-09-24 — a removal reports what it leaves live
 
-Recorded by the coordinator of [DEV-049](../tasks/DEV-049-removal-reports-remaining.md)
+Recorded by the coordinator of [DEV-050](../tasks/DEV-050-removal-reports-remaining.md)
 (BL-142) to transcribe the owner's ruling below. It adds one optional field to
 decision 1's response and changes no other decision; the cascade exclusions in
 «What this decision does NOT authorise» stand.
@@ -217,7 +217,7 @@ merge.
 
 ## Amendment, 2026-09-24 — what the last-administrator rule already covers
 
-Recorded by the coordinator of [DEV-050](../tasks/DEV-050-last-admin-records.md)
+Recorded by the coordinator of [DEV-051](../tasks/DEV-051-last-admin-records.md)
 (BL-137) to transcribe the owner's ruling below. It changes no behaviour.
 
 The clause above that decision 1 does not keep a project administrable «when
@@ -240,7 +240,7 @@ the coordinator's, ratified by the owner's merge.
 
 ## Amendment, 2026-09-24 — a grant's revoke is written once
 
-Recorded by the coordinator of [DEV-051](../tasks/DEV-051-grant-revoke-write-once.md)
+Recorded by the coordinator of [DEV-052](../tasks/DEV-052-grant-revoke-write-once.md)
 (BL-138) to transcribe the owner's ruling below. It adds a guard and changes no
 operation, contract or error code.
 
@@ -255,7 +255,7 @@ which fixtures use, `DISABLE TRIGGER`, or `TRUNCATE`, which only the owner holds
 since `0058`; no product role can set `session_replication_role` or owns the
 table. Both product
 writers — decision 1's revoke and the grant's replacement of `project.view`
-(DEV-048) — already write exactly the revoke. A defect that tried anything else
+(DEV-049) — already write exactly the revoke. A defect that tried anything else
 answers 500; no error code is added, since only a defect reaches it.
 
 **Approval.** Approved by the owner on 2026-09-24, in conversation, on the

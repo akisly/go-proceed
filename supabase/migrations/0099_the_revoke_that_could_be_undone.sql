@@ -1,4 +1,4 @@
--- The revoke that could be undone (DEV-051, BL-138, INV-113).
+-- The revoke that could be undone (DEV-052, BL-138, INV-113).
 --
 -- WHAT WAS WRONG. 0096 narrowed the application role's UPDATE on
 -- public.project_access_grants to `revoked_at` and `version`, and said what it
@@ -19,7 +19,7 @@
 --   - every other column is frozen, a column a later migration adds included
 --     (the rows are compared as jsonb without the two writable keys).
 -- Both product writers — `project_access.revoke` and the grant route's
--- replacement of `project.view` (DEV-048) — write exactly that. The function is
+-- replacement of `project.view` (DEV-049) — write exactly that. The function is
 -- an invoker (it reads only OLD and NEW), pins the empty search path, and no
 -- role executes it directly. The trigger has the default enablement, so it fires
 -- for every role, the table owner and superusers included, and not under
@@ -34,7 +34,7 @@
 -- unchanged.
 --
 -- This supersedes 0096's «What this does not change» on write-once; 0096 itself
--- is not edited. ADR-014's amendment of 2026-09-24 (DEV-051) records it.
+-- is not edited. ADR-014's amendment of 2026-09-24 (DEV-052) records it.
 --
 -- Rollback: drop trigger project_access_grants_guard on public.project_access_grants;
 --           drop function app.guard_project_access_grant();

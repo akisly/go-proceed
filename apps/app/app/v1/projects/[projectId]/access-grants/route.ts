@@ -31,7 +31,7 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       },
     }, async () => {
-      // DEV-053 / BL-148: first, so an end already past is 422 even where the grant would be a no-op.
+      // DEV-054 / BL-148: first, so an end already past is 422 even where the grant would be a no-op.
       await refuseEndNotAfterNow(tx, a.requestId, a.body.validUntil);
       // Target must be an ACTIVE membership of the same workspace.
       const target = await tx.query(
@@ -52,7 +52,7 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
       if ([...caps].some((c) => c !== "project.view")) caps.add("project.view");
       const requestedUntil = a.body.validUntil ? new Date(a.body.validUntil) : null;
 
-      // DEV-048 / BL-140 / INV-111: the member's project.view must cover every
+      // DEV-049 / BL-140 / INV-111: the member's project.view must cover every
       // unexpired action capability they hold here, the ones granted now
       // included. `null` is «no end»; `undefined` is «no action to cover».
       const actions = await tx.query<{ capability: string; until: Date | null }>(

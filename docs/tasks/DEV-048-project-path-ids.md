@@ -1,4 +1,4 @@
-# DEV-047 — BL-141: a malformed project path id is 404 on every project route, and the catalog's `retryable` is a default
+# DEV-048 — BL-141: a malformed project path id is 404 on every project route, and the catalog's `retryable` is a default
 
 ## Assignment
 
@@ -10,8 +10,8 @@
 - **Triggered stages and why:** `gp-architect` (cluster design; `/v1` error behaviour). `gp-security` is not triggered by its own list (no RLS, auth, session or secret change); its review of the cluster's diff covers this commit too. `gp-ui-reviewer`, `gp-mobile`, `gp-researcher`: not triggered (route handlers only; no library behaviour beyond the wrappers').
 - **Owning module and allowed edit paths:** `apps/app/src/lib/command.ts` and `command.test.ts`; `apps/app/src/lib/request-hash.ts` (exports its UUID pattern); `apps/app/app/v1/projects/[projectId]/contract-versions/[versionId]/requirement-occurrences/dry-run/route.ts` and `communications/[messageId]/retry/route.ts` (declare their nested ids); `apps/app/tests/project-path-ids.test.ts` (new); `docs/README.md` (the catalog paragraph); `docs/BACKLOG.md` (BL-141); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`, `apps/app/AGENTS.md`; `apps/app/app/v1/projects/[projectId]/access-grants/revoke/route.ts` (the check it already had); `docs/README.md` «precedence» (the error catalog's exception).
-- **Linked spec, ADR or earlier task:** BL-141, filed by [DEV-043](DEV-043-project-access-revoke.md); cluster DEV-046 to DEV-052.
-- **Baseline:** `58a592e` (DEV-046) on `origin/main` `20f2b67`.
+- **Linked spec, ADR or earlier task:** BL-141, filed by [DEV-043](DEV-043-project-access-revoke.md); cluster DEV-047 to DEV-053.
+- **Baseline:** `58a592e` (DEV-047) on `origin/main` `20f2b67`.
 - **Dependencies / constraints / out of scope:** routes outside `/v1/projects/{projectId}` with other `*Id` path parameters keep their own handling; the wrapper checks `projectId` everywhere it appears (only this tree has it) and the ids a route declares. The catalog's `retryable` values are not changed.
 - **Required acceptance criteria:**
   1. `apps/app/tests/project-path-ids.test.ts` walks the tree and fails at the baseline: for every exported method of every route file, a malformed `projectId` (four shapes) — and a malformed `versionId` or `messageId` on the nested routes — is not 404; it passes after the change, and needs no database then.

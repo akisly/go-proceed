@@ -50,7 +50,7 @@ export async function q<T extends Record<string, unknown> = Record<string, unkno
 
 /**
  * One fixture statement with user triggers suppressed, in a transaction of its
- * own. DEV-051 / BL-138 (0099): a project access grant accepts only its revoke,
+ * own. DEV-052 / BL-138 (0099): a project access grant accepts only its revoke,
  * for superusers too, so a fixture that stages a lapsed, re-granted or removed
  * grant goes through `session_replication_role = replica` — the bypass
  * dropWorkspaces already uses. Referential-integrity triggers are skipped as

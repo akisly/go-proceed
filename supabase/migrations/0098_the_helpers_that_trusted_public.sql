@@ -1,4 +1,4 @@
--- The helpers that trusted public (DEV-046, BL-143).
+-- The helpers that trusted public (DEV-047, BL-143).
 --
 -- WHAT WAS WRONG. 0011 created the three SECURITY DEFINER helpers every
 -- workspace-access policy rests on — `app.active_member_id`,
@@ -28,7 +28,7 @@
 -- WHAT THIS DOES NOT CHANGE. The bodies, the policies, and the other definer
 -- functions in `app` that still pin `public` (`org_has_members`,
 -- `accept_invitation`, `member_role`, the outbox and idempotency functions and
--- the rest recorded in DEV-046's record).
+-- the rest recorded in DEV-047's record).
 --
 -- Rollback: alter function app.active_member_id(uuid) set search_path = public;
 --           alter function app.has_project_capability(uuid, uuid, text[]) set search_path = public;
