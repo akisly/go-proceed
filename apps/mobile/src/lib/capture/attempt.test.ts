@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { AttemptGuard } from "./attempt";
 
 /**
- * PORT of apps/app/src/lib/capture/attempt.test.ts — byte-identical
- * assertions. `AttemptGuard` is the extracted, pure decision the source's
+ * Ported from apps/app/src/lib/capture/attempt.test.ts, deleted with the field
+ * PWA (DEV-035); these assertions are the only copy now. `AttemptGuard` is the extracted, pure decision the source's
  * fix round 2 (task 9) said must not stay untested — a JSX-local boolean is
  * exactly where the defect hid, because nothing exercised the
  * overlapping-attempt case in isolation from React.

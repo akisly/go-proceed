@@ -8,10 +8,12 @@ import { fileURLToPath } from 'node:url';
 // app links (device arm64, simulator arm64 + x86_64) and packs it as the
 // xcframework the podspec vendors. Output is a build product, never committed.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-// The stamp covers the pin and both build scripts, so a flag change also rebuilds.
+// The stamp covers the pin and the build scripts, so a flag change also rebuilds
+// and a verifier change verifies again (this script exits early on a current stamp).
 const pin = createHash('sha256')
   .update(readFileSync(resolve(root, 'scripts/sodium-pin.json')))
   .update(readFileSync(resolve(root, 'scripts/prepare-sodium.mjs')))
+  .update(readFileSync(resolve(root, 'scripts/minisign.mjs')))
   .update(readFileSync(resolve(root, 'scripts/sodium-xcframework.mjs')))
   .digest('hex');
 const vendor = resolve(root, 'ios/Vendor');

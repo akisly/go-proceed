@@ -1,8 +1,10 @@
-// PORT of apps/app/src/lib/field/obligations.ts — byte-identical logic and copy. Transitional duplication under ADR-009: the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files.
+// Ported from apps/app/src/lib/field/obligations.ts, which DEV-035 deleted with the field PWA
+// (2026-09-23): this copy is the only one now, so fix bugs here.
 
-import { DOVIDKOVYI_DISCLAIMER_TEXT } from "./disclaimer";
+import { DOVIDKOVYI_DISCLAIMER_TEXT, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT } from "./disclaimer";
 
-// Inlined from @goproceed/contracts (not a mobile app dependency) — same
+// Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
+// importing the types is a backlog entry) — same
 // shapes `../field/assignments.ts` and `../field/load-assignments.ts` each
 // inline, kept in sync with them and with `packages/contracts/src/
 // requirement-occurrences.ts` / `requirement-rules.ts` by hand.
@@ -13,8 +15,8 @@ type EvidenceKindValue = "photo" | "measurement" | "document" | "checkbox";
 interface NormativeCitation {
   text: string;
   // Kept in sync BY HAND with `packages/contracts/src/requirement-library.ts`'s
-  // `verificationTag` — this app has no dependency on `@goproceed/contracts` to
-  // import it from (see the file header). Widened to three values by migration
+  // `verificationTag` — inlined here rather than imported from
+  // `@goproceed/contracts` (a backlog entry). Widened to three values by migration
   // 0059/ADR-010: `PROJECT_DOCUMENTATION` names an origin (a workspace's own
   // робоча документація), not a verification strength, and is never a
   // downgrade target or source for the other two.
@@ -182,18 +184,30 @@ export interface ObligationScreen {
    * not composed per branch, so there is no branch that could omit it.
    */
   disclaimer: string;
+  /**
+   * hidden-works-content-rules.md §"Required disclaimers": «only on a list
+   * that also carries project-sourced items, immediately after» `disclaimer`.
+   * The text when at least one item's `normRef.verification` is
+   * `PROJECT_DOCUMENTATION`, `null` otherwise — decided here, so the screen
+   * only prints what it is given, right after `disclaimer`.
+   */
+  projectSourcedDisclaimer: string | null;
 }
 
 export function buildObligationScreen(
   response: ListRequirementOccurrencesResponse,
 ): ObligationScreen {
+  const items = response.occurrences.map(occurrenceToItem);
   return {
     workAssignmentId: response.workAssignmentId,
     contractVersionId: response.contractVersionId,
-    items: response.occurrences.map(occurrenceToItem),
+    items,
     coverage: response.coverage,
     coverageMessage: COVERAGE_MESSAGE[response.coverage],
     disclaimer: DOVIDKOVYI_DISCLAIMER_TEXT,
+    projectSourcedDisclaimer: items.some((i) => i.normRef?.verification === "PROJECT_DOCUMENTATION")
+      ? PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT
+      : null,
   };
 }
 

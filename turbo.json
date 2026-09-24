@@ -64,7 +64,11 @@
         "../../packages/tokens/scripts/**",
         "../../packages/ui/src/tokens.generated.css",
         "../../packages/tokens/src/tokens.generated.ts",
-        "../../apps/mobile/src/lib/status-labels.generated.json"
+        "../../apps/mobile/src/lib/status-labels.generated.json",
+        "../../docs/product/hidden-works-content-rules.md",
+        "../../apps/app/tests/helpers/content-rules.ts",
+        "../../apps/app/src/lib/otp-error.ts",
+        "../../apps/app/src/lib/norm-ref-labels.ts"
       ]
     },
     "dev": {

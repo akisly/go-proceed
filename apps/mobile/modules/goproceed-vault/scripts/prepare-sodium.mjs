@@ -3,11 +3,16 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { verifyMinisign } from './minisign.mjs';
 
-// The release asset digest is published by GitHub's release API. No floating
+// The release asset digest is published by GitHub's release API; the archive
+// must also carry libsodium's own minisign signature (the pin holds the
+// .minisig verbatim, minisign.mjs holds the author's key). No floating
 // package, pod, prebuilt binary or system libsodium can satisfy this build.
+// A pin bump changes three things in sodium-pin.json — version, the release
+// asset's sha256, and its .minisig copied verbatim — and never the key.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const { version, digest } = JSON.parse(readFileSync(resolve(root, 'scripts/sodium-pin.json'), 'utf8'));
+const { version, digest, minisig } = JSON.parse(readFileSync(resolve(root, 'scripts/sodium-pin.json'), 'utf8'));
 const cache = resolve(root, '.build');
 // Named by digest, not version alone: a re-pinned release never reuses an old tree.
 const tag = `${version}-${digest.slice(0, 16)}`;
@@ -19,7 +24,11 @@ if (!existsSync(archive)) {
   if (createHash('sha256').update(readFileSync(`${archive}.part`)).digest('hex') !== digest) throw new Error('Sodium release checksum mismatch');
   renameSync(`${archive}.part`, archive);
 }
-if (createHash('sha256').update(readFileSync(archive)).digest('hex') !== digest) throw new Error('Sodium release checksum mismatch');
+const release = readFileSync(archive);
+if (createHash('sha256').update(release).digest('hex') !== digest) throw new Error('Sodium release checksum mismatch');
+// Every run, before extraction and configure: a digest alone only says the bytes
+// are the ones GitHub's API reported, not that libsodium's author signed them.
+verifyMinisign(release, minisig, `libsodium-${version}.tar.gz`);
 if (!existsSync(source)) {
   // Extract aside and rename, so an interrupted tar is never taken for a verified tree.
   const staging = resolve(cache, `.extract-${process.pid}`);

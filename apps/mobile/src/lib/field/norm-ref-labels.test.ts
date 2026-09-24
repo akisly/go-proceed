@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   NORM_REF_VERIFICATION_LABELS, normRefVerificationLabel,
@@ -5,7 +6,7 @@ import {
 } from "./norm-ref-labels";
 
 /**
- * PORT-HALF of `apps/app/tests/norm-ref-labels.int.test.ts` (TODOS 2026-08-27
+ * The field half of `apps/app/tests/norm-ref-labels.int.test.ts` (TODOS 2026-08-27
  * residual 7). The app half asks the RUNNING DATABASE which values the CHECK
  * admits; this app has no database in its tests, so the union is pinned by
  * hand the same way every inlined contract shape here is — and this file is
@@ -62,5 +63,25 @@ describe("the norm-ref verification labels, byte-identical to the app's copy", (
   it("resolves through the function the screen calls", () => {
     expect(normRefVerificationLabel("PROJECT_DOCUMENTATION"))
       .toBe(NORM_REF_VERIFICATION_LABELS.PROJECT_DOCUMENTATION);
+  });
+});
+
+/**
+ * `apps/app/src/lib/norm-ref-labels.ts` prints the same labels in the project
+ * money overview's blocked-reasons list and on the Telegram cards. Its file is read as text, not
+ * imported (this package does not depend on `apps/app`), and every
+ * `KEY: "label"` pair it declares must equal this map's, byte for byte.
+ */
+describe("the norm-ref verification labels, byte-identical to apps/app's copy", () => {
+  it("declares the same keys with the same labels", () => {
+    const source = readFileSync(
+      new URL("../../../../app/src/lib/norm-ref-labels.ts", import.meta.url), "utf8");
+    const pairs = [...source.matchAll(/^\s*([A-Z][A-Z_]*): ("(?:[^"\\]|\\.)*"),/gm)]
+      .map((m) => [m[1] as NormRefVerificationTag, JSON.parse(m[2]!) as string] as const);
+    expect(pairs.length).toBeGreaterThan(0);
+    expect(pairs.map(([key]) => key).sort()).toEqual(Object.keys(NORM_REF_VERIFICATION_LABELS).sort());
+    for (const [key, label] of pairs) {
+      expect(sameBytes(label, NORM_REF_VERIFICATION_LABELS[key]), key).toBe(true);
+    }
   });
 });

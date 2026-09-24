@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour changes. `m1-schema.test.ts` lists `project_responsibility_assignment_ends` with the other workspace-access tables; `project_responsibilities.end`'s lower-casing of the member id and `revokeProjectAccessRequest`'s bound on `capabilities` get tests. Then the cluster «Доступ к проекту» (DEV-047 to DEV-054) gets its final run: the suites that drive the changed routes and policies, one at a time, plus types and docs.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** tests for existing behaviour: tests → `gp-reviewer` → `gp-qa`, which also verifies the cluster's final run.
@@ -81,4 +81,4 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Verified scope: criteria 1–4; `m1-schema.test.ts` NOT RUN.
 - Remaining risks / blocked requirements: `m1-schema.test.ts`'s run is owed to the first CI run.
 - Next bounded action and owner: merging is the owner's.
-- Final state and reason: verifying until the owner's merge.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

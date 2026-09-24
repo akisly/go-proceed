@@ -134,7 +134,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-103](#bl-103) | P2 | closed → DEV-020 | A repeat of an idempotent command replays its stored response before membership is checked |
 | [BL-104](#bl-104) | P1 | closed → DEV-019 | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
-| [BL-106](#bl-106) | P3 | scheduled → DEV-055 | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
+| [BL-106](#bl-106) | P3 | closed → DEV-055 | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
@@ -166,22 +166,25 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
 | [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
 | [BL-137](#bl-137) | P3 | open | A project whose only administrator has left cannot be recovered through the product, and a future suspend must not orphan one |
-| [BL-138](#bl-138) | P3 | scheduled → DEV-052 | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
+| [BL-138](#bl-138) | P3 | closed → DEV-052 | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
-| [BL-140](#bl-140) | P3 | scheduled → DEV-049 | A member's `project.view` can lapse before the action capabilities it was added for |
-| [BL-141](#bl-141) | P3 | scheduled → DEV-048 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
+| [BL-140](#bl-140) | P3 | closed → DEV-049 | A member's `project.view` can lapse before the action capabilities it was added for |
+| [BL-141](#bl-141) | P3 | closed → DEV-048 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
-| [BL-143](#bl-143) | P3 | scheduled → DEV-047 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
-| [BL-144](#bl-144) | P3 | scheduled → DEV-053 | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
+| [BL-143](#bl-143) | P3 | closed → DEV-047 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
+| [BL-144](#bl-144) | P3 | closed → DEV-053 | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone |
 | [BL-146](#bl-146) | P3 | open | Eleven SECURITY DEFINER functions in `app` still trust `public` on their search path |
 | [BL-147](#bl-147) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 | [BL-148](#bl-148) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
-| [BL-149](#bl-149) | P3 | scheduled → DEV-054 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
-| [BL-150](#bl-150) | P2 | scheduled → DEV-055 | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
+| [BL-149](#bl-149) | P3 | closed → DEV-054 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
+| [BL-150](#bl-150) | P2 | closed → DEV-055 | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
 | [BL-151](#bl-151) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
 | [BL-152](#bl-152) | P1 | scheduled → DEV-059 | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
+| [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
+| [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 | [BL-155](#bl-155) | P2 | open | PUBLIC holds TEMP on the database |
+| [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1325,7 +1328,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-106"></a>
 ### BL-106 — P3 — `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it
 
-- **State:** scheduled → DEV-055
+- **State:** closed → DEV-055
 - **Legacy cite:** none
 - **Why:** *[2026-09-24, DEV-055: the fix is qualified names, not a SET clause — a SET clause would stop the function being inlined; `0100` re-creates it with `pg_catalog.current_setting` and `pg_catalog.uuid`.]* DEV-017's `gp-security` review (S1-06). `app.service_workspace()` (`0062`) is an invoker `sql` function reading `current_setting('app.organization_id', true)` with no `set search_path` and an unqualified `current_setting`. Every service-plane policy resolves through it — the Telegram tables, the two readiness projections (`0086`) and now `ce_insert_server` (`0087`) — so it is load-bearing. Exploiting it needs a role able to create a shadowing `current_setting` in a schema that precedes `pg_catalog` on the search path, which `goproceed_app` and `goproceed_service` should not have; this is hardening, not an observed hole. The fix is a later migration adding `set search_path to ''` and `pg_catalog.current_setting`, and the same review for `app.current_actor()`. Ranked by DEV-017.
 - **Evidence:** observed 2026-09-18 at `e7e35aa`: the function definition in the local database at `0087`. Unverified: whether any role in a hosted project holds `CREATE` on a schema that precedes `pg_catalog`.
@@ -1650,7 +1653,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-035 (2026-09-23) removed the field PWA from `apps/app` at the owner's word («удали все что в (app)», «Удалить сейчас», «Всё мёртвое») and left these outside its edit list or for the owner. (1) `apps/mobile/src/lib/field/{assignments,obligations,disclaimer}.ts`, `src/lib/capture/attempt.ts`, `src/lib/safe-next.ts` and `otp-error.ts` still say «the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files» — the originals are gone, so these copies are canonical now. (2) `disclaimer.ts`'s copy of the довідковий text has no byte-equality guard against `apps/app/src/lib/statutory-act-form.ts`, and the harness that rendered the `apps/app` copy on a screen is gone. (3) `apps/mobile`'s browser pass (`pnpm --filter @goproceed/mobile qa`, `qa/field-web.mjs`) is in no CI job, so no CI browser pass covers the field screens any more (INV-081, INV-086 witnesses). *[2026-09-23, DEV-042: that browser pass is deleted with the Expo web field client ([ADR-013](decisions/ADR-013-native-field-client.md)); item (3) now reads as «the native field client has no browser or device harness, in CI or out of it» (`.github/workflows/ci.yml` still names the deleted command in a comment).]* (4) With the manifest removed («Убрать манифест»), `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png` serve nothing; `scripts/generate-brand-icons.mjs` still writes them. (5) A foreman's old `/a/{id}` link or bookmark now signs in and lands on the Ukrainian 404 (`app/not-found.tsx`); a redirect to the field client's same route needs a build-time variable naming its origin (hostnames are tokens, BL-004) and a `gp-security` pass. (6) What an icon installed from the old PWA does on a real iPhone and Android phone after the deploy is not measured (DEV-035 gp-mobile AC-09, AC-10).
+- **Why:** DEV-035 (2026-09-23) removed the field PWA from `apps/app` at the owner's word («удали все что в (app)», «Удалить сейчас», «Всё мёртвое») and left these outside its edit list or for the owner. (1) `apps/mobile/src/lib/field/{assignments,obligations,disclaimer}.ts`, `src/lib/capture/attempt.ts`, `src/lib/safe-next.ts` and `otp-error.ts` still say «the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files» — the originals are gone, so these copies are canonical now. (2) `disclaimer.ts`'s copy of the довідковий text has no byte-equality guard against `apps/app/src/lib/statutory-act-form.ts`, and the harness that rendered the `apps/app` copy on a screen is gone. (3) `apps/mobile`'s browser pass (`pnpm --filter @goproceed/mobile qa`, `qa/field-web.mjs`) is in no CI job, so no CI browser pass covers the field screens any more (INV-081, INV-086 witnesses). *[2026-09-23, DEV-042: that browser pass is deleted with the Expo web field client ([ADR-013](decisions/ADR-013-native-field-client.md)); item (3) now reads as «the native field client has no browser or device harness, in CI or out of it» (`.github/workflows/ci.yml` still names the deleted command in a comment).]* (4) With the manifest removed («Убрать манифест»), `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png` serve nothing; `scripts/generate-brand-icons.mjs` still writes them. (5) A foreman's old `/a/{id}` link or bookmark now signs in and lands on the Ukrainian 404 (`app/not-found.tsx`); a redirect to the field client's same route needs a build-time variable naming its origin (hostnames are tokens, BL-004) and a `gp-security` pass. (6) What an icon installed from the old PWA does on a real iPhone and Android phone after the deploy is not measured (DEV-035 gp-mobile AC-09, AC-10). *[2026-09-24, [DEV-057](tasks/DEV-057-pwa-retirement-loose-ends.md): (1) done — the copies whose original is gone say so, and the three with a live `apps/app` twin (`otp-error.ts`, `norm-ref-labels.ts`, the disclaimer) are marked deliberate duplicates; `apps/mobile`'s unused `safe-next.ts` is deleted (owner). (2) done — the disclaimer is compared byte for byte with the content rules' blockquote, and the OTP messages and norm-ref labels with `apps/app`'s files. (3) the comment in `ci.yml` is corrected; the missing native harness stays open. (4) done — the three `apps/app` PWA icons, `apps/mobile/public/icons/*`, `assets/favicon.png` and the orphaned `assets/icon-concept-v2.png` are deleted with their generator lines (owner: «Все веб-остатки»). (5) wontfix (owner, 2026-09-24): an old `/a/{id}` link keeps landing on the 404. (6) stays with BL-002.]*
 - **Evidence:** DEV-035's record, `gp-mobile` findings M1-03, M1-04, M1-06, M1-07.
 - **Depends on:** (5) an owner decision; (6) BL-002's phones; (3) the Actions billing block.
 - **Deadline:** (1)–(2) before the next `apps/mobile` change; (3) when CI runs again.
@@ -1678,7 +1681,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-138"></a>
 ### BL-138 — P3 — Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant
 
-- **State:** scheduled → DEV-052
+- **State:** closed → DEV-052
 - **Legacy cite:** none
 - **Why:** DEV-043 narrowed `goproceed_app`'s `UPDATE` on `project_access_grants` to `revoked_at` and `version` (`0096`), and RLS cannot compare the old row with the new one, so a defect in the application can still set `revoked_at` back to null. A trigger that refuses clearing `revoked_at` (and any change of the other columns) would close it; it fires for superusers too, and at least ten fixture sites un-revoke, delete or re-date grants (`m2-rls.test.ts`, `m1-rules-rls.test.ts`, `m2-policy-gaps.test.ts`, `m3-closure-rls.test.ts`, `project-communications.int.test.ts`, `telegram-evidence.int.test.ts`), so it needs their rework. Ranked by DEV-043.
 - **Evidence:** DEV-043's `gp-architect` design, point f; `supabase/migrations/0096_the_grant_that_could_be_rewritten.sql` «What this does not change».
@@ -1698,7 +1701,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-140"></a>
 ### BL-140 — P3 — A member's `project.view` can lapse before the action capabilities it was added for
 
-- **State:** scheduled → DEV-049
+- **State:** closed → DEV-049
 - **Legacy cite:** none
 - **Why:** the grant route adds `project.view` to any action capability but skips a still-unrevoked `project.view` as a duplicate without aligning its window, so a member can hold an action capability whose `project.view` lapses first. The Telegram evidence resolver checks `evidence.record` alone (`0084`), so such a member could still file evidence on a project they cannot see. INV-111 covers the revoke only. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the duplicate skip); `supabase/migrations/0084_the_button_that_carried_a_normative_string.sql`; INV-111.
@@ -1708,7 +1711,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-141"></a>
 ### BL-141 — P3 — The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row
 
-- **State:** scheduled → DEV-048
+- **State:** closed → DEV-048
 - **Legacy cite:** none
 - **Why:** DEV-043's `gp-architect` design. `project_access.grant` and `project_responsibilities.assign` pass the path's project id to a `uuid` comparison without checking its form, so a malformed id raises a cast error that becomes 500 `INTERNAL_ERROR`; the revoke and end routes check it first and answer 404, as `invitations.revoke` does. And `technical/error-catalog.csv` marks `VERSION_CONFLICT` retryable while the revoke routes (DEV-021, DEV-043, DEV-044) send `retryable: false`, because retrying the same revoke cannot succeed. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` and `responsibilities/route.ts` (no UUID check); `technical/error-catalog.csv` row `VERSION_CONFLICT`; `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts`.
@@ -1728,7 +1731,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-143"></a>
 ### BL-143 — P3 — The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one
 
-- **State:** scheduled → DEV-047
+- **State:** closed → DEV-047
 - **Legacy cite:** none
 - **Why:** DEV-043's `gp-security` review. The three SECURITY DEFINER helpers from `0011`, on which every workspace-access policy rests — including `0097`'s `prae_select` and `prae_insert` — set `search_path = public` instead of the empty path the project's definer rule asks for. Every table reference in them is schema-qualified, so the risk is low; the same class as BL-106 and BL-110. Ranked by DEV-043.
 - **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (the three `create or replace function` statements).
@@ -1738,7 +1741,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-144"></a>
 ### BL-144 — P3 — `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test
 
-- **State:** scheduled → DEV-053
+- **State:** closed → DEV-053
 - **Legacy cite:** none
 - **Why:** *[2026-09-24, DEV-053: all three items have their change — (1) the end table is in `m1-schema.test.ts`'s lists, closed on the same four checks run by SQL on the local database, the file's own run owed to the first CI run after the billing block; (2) and (3) have tests. The text below is kept as written.]* DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
 - **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
@@ -1788,7 +1791,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-149"></a>
 ### BL-149 — P3 — A grant or assignment whose `validUntil` does not come after its start answers 500, not 422
 
-- **State:** scheduled → DEV-054
+- **State:** closed → DEV-054
 - **Legacy cite:** none
 - **Why:** DEV-051's `gp-architect`. `project_access.grant` and `project_responsibilities.assign` accepted any datetime as `validUntil`; the insert then hit the tables' CHECK `valid_until > valid_from` (a grant starts at `now()`, an assignment at `validFrom` or `now()`), raised 23514, which no route maps, and answered 500 `INTERNAL_ERROR`. Observed on the local database by DEV-054's failing test (three 500s); a grant that would write nothing answered 201 instead. Ranked by DEV-051.
 - **Evidence:** `supabase/migrations/0010_workspace_access_module.sql` (the two CHECKs); `packages/contracts/src/project-access.ts` (the two request schemas); [DEV-054](tasks/DEV-054-window-ends-after-start.md) row 1.
@@ -1798,7 +1801,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-150"></a>
 ### BL-150 — P2 — `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers
 
-- **State:** scheduled → DEV-055
+- **State:** closed → DEV-055
 - **Legacy cite:** none
 - **Why:** DEV-047's late `gp-reviewer` (R1-01) and `gp-security` (S1-03) reviews, 2026-09-24. `app.current_actor()` (`0003`) is `nullif(current_setting(…), '')::uuid` with no `SET` clause, so it is inlined and parsed under its caller's path. Inside the three workspace-access definers that path is empty since `0098` (it was `public` before), and PostgreSQL still searches the session's temporary schema first for type names. A session with arbitrary SQL as `goproceed_app` (PUBLIC holds TEMP on the database; no migration revokes it) can create `pg_temp.uuid` — a table, which makes the helpers fail closed, or a domain whose CHECK calls a `pg_temp` function, which the reviewer reads as running with the helper owner's rights. Pre-existing; `0098` neither causes nor fixes it. `app.current_actor()::text` (`0007`) is the same class.
 - **Evidence:** `supabase/migrations/0003_roles_and_grants.sql` (`app.current_actor`); `0011` (the helpers); PostgreSQL 17 «search_path»; [DEV-047](tasks/DEV-047-access-helpers-search-path.md) findings.
@@ -1825,6 +1828,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a decision between the three fixes (`gp-architect`, `gp-security`; the owner for a rule change). Revoking TEMP from PUBLIC must also rewrite DEV-055's temporary-table case in `workspace-access-rls.test.ts`, which creates its object on the application connection (DEV-055 review R1-02).
 - **Deadline:** before the product runs any SQL it did not write on an application connection.
 
+<a id="bl-153"></a>
+### BL-153 — P3 — `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-057's `gp-mobile` finding 3. `src/lib/field/assignments.ts`, `obligations.ts`, `load-assignments.ts`, `norm-ref-labels.ts` and their tests inline contract shapes (project and work-item rows, `NormativeCitation.verification`, evidence kinds) «by hand», from the time `apps/mobile` did not depend on `@goproceed/contracts`. Since DEV-042 it does (`apps/mobile/package.json`; `authorize.ts`, `queue.ts` and `runtime.tsx` import from it), so a contract change can leave these copies silently stale. DEV-057 corrected the comments that said the package was not a dependency; it did not switch the types. Ranked by DEV-057.
+- **Evidence:** `grep -rn -e 'Inlined from @goproceed/contracts' -e 'inlined here rather than imported' apps/mobile/src`.
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-154"></a>
+### BL-154 — P2 — The field client's obligation list never prints the project-sourced items disclaimer the content rules require
+
+- **State:** closed → DEV-058
+- **Legacy cite:** none
+- **Why:** DEV-057's `gp-ui-reviewer` finding U1. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires «Пункти, позначені «за робочою документацією об'єкта»…» «only on a list that also carries project-sourced items, immediately after» the довідковий disclaimer. The field obligation screen (`apps/mobile/src/screens/assignment.tsx`) labels such items «за робочою документацією об'єкта» but ends with the довідковий text only; `apps/mobile/src` has no copy of the second disclaimer, which exists in `apps/app/src/lib/statutory-act-form.ts` (`PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`) for the act alone. The retired field PWA did not print it either (`git grep` at `98040e95^`), so this is a gap since ADR-010 and migration `0059`, not a regression. The owner asked on 2026-09-24 for it to be a separate task. Ranked by DEV-057.
+- **Evidence:** `apps/mobile/src/screens/assignment.tsx` (the list and its closing `model.disclaimer`); `apps/mobile/src/lib/field/obligations.ts` (`buildObligationScreen`); `hidden-works-content-rules.md` §"Required disclaimers".
+- **Depends on:** nothing. The fix needs `gp-ui-reviewer` and a §6 screenshot of an obligation list with a project-sourced item, and a byte-for-byte guard against the content rules like `apps/mobile/src/lib/field/disclaimer.test.ts`.
+- **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client. *[2026-09-24, [DEV-058](tasks/DEV-058-field-project-sourced-disclaimer.md): `buildObligationScreen` exposes the note when an item's `normRef.verification` is `PROJECT_DOCUMENTATION`, and `assignment.tsx` prints it right after the довідковий text. `disclaimer.test.ts` compares it byte for byte with the content rules. Seen in the iOS simulator with fixture data only; the real route, a screen reader and Android are NOT RUN. Merged in #127 (`5c5bbb0c`, 2026-09-24).]*
+
 <a id="bl-155"></a>
 ### BL-155 — P2 — PUBLIC holds TEMP on the database
 
@@ -1834,3 +1857,21 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `packages/testing/src/definer-search-path.test.ts` (created on the application and service logins); [DEV-059](tasks/DEV-059-temporary-schema-searched-last.md).
 - **Depends on:** a read-only check of database ownership and TEMP holders, locally and hosted; the tests rewritten to assert the refusal.
 - **Deadline:** none recorded.
+
+<a id="bl-156"></a>
+### BL-156 — P2 — The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-058's `gp-reviewer` raised this as a separate question, and the owner asked on 2026-09-24 for it to be filed. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires the довідковий disclaimer «Under every generated requirement list, never collapsed», and the project-sourced items disclaimer «only on a list that also carries project-sourced items, immediately after it». The act (`apps/app/src/lib/statutory-act-form.ts`) prints both. Since DEV-058 the native field obligation screen prints both too. Two other surfaces print requirement citations with their verification label, including «за робочою документацією об'єкта», and print neither disclaimer:
+  - the Telegram assignment card and the requirement-choice prompt. Both come from `renderRequirements` in `apps/app/src/lib/telegram/cards.ts`, a numbered «Вимоги» list with a «Джерела» block;
+  - the office's blocked-reasons list in the project money overview, where each reason shows its `normRef` with the label (`apps/app/src/components/projects/blocked-reasons-list.tsx`).
+
+  Undecided:
+  - whether each surface is a «generated requirement list» in the rules' sense. The Telegram card plainly lists requirements; the blocked-reasons list lists reasons that cite one requirement each;
+  - for Telegram, how two disclaimers of about 330 and 190 characters fit the card's 4096-character budget (`MAX_TELEGRAM_MESSAGE_CHARACTERS`), which publication already gates.
+
+  Ranked by DEV-058.
+- **Evidence:** `apps/app/src/lib/telegram/cards.ts` (`renderRequirements`, `MAX_TELEGRAM_MESSAGE_CHARACTERS`); `apps/app/src/components/projects/blocked-reasons-list.tsx` (the `normRef` paragraph); `grep -rn DOVIDKOVYI_DISCLAIMER_TEXT apps/app/src` finds only `statutory-act-form.ts`; `hidden-works-content-rules.md` §"Required disclaimers".
+- **Depends on:** a reading of the content rules for each surface, owner or `gp-architect`. Telegram needs a budget decision: one sentence per card, the disclaimers only when the list carries such items, or a link. A change needs `gp-ui-reviewer`, and a byte-for-byte guard against the content rules like `apps/app/tests/act-content-fidelity.test.ts`.
+- **Deadline:** before a pilot workspace connects a Telegram group or opens the money overview with published requirements.

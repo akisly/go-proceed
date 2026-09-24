@@ -1,4 +1,5 @@
-// PORT of apps/app/src/lib/capture/hash.ts — same exported name, signature,
+// Ported from apps/app/src/lib/capture/hash.ts (deleted with the field PWA by
+// DEV-035, 2026-09-23, so this is the only copy) — same exported name, signature,
 // and output, adapted for the one delta the platform forces: no `crypto.
 // subtle` global exists on native RN, so this goes through expo-crypto's
 // `Crypto.digest` instead of calling `crypto.subtle.digest` directly.

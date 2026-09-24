@@ -1,4 +1,7 @@
-// PORT of apps/app/src/lib/otp-error.ts — byte-identical logic and copy. Transitional duplication under ADR-009: the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files.
+// Deliberate duplicate of apps/app/src/lib/otp-error.ts, the office dashboard's
+// login: one person signs in to both clients, so the three messages stay
+// byte-identical (otp-error-twin.test.ts reads the app's file) and a logic fix
+// lands in both (each side's otp-error.test.ts carries the same cases).
 
 /**
  * THE ONE PLACE A SUPABASE AUTH FAILURE BECOMES A SENTENCE A FOREMAN READS —
@@ -27,7 +30,7 @@
  * one could reach a screen — the type makes rendering it a change to this
  * file's signature rather than a one-character slip at a call site.
  *
- * Node-testable with no DOM, like `safe-next.ts` and `submit-guard.ts`:
+ * Node-testable with no DOM, like `apps/app`'s `safe-next.ts` and `submit-guard.ts`:
  * `apps/app`'s vitest run has no jsdom, so logic left inside a `"use client"`
  * component is reachable only by rendering it, which nothing in this package
  * does.
