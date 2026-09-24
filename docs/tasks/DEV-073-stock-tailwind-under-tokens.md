@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the generated theme stops clearing Tailwind's stock namespaces, the roles override or add to them (ADR-015), `cx()` extends stock tailwind-merge, and every dialog, the login column and the empty states get the width their class always named instead of the full width.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): a design-system change (`packages/tokens`, `packages/ui`, `apps/app`, agent instructions) → owner decision, implementation, the §5 gate and §6 pass, `gp-reviewer` + `gp-ui-reviewer`, `gp-qa`.
@@ -40,6 +40,7 @@
 | 4 | gp-reviewer, gp-ui-reviewer; Owner; Coordinator | gp-reviewer: no blocker, R1–R8. gp-ui-reviewer: HOLD on U1–U5. Owner on U3: «Полностью свободно». Fixed per «Findings». Compile check with the installed `@tailwindcss/node` 4.3.3 of `sm:grid md:grid lg:grid xl:grid wide:grid max-w-md max-w-content font-medium text-sm text-data bg-neutral-200 animate-spin`: media order 640px < 768px < 1024px < 1240px < 1280px; `.font-medium` reads `--gp-font-weight-medium` (the role wins); `.text-sm`, `.max-w-md`, `.bg-neutral-200` (stock) and `.animate-spin` compile. §6 re-shoot: both kitchen-sink checkboxes paint at the column's left edge (1440: 148/148 and 165/165; 390: 24/24 and 41/41), checked fill `rgb(12, 12, 10)` (ink); kitchen sink `max-w-xl` 576px and `max-w-2xl` 672px at 1440, 342px at 390; landing home no horizontal scroll | scratchpad `shots2/` | Re-check, gp-qa |
 | 5 | gp-ui-reviewer (re-check) | HOLD: U1, U2, U5, R7 fixed; remaining U3-text, U4-rest and a new U6 (DEV-074). Fixed per «Findings»; gate re-run below | Subagent report (session) | gp-qa |
 | 6 | gp-qa; Coordinator | gp-qa on `3fc05553`: every criterion PASS, every Fixed finding in place; `validate:canonical-docs`, `validate:agents`, `validate:lockfile`, `motion-audit: clean`, `tokens generate` leaves no diff, typecheck 10/10 (`--force`), landing and app builds, landing 272/272, the 14 DB-free `packages/testing` files 208/208; mutations caught: `--container-*: initial` in the theme, a rem breakpoint, stock `animate-*` in a probe file, Checkbox without its touch floor; compile with `@tailwindcss/node` 4.3.3: 640 < 768 < 1024 < 1240 < 1280 < 1536px, `.font-medium`/`.ease-out`/`.leading-tight` read the roles; Checkbox re-measured on the HEAD build at six widths (24/44 hit, 16px paint, painted left = column left, no horizontal scroll). PR #144 CI run 36045655102 on `3fc05553`: `verify` and `app-qa` green — contracts 153, discovery 73, domain 102, testing 886 in 58 files (database suites included), mobile 225, database 32, landing 272, app 1,499 in 133 files; none skipped. New: Q1 (minor) — `tw-merge.test.ts` built its own `cn`, so `cn.ts` reverted to `override` went unnoticed. Fixed Q1: the test imports the real `cn` from `cn.ts` (listed in `packages/testing/tsconfig.json` for TS6307) and asserts it equals a `extend`-built one on four pairs; with `cn.ts` reverted to `override`, 2 of 9 cases fail, restored 9/9 | scratchpad `qa/` | Owner merges |
+| 7 | Owner | #144 merged (`08ee6916`, 2026-09-24 19:43 UTC) with DEV-074; CI green on the head `1f3f763d` (run 36049403270: `verify`, `app-qa`) and on `main` after the merge (run 36050082495) | `gh pr view 144`; the CI runs | done |
 
 ## Findings and rework
 
@@ -89,5 +90,5 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 - Review independence: independent — `gp-reviewer`, `gp-ui-reviewer` (HOLD → re-check HOLD → PASS), `gp-qa` (all subagents).
 - Verified scope: §5 gate, §6 pass, DB-free tests.
 - Remaining risks / blocked requirements: database suites are CI's.
-- Next bounded action and owner: the owner reviews and merges PR #144; then the coordinator records `done`.
-- Final state and reason: verifying — every required criterion PASS (gp-qa row 6, CI); `done` is recorded after the owner merges.
+- Next bounded action and owner: none in this task.
+- Final state and reason: done — every required criterion PASS (gp-qa row 6, CI); #144 merged with CI green (row 7).
