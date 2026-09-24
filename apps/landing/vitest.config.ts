@@ -1,8 +1,9 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  esbuild: {
-    jsx: "automatic",
+  // Vite 8 transforms with Oxc; `esbuild` is deprecated there (DEV-065).
+  oxc: {
+    jsx: { runtime: "automatic" },
   },
   test: {
     environment: "node",

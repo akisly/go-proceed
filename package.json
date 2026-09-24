@@ -12,6 +12,7 @@
     "test": "turbo run test",
     "validate:canonical-docs": "node scripts/validate-canonical-docs.mjs",
     "validate:agents": "python3 scripts/sync-agents.py --check",
+    "validate:lockfile": "node scripts/check-lockfile-versions.mjs",
     "db:local-credentials": "node scripts/check-supabase-cli.mjs && node scripts/set-local-app-password.mjs",
     "db:catalog-snapshot": "node scripts/snapshot-db-catalog.mjs",
     "db:check-cli": "node scripts/check-supabase-cli.mjs"
@@ -20,14 +21,19 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "@types/react": "19.2.18",
+      "@types/react-dom": "19.2.4"
+    }
   },
   "devDependencies": {
     "@types/pg": "^8.20.0",
     "pg": "^8.22.0",
     "sharp": "0.34.5",
     "turbo": "2.10.11",
-    "typescript": "5.9.2",
-    "vitest": "3.2.4"
+    "typescript": "6.0.3",
+    "vite": "8.0.13",
+    "vitest": "5.0.1"
   }
 }

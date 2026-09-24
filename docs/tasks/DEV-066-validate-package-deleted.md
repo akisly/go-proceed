@@ -1,4 +1,4 @@
-# DEV-062 — BL-063: `scripts/validate_package.py` is deleted
+# DEV-066 — BL-063: `scripts/validate_package.py` is deleted
 
 ## Assignment
 

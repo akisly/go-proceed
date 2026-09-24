@@ -89,9 +89,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-058](#bl-058) | P3 | open | Daylight landing residuals |
 | [BL-059](#bl-059) | P3 | open | Final-review minors: `apps/landing` |
 | [BL-060](#bl-060) | P3 | open | Final-review minors: documents and configuration |
-| [BL-061](#bl-061) | P2 | open | vitest 3.2.4 → 4 |
-| [BL-062](#bl-062) | P2 | open | Three TypeScript versions in one workspace |
-| [BL-063](#bl-063) | P2 | scheduled → DEV-062 | `scripts/validate_package.py` is orphaned |
+| [BL-061](#bl-061) | P2 | scheduled → DEV-069 | vitest 3.2.4 → 4 |
+| [BL-062](#bl-062) | P2 | scheduled → DEV-067 | Three TypeScript versions in one workspace |
+| [BL-063](#bl-063) | P2 | scheduled → DEV-066 | `scripts/validate_package.py` is orphaned |
 | [BL-064](#bl-064) | P2 | open | vertical-m1 steps 7 and 8 went red once and never again |
 | [BL-065](#bl-065) | P2 | open | A page render costs about three auth round trips and two self-fetch hops |
 | [BL-066](#bl-066) | P3 | open | `turbo-ignore` is deprecated |
@@ -111,7 +111,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | closed → DEV-031 | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
-| [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
+| [BL-083](#bl-083) | P2 | scheduled → DEV-068 | Nothing keeps a package reached through pnpm's private hoist at one version |
 | [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
 | [BL-085](#bl-085) | P1 | closed → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
@@ -885,7 +885,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-061"></a>
 ### BL-061 — P2 — vitest 3.2.4 → 4
 
-- **State:** open
+- **State:** scheduled → DEV-069
 - **Legacy cite:** `TODOS.md` «vitest 3.2.4 → 4.1.11»
 - **Why:** v4 removes `vitest.workspace.ts` for `projects`. The serialized run (`--concurrency=1`, `fileParallelism: false`, the 10 s hook budget) keeps the shared local Postgres from deadlocking, so a change must be proved on a full serialized run.
 - **Evidence:** every `package.json` that declares vitest pins `3.2.4`; `vitest.workspace.ts` exists. The target version is as of 2026-08-19; read the current docs first.
@@ -895,7 +895,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-062"></a>
 ### BL-062 — P2 — Three TypeScript versions in one workspace
 
-- **State:** open
+- **State:** scheduled → DEV-067
 - **Legacy cite:** `TODOS.md` «TypeScript → 7.0.2 (the Go port)»
 - **Why:** unify on one version before a 6.x or 7.x move; 5.9 → 6 is itself a config migration (`baseUrl`, `node10` resolution deprecations).
 - **Evidence:** root `typescript` `5.9.2`, `packages/ui` `^5.9.3`, `apps/mobile` `6.0.3`.
@@ -905,7 +905,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-063"></a>
 ### BL-063 — P2 — `scripts/validate_package.py` is orphaned
 
-- **State:** scheduled → DEV-062
+- **State:** scheduled → DEV-066
 - **Legacy cite:** `TODOS.md` «`scripts/validate_package.py` is orphaned: its subject was deleted»
 - **Why:** about 2,400 lines that assert a deleted prototype; dead code that looks alive. Delete it and record what stopped being enforced, or retarget it at `apps/app` if its assertions still describe the product.
 - **Evidence:** tracked (`git ls-files scripts/validate_package.py`); invoked by nothing, only described in `Makefile` and `ci.yml` comments.
@@ -1094,7 +1094,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-083"></a>
 ### BL-083 — P2 — Nothing keeps a package reached through pnpm's private hoist at one version
 
-- **State:** open
+- **State:** scheduled → DEV-068
 - **Legacy cite:** none
 - **Why:** [DEV-008](tasks/DEV-008-types-react-dedupe.md) found that pnpm 9.12.0 privately hoists the copy of a package brought by whichever importer it lists first, and that order varies between runs. `next`, `lucide-react`, `framer-motion` and `@tanstack/*` import `@types/react` without declaring it, so when `apps/mobile` pinned a different `@types/react` the web programs sometimes loaded two copies and CI `typecheck` failed at random. DEV-008 aligned `@types/react`; nothing stops a hand pin, or an `expo install @types/react` that writes Expo's `~19.2.4` range, splitting it again. `react` and `react-dom` are already split (19.2.3 in `apps/mobile`, 19.2.8 in the web apps) and reach the same hoist. Two guards fit: root `pnpm.overrides` entries (and `pnpm-workspace.yaml` `overrides`, kept in sync as D-048 does for build scripts), or a check that fails when `pnpm-lock.yaml` holds more than one version of a package that web and mobile importers both reach, starting with `@types/react`, `@types/react-dom`, `react` and `react-dom`. Ranked by DEV-008.
 - **Evidence:** DEV-008 «Progress and decisions» rows 1–3; at `5a38091` `grep -oE "@types/react@19\.[0-9.]+" pnpm-lock.yaml | sort -u` prints one version.

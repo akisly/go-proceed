@@ -16,12 +16,23 @@
 // and its 2 tests are unreachable by the pipeline that certifies them. Moving
 // it is a separate change: adding supabase/functions/* to pnpm-workspace.yaml
 // forces a lockfile regeneration, and ci.yml runs --frozen-lockfile.
-export default [
-  "apps/app/vitest.config.ts",
-  "apps/mobile/vitest.config.ts",
-  "packages/contracts",
-  "packages/database",
-  "packages/domain",
-  "packages/testing",
-  "supabase/functions/outbox-drain",
-];
+//
+// Vitest 4 removed `vitest.workspace.ts` for `test.projects` in a config file
+// (BL-061, DEV-065). Vitest 5 no longer searches parent directories for a
+// config, so a package without its own `vitest.config.ts` still runs with
+// defaults rooted at its directory and never picks this file up.
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    projects: [
+      "apps/app/vitest.config.ts",
+      "apps/mobile/vitest.config.ts",
+      "packages/contracts",
+      "packages/database",
+      "packages/domain",
+      "packages/testing",
+      "supabase/functions/outbox-drain",
+    ],
+  },
+});

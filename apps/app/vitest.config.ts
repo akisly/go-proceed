@@ -16,8 +16,9 @@ export default defineConfig({
   // vitest ever touches — not a one-off `import React` in the two new test
   // files, which would have fixed only those two files' OWN JSX and left
   // every component they import still broken.
-  esbuild: {
-    jsx: "automatic",
+  // Vite 8 transforms with Oxc; `esbuild` is deprecated there (DEV-065).
+  oxc: {
+    jsx: { runtime: "automatic" },
   },
   test: {
     // Integration tests (tests/*.int.test.ts) share one real local Postgres

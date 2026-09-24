@@ -11,7 +11,7 @@
 # All three are gone with their subject. The CI job that ran this target
 # (`package-validate`) was removed in the same change — see
 # .github/workflows/ci.yml. `validate_package.py` itself stayed in the tree,
-# invoked by nothing, until DEV-062 deleted it on 2026-09-24 (BL-063): beyond
+# invoked by nothing, until DEV-066 deleted it on 2026-09-24 (BL-063): beyond
 # the prototype it asserted a spec-package contract layer (`technical/schema.sql`,
 # `openapi.yaml` conventions) the live catalogs no longer follow, so
 # retargeting it would have been a rewrite.

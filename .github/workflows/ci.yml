@@ -100,6 +100,13 @@ jobs:
       # is visible in the log rather than inferred.
       - run: python3 --version && pnpm validate:agents
 
+      # Lockfile gate (BL-083, DEV-064): one @types/react, @types/react-dom
+      # and typescript for every importer, every react-dom paired with the
+      # same react, and one react pair across the web apps. pnpm 9 privately
+      # hoists whichever copy it lists first, so a second version splits the
+      # web programs at random (DEV-008). Reads the lockfile only.
+      - run: pnpm validate:lockfile
+
       # THE CLI IS PINNED, AND THE PIN LIVES IN ONE FILE. Until 2026-08-18 this
       # asked setup-cli for `version: latest`, so the SHA-pinned ACTION was
       # reproducible and the TOOL it installed was not: local development ran
@@ -411,7 +418,7 @@ jobs:
   # it at: `validate_package.py` reads prototype's App.jsx, its pages, its
   # qa-results.json and its styles.css in 29 places. Retargeting that script at
   # the real apps is a rewrite, not a path fix, and it is recorded in TODOS.md
-  # as its own slice. [2026-09-24, DEV-062: the script is deleted (BL-063).]
+  # as its own slice. [2026-09-24, DEV-066: the script is deleted (BL-063).]
   #
   # What this job actually guarded, and where each half lives now:
   #   - `validate-canonical` (the doc/role guard) already runs in `verify`
