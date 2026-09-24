@@ -189,7 +189,12 @@ project whose administrator grants are all dated can still lapse, and a
 suspension still leaves it without an administrator (BL-137). The application role may
 update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
 does not end responsibilities (INV-021), work assignments, Telegram member
-links or external review links the member issued.
+links or external review links the member issued. A removal (a revoke naming
+`project.view`) reports what it leaves live instead (ADR-014 decision 5,
+DEV-049): the member's active, unexpired review links on the project, by id and
+version but never by address, and whether the project has a connected Telegram
+group, as of the revoke's read; the office retires the links with
+`external_grants.revoke_reissue`, which needs `packages.submit` on the project.
 
 ### Project responsibilities
 

@@ -3,9 +3,9 @@ import { requireActiveMembership, requireProjectCapability } from "../../../../.
 import { HttpProblem, problem } from "../../../../../../src/lib/http";
 import {
   projectAccessNotHeldDetails, revokeProjectAccessRequest, revokeProjectAccessResponse,
-  type RevokeProjectAccessResponse,
+  type ProjectAccessRemaining, type RevokeProjectAccessResponse,
 } from "@goproceed/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
+import { withTenantTx, withIdempotency, recordAudit, type Tx } from "@goproceed/database";
 import { projectAccessMemberLock } from "../../../../../../src/lib/project-access-lock";
 
 export const runtime = "nodejs";
@@ -77,6 +77,42 @@ type LockedGrant = {
  * admin row was revoked and RLS would filter them silently; the row count is
  * compared for that reason too.
  */
+/**
+ * What a removal leaves live (DEV-049, BL-142, ADR-014's amendment of
+ * 2026-09-24): the member's still-active, unexpired review links on the
+ * project, and whether it has a connected Telegram group, as of this read — a
+ * link the member issues concurrently may commit after it. Read under the
+ * actor's RLS — `eag_select` and `telegram_chat_bindings_read` admit
+ * `project.admin`. No recipient address. Only occurrence-scoped links: the
+ * `package_version` arc grants nothing in v0.1 (`app.external_session_scope`)
+ * and has no occurrence id for the contract.
+ */
+async function remainingAfterRemoval(tx: Tx, workspaceId: string, projectId: string, memberId: string): Promise<ProjectAccessRemaining> {
+  const links = await tx.query<{
+    id: string; requirement_occurrence_id: string; version: string; expires_at: Date;
+    exchanged: boolean; decides_evidence: boolean;
+  }>(
+    `select id, requirement_occurrence_id, version, expires_at,
+            exchange_consumed_at is not null as exchanged, decides_evidence
+       from public.external_access_grants
+      where workspace_id = $1 and project_id = $2 and issued_by_member_id = $3
+        and scope_kind = 'requirement_occurrence'
+        and status = 'active' and expires_at > now()
+      order by id`,
+    [workspaceId, projectId, memberId]);
+  const group = await tx.query(
+    `select 1 from public.telegram_chat_bindings
+      where workspace_id = $1 and project_id = $2 and disconnected_at is null`,
+    [workspaceId, projectId]);
+  return {
+    externalGrants: links.rows.map((r) => ({
+      grantId: r.id, requirementOccurrenceId: r.requirement_occurrence_id, version: Number(r.version),
+      expiresAt: r.expires_at.toISOString(), exchanged: r.exchanged, decidesEvidence: r.decides_evidence,
+    })),
+    telegramGroupBound: group.rows.length > 0,
+  };
+}
+
 export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
   const pathId = a.params.projectId;
   const notFound = new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Проєкт не знайдено.",
@@ -157,6 +193,11 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
           }));
       }
 
+      // DEV-049 / BL-142: a removal reports what it leaves live, read BEFORE the
+      // update — a self-removal revokes the actor's own admin grant in it, and
+      // eag_select and telegram_chat_bindings_read would then hide both.
+      const remaining = requested.has("project.view") ? await remainingAfterRemoval(tx, workspaceId, projectId, memberId) : undefined;
+
       const upd = await tx.query<{ id: string; capability: string }>(
         `update public.project_access_grants
             set revoked_at = now(), version = version + 1
@@ -179,9 +220,10 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
           memberId,
           capabilities: revoked.map((r) => r.capability),
           grantIds: revoked.map((r) => r.grantId),
+          ...(remaining ? { remainingExternalGrantIds: remaining.externalGrants.map((l) => l.grantId) } : {}),
         },
       }, { organizationId: workspaceId });
-      return { status: 200, body: revokeProjectAccessResponse.parse({ revoked }) };
+      return { status: 200, body: revokeProjectAccessResponse.parse(remaining ? { revoked, remaining } : { revoked }) };
     });
   });
   return { status: out.status, body: out.body, expiresAt: out.expiresAt };

@@ -175,6 +175,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
 | [BL-146](#bl-146) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
+| [BL-147](#bl-147) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1712,7 +1713,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-043's `gp-security` review. `project_access.revoke` of `project.view` removes a member from a project in the product, and ADR-014 deliberately cascades nothing else: the person stays in the project's bound Telegram group and keeps seeing the cards posted there, their Telegram member link survives, and every external review link they issued stays live until `external_grants.revoke_reissue` retires it (v0.1 has no plain external revoke). The Telegram resolvers check the grant at each action, so they can no longer act, but they can still read. An offboarding step or checklist is needed before a pilot relies on the revoke to remove someone. Ranked by DEV-043.
+- **Why:** *[2026-09-24, DEV-049: the owner ruled «Только отчёт» and «Решить при BL-024» (ADR-014 decision 5). A removal now answers with `remaining`: the member's active, unexpired review links on the project (id, version, expiry; no address) and `telegramGroupBound`, and cascades nothing. What stays open here is the group half — whether the product removes the person from the group or records that the office must, and the person's Telegram member link, which is neither reported nor ended — decided with BL-024; and a checklist for the office. The text below is kept as written.]* DEV-043's `gp-security` review. `project_access.revoke` of `project.view` removes a member from a project in the product, and ADR-014 deliberately cascades nothing else: the person stays in the project's bound Telegram group and keeps seeing the cards posted there, their Telegram member link survives, and every external review link they issued stays live until `external_grants.revoke_reissue` retires it (v0.1 has no plain external revoke). The Telegram resolvers check the grant at each action, so they can no longer act, but they can still read. An offboarding step or checklist is needed before a pilot relies on the revoke to remove someone. Ranked by DEV-043.
 - **Evidence:** ADR-014 «What this decision does NOT authorise»; DEV-043's `gp-security` report, «Record these, don't fix them here».
 - **Depends on:** the Telegram webhook's enablement (BL-024) for the group half; an owner decision on whether offboarding kicks from the group or only records it.
 - **Deadline:** before the Telegram webhook is enabled anywhere, and before a pilot offboards a member.
@@ -1756,3 +1757,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the per-capability duplicate check); `supabase/migrations/0010_workspace_access_module.sql` (`project_access_active_unique` over unrevoked rows); [DEV-048](tasks/DEV-048-project-view-window.md) row 4.
 - **Depends on:** a decision whether a re-grant replaces a lapsed action row (as the view now is) or answers 409 naming it.
 - **Deadline:** before the dashboard offers grants to a pilot user (BL-045).
+
+<a id="bl-147"></a>
+### BL-147 — P3 — `external_access_grants` has no row in `technical/data-access-surface.csv`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-049's `gp-reviewer` R1-05 and `gp-security`. The BFF reads, inserts and updates `public.external_access_grants` as `goproceed_app` (`occurrence_grants.issue`, `external_grants.revoke_reissue`, and since DEV-049 `project_access.revoke`'s report), under `eag_select`, `eag_insert`, `eag_update` and `eag_external_select` (`0049`), and the file has no row for the table; its RLS coverage is in `technical/database/rls-coverage.csv` only. The gap predates DEV-049, which did not widen it. Ranked by DEV-049.
+- **Evidence:** `grep external_access_grants technical/data-access-surface.csv` (none); `supabase/migrations/0049_the_link_that_decides_one_obligation.sql` (grants and policies); [DEV-049](tasks/DEV-049-removal-reports-remaining.md) row 5.
+- **Depends on:** a read of the table's current grants (column grants included) across the migrations after `0049`.
+- **Deadline:** none recorded.

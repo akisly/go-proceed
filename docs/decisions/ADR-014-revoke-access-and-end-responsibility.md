@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-24
 
 **Related decisions:** [ADR-006](ADR-006-pilot-shaped-v0.1.md), [ADR-002](ADR-002-tenancy-parties-and-contracts.md), [ADR-012](ADR-012-invitation-revoke.md)
 
@@ -164,3 +164,50 @@ audit records and the absence of outbox events, and decision 4's column grant �
 and the owner's merge ratifies them with the rest. The coordinator wrote this
 section and the Status to transcribe the ruling (`docs/README.md` «ADR
 lifecycle and approval»).
+
+## Amendment, 2026-09-24 — a removal reports what it leaves live
+
+Recorded by the coordinator of [DEV-049](../tasks/DEV-049-removal-reports-remaining.md)
+(BL-142) to transcribe the owner's ruling below. It adds one optional field to
+decision 1's response and changes no other decision; the cascade exclusions in
+«What this decision does NOT authorise» stand.
+
+**Context.** Revoking `project.view` removes a member from the project in the
+product and nothing else (decision 1). The review links the member issued stay
+live until `external_grants.revoke_reissue` retires them, and that command
+needs a link's id and version, which no route lists. The person may also still
+be in the project's connected Telegram group. The office had no way to see
+either from the revoke.
+
+**Decision 5.** A `project_access.revoke` whose `capabilities` name
+`project.view` answers with `remaining` beside `revoked`:
+
+- `externalGrants`: every link the member issued on the project that is
+  `active` and not expired **as of the read** (a link the member issues
+  concurrently may commit after it) — `grantId`, `requirementOccurrenceId`, `version`,
+  `expiresAt`, `exchanged` (whether its exchange was consumed) and
+  `decidesEvidence`. The recipient's address and the token never appear.
+- `telegramGroupBound`: whether the project has a Telegram binding that is not
+  disconnected.
+
+It is read under the actor's RLS, in the revoke's transaction, before the
+update — an administrator removing themselves revokes their own `project.admin`
+in that update, after which the policies would hide both. The audit record
+`project_access.revoked` carries `remainingExternalGrantIds`. A revoke that
+keeps `project.view` answers as before, without `remaining`. Nothing cascades:
+the listed links stay `active` and the group is untouched. Retiring a listed
+link with `external_grants.revoke_reissue` needs `project.view` and
+`packages.submit` on the project, which a `project.admin` may have to grant
+itself first; an administrator who removed themselves can act on none of them.
+
+**Not decided here.** Whether the product removes the person from the Telegram
+group, or records that the office must, is decided when the webhook is enabled
+(BL-024); until then, `telegramGroupBound` is the only signal. The person's
+Telegram member link is not reported and stays open with the group (BL-142);
+the resolvers check the grant at each action, so it cannot act.
+
+**Approval.** Approved by the owner on 2026-09-24, in conversation, on the
+options the coordinator put: «Только отчёт» (decision 5) and «Решить при
+BL-024» (the group). The field names, the audit key and the read-before-update
+order are the coordinator's detail of that option, ratified by the owner's
+merge.

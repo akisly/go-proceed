@@ -430,3 +430,135 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
     }
   });
 });
+
+/**
+ * DEV-049 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member from a
+ * project (revoking `project.view`) cascades to nothing outside the project's
+ * grants, and the response now reports what stays live — the external review
+ * links the member issued there that are still active and unexpired, and
+ * whether the project has a connected Telegram group — so the office can act on
+ * them (`external_grants.revoke_reissue` needs a link's id, and no route lists
+ * links). The recipient's address never appears. A revoke that keeps
+ * `project.view` reports nothing.
+ *
+ * The links and the binding are written by the fixture under
+ * `session_replication_role = replica`, which skips the foreign-key triggers:
+ * the report reads a few columns of the link, not the contract and occurrence
+ * chain behind it.
+ */
+describe("a removal reports what stays live (DEV-049, BL-142)", () => {
+  async function asReplica(sql: string, params: unknown[]): Promise<{ id: string }[]> {
+    const c = new Client({ connectionString: ADMIN_URL });
+    await c.connect();
+    try {
+      await c.query("set session_replication_role = replica");
+      return (await c.query<{ id: string }>(sql, params)).rows;
+    } finally {
+      await c.query("set session_replication_role = origin").catch(() => undefined);
+      await c.end().catch(() => undefined);
+    }
+  }
+
+  let seqLink = 0;
+  async function link(projectId: string, issuer: string, o: {
+    status?: string; expires?: string; exchanged?: boolean; decides?: boolean; issued?: string;
+  } = {}): Promise<{ id: string; occurrence: string }> {
+    const occurrence = crypto.randomUUID();
+    const decides = o.decides ?? false;
+    const rows = await asReplica(
+      `insert into public.external_access_grants
+         (workspace_id, project_id, contract_id, requirement_occurrence_id, token_hmac, hmac_key_id,
+          recipient_email, recipient_role, permissions, decides_evidence, decide_role, status,
+          issued_at, expires_at, exchange_consumed_at, issued_by_member_id)
+       values ($1, $2, $3, $4, $5, 'fixture-k1', $6, 'technical_supervisor',
+               jsonb_build_object('external.view_scope', true, 'external.decide_evidence', $7::boolean),
+               $7, case when $7 then 'technical_supervisor' end, $8,
+               ${o.issued ?? "now()"}, ${o.expires ?? "now() + interval '7 days'"},
+               ${o.exchanged ? "now()" : "null"}, $9)
+       returning id`,
+      [WS.a, projectId, crypto.randomUUID(), occurrence, Buffer.from(crypto.getRandomValues(new Uint8Array(32))),
+        `recipient-${++seqLink}@fixture.test`, decides, o.status ?? "active", issuer]);
+    return { id: rows[0]!.id, occurrence };
+  }
+
+  async function bindTelegram(projectId: string, disconnected = false): Promise<void> {
+    await asReplica(
+      `insert into public.telegram_chat_bindings
+         (workspace_id, project_id, bot_id, chat_id, chat_type, connected_by_member_id, disconnected_at)
+       values ($1, $2, 4800000001, $3, 'supergroup', $4, ${disconnected ? "now()" : "null"}) returning id`,
+      [WS.a, projectId, -1_000_000_000_000 - Math.floor(Math.random() * 1_000_000_000), memberIds.admin]);
+  }
+
+  it("lists the member's active, unexpired links on this project and the connected group; never the address", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.member!, ["project.view", "packages.submit"]);
+    const open = await link(projectId, memberIds.member!, { decides: true });
+    const opened = await link(projectId, memberIds.member!, { exchanged: true });
+    await link(projectId, memberIds.member!, { status: "revoked" });
+    await link(projectId, memberIds.member!, { issued: "now() - interval '9 days'", expires: "now() - interval '2 days'" });
+    await link(projectId, memberIds.admin!);
+    const elsewhere = await project();
+    await link(elsewhere, memberIds.member!);
+    await bindTelegram(projectId);
+
+    current = ADMIN;
+    const res = await revoke(projectId, { memberId: memberIds.member, capabilities: ["project.view"] });
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("fixture.test");
+    const body = JSON.parse(text);
+    expect(Object.keys(body)).toEqual(["revoked", "remaining"]);
+    expect(body.remaining.telegramGroupBound).toBe(true);
+    const links = body.remaining.externalGrants as Record<string, unknown>[];
+    expect(links.map((l) => l.grantId).sort()).toEqual([open.id, opened.id].sort());
+    expect(links.find((l) => l.grantId === open.id)).toEqual({
+      grantId: open.id, requirementOccurrenceId: open.occurrence, version: 1,
+      expiresAt: expect.stringMatching(/Z$/), exchanged: false, decidesEvidence: true,
+    });
+    expect(links.find((l) => l.grantId === opened.id)).toMatchObject({ exchanged: true, decidesEvidence: false });
+
+    const a = await audits(projectId);
+    expect(a[0]!.details).toMatchObject({ remainingExternalGrantIds: [open.id, opened.id].sort() });
+    // S1-05: neither the stored idempotent body nor the audit record carries the address.
+    expect(JSON.stringify(a[0]!.details)).not.toContain("fixture.test");
+    const stored = await q<{ body: string }>(
+      "select response_body::text as body from public.idempotency_records where organization_id = $1 and operation_id = 'project_access.revoke' and response_body::text like $2",
+      [WS.a, `%${open.id}%`]);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.body).not.toContain("fixture.test");
+    // Nothing outside the project's grants changed.
+    const statuses = await q<{ status: string }>(
+      "select status from public.external_access_grants where id = any($1::uuid[]) order by id", [[open.id, opened.id]]);
+    expect(statuses.map((s) => s.status)).toEqual(["active", "active"]);
+  });
+
+  it("a removal with nothing left reports an empty list and no group; a disconnected group does not count", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.member!, ["project.view"]);
+    await bindTelegram(projectId, true);
+    current = ADMIN;
+    const res = await revoke(projectId, { memberId: memberIds.member, capabilities: ["project.view"] });
+    expect(res.status).toBe(200);
+    expect((await res.json()).remaining).toEqual({ externalGrants: [], telegramGroupBound: false });
+  });
+
+  it("an administrator removing themselves still gets the report, read before their own grants go", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.admin2!, ["project.admin", "project.view"]);
+    const mine = await link(projectId, memberIds.admin!);
+    current = ADMIN;
+    const res = await revoke(projectId, { memberId: memberIds.admin, capabilities: ["project.view"] });
+    expect(res.status).toBe(200);
+    expect((await res.json()).remaining.externalGrants.map((l: { grantId: string }) => l.grantId)).toEqual([mine.id]);
+  });
+
+  it("a revoke that keeps project.view reports nothing", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.member!, ["project.view", "packages.submit"]);
+    await link(projectId, memberIds.member!);
+    current = ADMIN;
+    const res = await revoke(projectId, { memberId: memberIds.member, capabilities: ["packages.submit"] });
+    expect(res.status).toBe(200);
+    expect(Object.keys(await res.json())).toEqual(["revoked"]);
+  });
+});

@@ -27,6 +27,20 @@ describe("project access revoke contracts", () => {
     expect(() => revokeProjectAccessResponse.parse({ revoked: [{ capability: "contracts.edit", grantId, revokedBy: memberId }] })).toThrow();
   });
 
+  // DEV-049 / BL-142 / ADR-014's amendment of 2026-09-24: removing a member
+  // (revoking project.view) reports what the revoke leaves live.
+  it("a removal may report what stays live: the member's external links, without the recipient's address, and the Telegram group", () => {
+    const link = {
+      grantId, requirementOccurrenceId: crypto.randomUUID(), version: 1,
+      expiresAt: "2026-10-01T00:00:00.000Z", exchanged: false, decidesEvidence: true,
+    };
+    const body = { revoked: [{ capability: "project.view", grantId }], remaining: { externalGrants: [link], telegramGroupBound: true } };
+    expect(revokeProjectAccessResponse.parse(body)).toEqual(body);
+    expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [{ ...link, recipientEmail: "a@b.c" }], telegramGroupBound: true } })).toThrow();
+    expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [] } })).toThrow();
+    expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [], telegramGroupBound: false, telegramLinked: true } })).toThrow();
+  });
+
   it("the not-held conflict names the capabilities and nothing else", () => {
     expect(projectAccessNotHeldDetails.parse({ notHeld: ["imports.manage"] })).toEqual({ notHeld: ["imports.manage"] });
     expect(() => projectAccessNotHeldDetails.parse({ notHeld: [] })).toThrow();

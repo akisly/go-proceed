@@ -79,8 +79,30 @@ export const revokeProjectAccessRequest = z.object({
 }).strict();
 export type RevokeProjectAccessRequest = z.infer<typeof revokeProjectAccessRequest>;
 
+// DEV-049 / BL-142 / ADR-014's amendment of 2026-09-24: a revoke that removes
+// the member from the project (it names `project.view`) reports what it leaves
+// live, and cascades to none of it. `externalGrants` are the review links the
+// member issued on the project that are still active and unexpired — the ids
+// and versions `external_grants.revoke_reissue` needs, since no route lists
+// links — and never the recipient's address. The key is not named «…links»:
+// withIdempotency refuses to store a key ending in `link` (INV-102, DEV-023). `telegramGroupBound` says whether
+// the project has a connected Telegram group the person may still be in.
+export const projectAccessRemaining = z.object({
+  externalGrants: z.array(z.object({
+    grantId: z.string().guid(),
+    requirementOccurrenceId: z.string().guid(),
+    version: z.number().int().min(1),
+    expiresAt: z.string().datetime(),
+    exchanged: z.boolean(),
+    decidesEvidence: z.boolean(),
+  }).strict()),
+  telegramGroupBound: z.boolean(),
+}).strict();
+export type ProjectAccessRemaining = z.infer<typeof projectAccessRemaining>;
+
 export const revokeProjectAccessResponse = z.object({
   revoked: z.array(z.object({ capability: projectCapability, grantId: z.string().guid() }).strict()),
+  remaining: projectAccessRemaining.optional(),
 }).strict();
 export type RevokeProjectAccessResponse = z.infer<typeof revokeProjectAccessResponse>;
 
