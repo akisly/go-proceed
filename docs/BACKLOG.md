@@ -175,6 +175,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone |
 | [BL-146](#bl-146) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
+| [BL-147](#bl-147) | P2 | open | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1756,3 +1757,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `grep -rn 'Inlined from @goproceed/contracts' apps/mobile/src`.
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
+
+<a id="bl-147"></a>
+### BL-147 — P2 — The field client's obligation list never prints the project-sourced items disclaimer the content rules require
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-057's `gp-ui-reviewer` finding U1. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires «Пункти, позначені «за робочою документацією об'єкта»…» «only on a list that also carries project-sourced items, immediately after» the довідковий disclaimer. The field obligation screen (`apps/mobile/src/screens/assignment.tsx`) labels such items «за робочою документацією об'єкта» but ends with the довідковий text only; `apps/mobile/src` has no copy of the second disclaimer, which exists in `apps/app/src/lib/statutory-act-form.ts` (`PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`) for the act alone. The retired field PWA did not print it either (`git grep` at `98040e95^`), so this is a gap since ADR-010 and migration `0059`, not a regression. The owner asked on 2026-09-24 for it to be a separate task. Ranked by DEV-057.
+- **Evidence:** `apps/mobile/src/screens/assignment.tsx` (the list and its closing `model.disclaimer`); `apps/mobile/src/lib/field/obligations.ts` (`buildObligationScreen`); `hidden-works-content-rules.md` §"Required disclaimers".
+- **Depends on:** nothing. The fix needs `gp-ui-reviewer` and a §6 screenshot of an obligation list with a project-sourced item, and a byte-for-byte guard against the content rules like `apps/mobile/src/lib/field/disclaimer.test.ts`.
+- **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client.

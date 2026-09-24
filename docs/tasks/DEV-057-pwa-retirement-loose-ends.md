@@ -56,6 +56,7 @@ Rework count and hypothesis changes: none yet.
 - The mobile copies of contract shapes are still hand-written (BL-146); only the comments about them were corrected.
 - The guards compare text a user reads, not logic: `otp-error.ts`'s rule and the norm-ref function are held equal only by each side's mirrored tests.
 - The guards read `apps/app` files by path; renaming one breaks the mobile test, loudly.
+- The field obligation screen does not satisfy §"Required disclaimers" in full: it never prints the project-sourced items disclaimer beside items labelled «за робочою документацією об'єкта» (`gp-ui-reviewer` U1; pre-existing, also absent from the retired PWA). Filed as BL-147, a separate task at the owner's word (2026-09-24).
 
 ## Acceptance evidence
 
