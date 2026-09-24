@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour a user sees changes. `app.current_actor()`, `app.current_external_session()` and `app.service_workspace()` — invoker SQL helpers that PostgreSQL inlines into the workspace-access definers, the external-session scope and the service-plane policies — name `pg_catalog.uuid` and `pg_catalog.current_setting`. A temporary object named `uuid` in a session can no longer change what they resolve to under a caller's path.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** functions every policy rests on, in a migration: `gp-architect` → owner ruling → failing test → migration and catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -92,5 +92,5 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents before the commit.
 - Verified scope: criteria 1–4.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-152 (the owner's choice of fix).
-- Next bounded action and owner: merging PR #123 is the owner's; `0098`–`0100` are on staging since 2026-09-24.
-- Final state and reason: verifying until the owner's merge.
+- Next bounded action and owner: none; merged in #123; `0098`–`0100` are on staging since 2026-09-24.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

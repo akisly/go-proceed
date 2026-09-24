@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour a user sees changes. `project_access_grants` accepts only its revoke — `revoked_at` from null to the transaction's `now()`, `version` unchanged or up by one — and a revoked grant never changes again; no grant is deleted. The guard fires for every role, superusers included, so a product defect or a support session can no longer un-revoke, re-date, rewrite or delete a grant. Fixtures that stage lapsed, re-granted or removed grants go through replica mode.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a trigger in a migration on an access table: `gp-architect` → owner ruling → failing test → migration, fixtures and catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -99,5 +99,5 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents.
 - Verified scope: criteria 1–4.
 - Remaining risks / blocked requirements: «What is not true after this task»; the hosted push of `0098` and `0099`.
-- Next bounded action and owner: merging PR #123 is the owner's; `0098`–`0099` are on staging since 2026-09-24.
-- Final state and reason: verifying until the cluster's final run.
+- Next bounded action and owner: none; merged in #123; `0098`–`0099` are on staging since 2026-09-24.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

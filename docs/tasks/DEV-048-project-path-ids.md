@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** every route under `/v1/projects/{projectId}` answers a malformed project id — and the two nested routes a malformed message or contract-version id — with 404 `RESOURCE_NOT_FOUND`, before the Idempotency-Key, the body and any database call; before, nine answered 500 `INTERNAL_ERROR` and ten 422 (the body was parsed first). `docs/README.md` says what the error catalog's `retryable` means when a route sends the other value.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a bounded bug with an understood cause, widened by the owner to every project route: failing test → change in the shared route wrappers → `gp-reviewer` → `gp-qa`. `gp-architect` sized it in the cluster design.
@@ -87,4 +87,4 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 - Verified scope: criteria 1–5.
 - Remaining risks / blocked requirements: «What is not true after this task» (BL-151).
 - Next bounded action and owner: merging is the owner's.
-- Final state and reason: verifying until the owner's merge.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

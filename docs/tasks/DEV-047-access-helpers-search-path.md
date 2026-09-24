@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the three SECURITY DEFINER helpers every workspace-access policy rests on — `app.active_member_id`, `app.has_project_capability` and `app.project_has_grants` (`0011`) — run with `search_path = ''` instead of `public`, and `anon` and `authenticated` cannot execute them. No behaviour visible to a user changes.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a SECURITY DEFINER change in a migration: `gp-architect` (cluster design, 2026-09-24) → failing test → migration and catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -93,5 +93,5 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 - Review independence: `gp-reviewer`, `gp-security` and `gp-qa` ran late, as independent native subagents, after the commit; recorded in rows 6–10.
 - Verified scope: criteria 1–5, criterion 1's red half excepted.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-150 is DEV-055's.
-- Next bounded action and owner: merging PR #123 is the owner's; `0098` is on staging since 2026-09-24.
-- Final state and reason: verifying until the owner's merge.
+- Next bounded action and owner: none; merged in #123; `0098` is on staging since 2026-09-24.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.
