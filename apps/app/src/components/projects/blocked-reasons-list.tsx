@@ -6,6 +6,7 @@ import { daysSinceUk } from "../../lib/format-uk";
 import { evidenceKindLabel } from "../../lib/evidence-kind-labels";
 import { normRefVerificationLabel } from "../../lib/norm-ref-labels";
 import { approverRoleLabel } from "../../lib/approver-role-labels";
+import { requirementListDisclaimers } from "../../lib/required-disclaimers";
 
 /**
  * Task item 3: the drill-down list, "sorted by `since` ascending — oldest
@@ -61,11 +62,20 @@ import { approverRoleLabel } from "../../lib/approver-role-labels";
  * fallback sentences when `missingEvidence` is empty (see below) — a row
  * can be empty-evidence for two different reasons and they are not the same
  * sentence.
+ *
+ * THE DISCLAIMERS UNDER THE LIST (BL-156). Each row prints a requirement in
+ * the standard's own wording with its citation, so the panel is a generated
+ * requirement list in substance and carries what
+ * `docs/product/hidden-works-content-rules.md` §"Required disclaimers" puts
+ * under one: the довідковий text, then, only when a printed citation is
+ * `PROJECT_DOCUMENTATION`, the project-sourced note immediately after it.
+ * Plain paragraphs, never behind a disclosure: «never collapsed».
  */
 export function BlockedReasonsList({ reasons }: { reasons: BlockedReason[] }) {
   const sorted = [...reasons].sort(
     (a, b) => new Date(a.since).getTime() - new Date(b.since).getTime(),
   );
+  const disclaimers = requirementListDisclaimers(sorted.map((reason) => reason.normRef));
 
   return (
     <Panel>
@@ -226,6 +236,13 @@ export function BlockedReasonsList({ reasons }: { reasons: BlockedReason[] }) {
             </li>
           ))}
         </ul>
+        {disclaimers.length > 0 && (
+          <div className="flex flex-col gap-2 border-t border-line px-4 py-3">
+            {disclaimers.map((disclaimer) => (
+              <p key={disclaimer} className="measure text-meta text-ink-muted">{disclaimer}</p>
+            ))}
+          </div>
+        )}
       </PanelBody>
     </Panel>
   );

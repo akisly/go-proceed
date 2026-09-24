@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import { renderedStatutoryAct } from "@goproceed/contracts";
 import {
   ASSURANCE_LEVEL_LABEL, DODATOK_V_TEMPLATE, DOVIDKOVYI_DISCLAIMER_TEXT,
@@ -449,5 +450,29 @@ describe("prohibition B — «орієнтовн» occurs zero times in the stan
     expect(source).not.toContain("орієнтовн");
     expect(DOVIDKOVYI_DISCLAIMER_TEXT).not.toContain("орієнтовн");
     expect(DOVIDKOVYI_DISCLAIMER_TEXT).toContain("довідковий Додаток Н");
+  });
+});
+
+describe("the requirement-list disclaimers have one source in apps/app (BL-156)", () => {
+  // The act, the Telegram card and the office's blocked-reasons list all print
+  // these two texts. A second copy in any of them could drift from the one
+  // the byte-for-byte cases above check; a fragment of each text may therefore
+  // appear only in the module that holds them.
+  const APP = join(__dirname, "..");
+  const HOLDER = join("src", "lib", "required-disclaimers.ts");
+
+  function sourceFiles(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory()
+        ? sourceFiles(join(dir, entry.name))
+        : /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : []);
+  }
+
+  it("keeps «відтворений дослівно» and «не перевірявся» in required-disclaimers.ts alone", () => {
+    const holders = [...sourceFiles(join(APP, "src")), ...sourceFiles(join(APP, "app"))]
+      .filter((file) => /відтворений дослівно|не перевірявся/.test(readFileSync(file, "utf8")))
+      .map((file) => relative(APP, file).split(sep).join("/"));
+
+    expect(holders).toEqual([HOLDER.split(sep).join("/")]);
   });
 });

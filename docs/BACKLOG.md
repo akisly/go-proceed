@@ -184,13 +184,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 | [BL-155](#bl-155) | P2 | closed → DEV-060 | PUBLIC holds TEMP on the database |
-| [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
+| [BL-156](#bl-156) | P2 | scheduled → DEV-075 | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 | [BL-157](#bl-157) | P3 | closed → DEV-071 | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
 | [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
 | [BL-159](#bl-159) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
 | [BL-160](#bl-160) | P2 | open | Four DEV-061 field-client behaviours have no observed run: a hold resolved by the server, the received-anyway notice, «Стираємо…» signed in, and the reinstall-reset retry |
 | [BL-161](#bl-161) | P3 | open | No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL |
 | [BL-162](#bl-162) | P3 | open | `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers |
+| [BL-163](#bl-163) | P3 | deferred (owner) | The довідковий disclaimer calls every requirement list «довідковий Додаток Н… відтворений дослівно», including lists with no Додаток Н item |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1867,7 +1868,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-156"></a>
 ### BL-156 — P2 — The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers
 
-- **State:** open
+- **State:** scheduled → DEV-075
 - **Legacy cite:** none
 - **Why:** DEV-058's `gp-reviewer` raised this as a separate question, and the owner asked on 2026-09-24 for it to be filed. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires the довідковий disclaimer «Under every generated requirement list, never collapsed», and the project-sourced items disclaimer «only on a list that also carries project-sourced items, immediately after it». The act (`apps/app/src/lib/statutory-act-form.ts`) prints both. Since DEV-058 the native field obligation screen prints both too. Two other surfaces print requirement citations with their verification label, including «за робочою документацією об'єкта», and print neither disclaimer:
   - the Telegram assignment card and the requirement-choice prompt. Both come from `renderRequirements` in `apps/app/src/lib/telegram/cards.ts`, a numbered «Вимоги» list with a «Джерела» block;
@@ -1950,3 +1951,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `packages/testing/src/pg.ts` (`adminClient`, `superuserClient`); `infra/README-staging.md` §2.3; [DEV-071](tasks/DEV-071-database-acl-compared.md).
 - **Depends on:** nothing. The fix is the same host/port/database guard for `adminClient()`, or a separate variable for the suites.
 - **Deadline:** before anyone runs `packages/testing` from a shell that has held a hosted URL.
+
+<a id="bl-163"></a>
+### BL-163 — P3 — The довідковий disclaimer calls every requirement list «довідковий Додаток Н… відтворений дослівно», including lists with no Додаток Н item
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-075's `gp-architect`, 2026-09-24. `hidden-works-content-rules.md` §"Required disclaimers" puts one text «under every generated requirement list». It opens «Наведений перелік — це довідковий Додаток Н ДБН А.3.1-5:2016 … відтворений дослівно». A list whose every item is project-sourced (ADR-010), or carries a workspace's own rule, is not Додаток Н, so the sentence misdescribes it. The act (`statutory-act-form.ts`), the native field screen (DEV-058) and, since DEV-075, the Telegram card and the office's blocked-reasons list all print it that way. The text is transcribed byte for byte from an Approved document, so a surface cannot vary it. Ranked by DEV-075.
+- **Evidence:** `apps/app/src/lib/required-disclaimers.ts` (`DOVIDKOVYI_DISCLAIMER_TEXT`, `requirementListDisclaimers`); `apps/app/tests/act-content-fidelity.test.ts`.
+- **Depends on:** an owner decision to amend the Approved content rules under `docs/README.md` change control (for example, a variant for a list with no Додаток Н item), then every surface and the mobile copy.
+- **Deadline:** none recorded.
+- **Resume:** the owner rules on the wording; a task then amends the document and the constants together.

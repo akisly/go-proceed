@@ -4,6 +4,7 @@ import {
   MAX_TELEGRAM_MESSAGE_CHARACTERS,
 } from "./cards";
 import { readDodatokN } from "../../../tests/helpers/dodatok-n";
+import { DOVIDKOVYI_DISCLAIMER_TEXT, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT } from "../required-disclaimers";
 
 /**
  * THE DBN CITATION AS IT IS ACTUALLY STORED — read from
@@ -371,5 +372,92 @@ describe("the requirement-choice prompt", () => {
 
     expect(formatRequirementChoicePrompt(occurrences).text.length).toBeLessThanOrEqual(card.text.length);
     expect(formatRequirementChoicePrompt(occurrences).text.length).toBeLessThanOrEqual(MAX_TELEGRAM_MESSAGE_CHARACTERS);
+  });
+});
+
+describe("the requirement-list disclaimers on the card and the prompt (BL-156)", () => {
+  const seeded = {
+    occurrenceId: "o1", criterion: "Підготовка ніш, каналів та борозен.",
+    normRef: { text: "ДБН А.3.1-5:2016, Додаток Н", verification: "VERIFIED_PRIMARY" as const, source: DBN_SOURCE },
+  };
+  const project = {
+    occurrenceId: "o2", criterion: "Крок стрижнів за кресленням.",
+    normRef: {
+      text: "Робоча документація об'єкта", verification: "PROJECT_DOCUMENTATION" as const,
+      source: "Приклад-РД-2026-014, арк. 12, кресл. АР-07",
+    },
+  };
+  const withheldProject = { occurrenceId: "o3", criterion: "Текст без джерела.", normRef: null };
+  const instruction = "Надішліть фото у відповідь на це повідомлення.";
+
+  function card(occurrences: Array<typeof seeded | typeof project | typeof withheldProject>, title = "Заголовок") {
+    return formatAssignmentCard({ assignmentId: "a", title, occurrences }).text;
+  }
+
+  it("prints the довідковий disclaimer once, after the sources and before the instruction", () => {
+    // Break caught: the card is a generated requirement list (prohibition T)
+    // and printed no disclaimer, so Додаток Н items read as the mandatory list
+    // for the object (prohibition C).
+    const text = card([seeded]);
+
+    expect(text.split(DOVIDKOVYI_DISCLAIMER_TEXT)).toHaveLength(2);
+    expect(text.indexOf(DOVIDKOVYI_DISCLAIMER_TEXT)).toBeGreaterThan(text.indexOf("<b>Джерела</b>"));
+    expect(text.indexOf(DOVIDKOVYI_DISCLAIMER_TEXT)).toBeLessThan(text.indexOf(instruction));
+    expect(text).not.toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+  });
+
+  it("prints the project-sourced note immediately after it when one item is project-sourced", () => {
+    for (const occurrences of [[seeded, project], [project], [project, seeded]]) {
+      const text = card(occurrences);
+      const both = `${DOVIDKOVYI_DISCLAIMER_TEXT}\n\n${PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT}`;
+      expect(text).toContain(both);
+      expect(text.split(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT)).toHaveLength(2);
+    }
+  });
+
+  it("adds no project-sourced note for a requirement whose citation was withheld", () => {
+    // A withheld citation prints no label, so there is no label to explain.
+    const text = card([seeded, withheldProject]);
+
+    expect(text).toContain(DOVIDKOVYI_DISCLAIMER_TEXT);
+    expect(text).not.toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+  });
+
+  it("prints the same disclaimers on the requirement-choice prompt", () => {
+    expect(formatRequirementChoicePrompt([seeded]).text).toContain(DOVIDKOVYI_DISCLAIMER_TEXT);
+    expect(formatRequirementChoicePrompt([seeded]).text).not.toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+    expect(formatRequirementChoicePrompt([seeded, project]).text)
+      .toContain(`${DOVIDKOVYI_DISCLAIMER_TEXT}\n\n${PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT}`);
+  });
+
+  it("keeps the prompt no longer than the card when a project-sourced item is on both", () => {
+    const occurrences = [seeded, project, withheldProject];
+    const published = card(occurrences, "Заголовок картки");
+
+    for (const candidates of [occurrences, [project], [seeded], [seeded, withheldProject]]) {
+      expect(formatRequirementChoicePrompt(candidates).text.length).toBeLessThanOrEqual(published.length);
+    }
+  });
+
+  it("keeps twelve Додаток Н items, one project item and a long title inside one message", () => {
+    const text = card([
+      ...Array.from({ length: 12 }, (_, index) => ({
+        ...seeded, occurrenceId: `s${index + 1}`,
+        criterion: `Вимога ${index + 1}: перевірка виконання прихованих робіт за проєктом.`,
+      })),
+      project,
+    ], "Приховані роботи ".repeat(12));
+
+    expect(text.length).toBeLessThanOrEqual(MAX_TELEGRAM_MESSAGE_CHARACTERS);
+    expect(text).toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+  });
+
+  it("refuses a card that fits only without its disclaimers, rather than dropping them", () => {
+    // Without the disclaimers this card is a few characters under the limit;
+    // with them it is over, and the refusal is the existing one.
+    const base = card([seeded]).length - DOVIDKOVYI_DISCLAIMER_TEXT.length - 2;
+    const title = "я".repeat(MAX_TELEGRAM_MESSAGE_CHARACTERS - base + "Заголовок".length - 10);
+
+    expect(() => card([seeded], title)).toThrow("assignment_card_too_long");
   });
 });
