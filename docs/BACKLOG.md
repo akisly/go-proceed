@@ -138,7 +138,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
-| [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
+| [BL-110](#bl-110) | P3 | closed → DEV-059 | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
 | [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
@@ -174,16 +174,18 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-143](#bl-143) | P3 | closed → DEV-047 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
 | [BL-144](#bl-144) | P3 | closed → DEV-053 | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone |
-| [BL-146](#bl-146) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
+| [BL-146](#bl-146) | P3 | open | Eleven SECURITY DEFINER functions in `app` still trust `public` on their search path |
 | [BL-147](#bl-147) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 | [BL-148](#bl-148) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
 | [BL-149](#bl-149) | P3 | closed → DEV-054 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
 | [BL-150](#bl-150) | P2 | closed → DEV-055 | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
 | [BL-151](#bl-151) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
-| [BL-152](#bl-152) | P2 | open | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
+| [BL-152](#bl-152) | P1 | closed → DEV-059 | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
-| [BL-154](#bl-154) | P2 | open | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
-| [BL-155](#bl-155) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
+| [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
+| [BL-155](#bl-155) | P2 | open | PUBLIC holds TEMP on the database |
+| [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
+| [BL-157](#bl-157) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1370,9 +1372,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-110"></a>
 ### BL-110 — P3 — `app.delete_expired_idempotency` has a `public` search path, not an empty one
 
-- **State:** open
+- **State:** closed → DEV-059
 - **Legacy cite:** none
-- **Why:** DEV-020's `gp-security` review (S1-05). `app.delete_expired_idempotency` (`supabase/migrations/0007_idempotency_expiry.sql:6-22`) is `SECURITY DEFINER` with `set search_path = public`, where `agents/COMMON.md` asks a definer for an empty search path and schema-qualified references; it fences by actor only. It is not a probe for a former member — its only caller is `withIdempotency`, after `authorize` and after a lookup `0089` has filtered, and it deletes only the caller's own expired rows — so this is hardening, the same class as BL-106. The fix is a later migration that pins `search_path to ''` and qualifies the references. Ranked by DEV-020.
+- **Why:** *[2026-09-24, DEV-059: `0101` pins `pg_catalog, pg_temp`, not an empty path — an empty path still searches the temporary schema first.]* DEV-020's `gp-security` review (S1-05). `app.delete_expired_idempotency` (`supabase/migrations/0007_idempotency_expiry.sql:6-22`) is `SECURITY DEFINER` with `set search_path = public`, where `agents/COMMON.md` asks a definer for an empty search path and schema-qualified references; it fences by actor only. It is not a probe for a former member — its only caller is `withIdempotency`, after `authorize` and after a lookup `0089` has filtered, and it deletes only the caller's own expired rows — so this is hardening, the same class as BL-106. The fix is a later migration that pins `search_path to ''` and qualifies the references. Ranked by DEV-020.
 - **Evidence:** observed 2026-09-18 at `ae675a2` from the migration text; local database at `0089`.
 - **Depends on:** none.
 - **Deadline:** none recorded.
@@ -1758,11 +1760,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-146"></a>
-### BL-146 — P3 — Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public`
+### BL-146 — P3 — Eleven SECURITY DEFINER functions in `app` still trust `public` on their search path
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** *[2026-09-24, DEV-055: each body read must include bare casts to generic types and plpgsql `declare`/`%rowtype` types, not only table names; SQL keyword types are not exposed — see BL-152.]* DEV-047 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; those eleven are the lower risk because `pg_temp` is searched last there (PostgreSQL's documentation shows a trusted schema before `pg_temp`; whether `public` is trusted depends on who holds CREATE on it — `0009` revokes it from PUBLIC only, and Supabase's direct grants to `anon`, `authenticated` and `service_role` are unchecked). `public.drain_outbox` (`0005`, `search_path = public`) is outside the query's `app` scope; only a superuser executes it since `0036`. Ranked by DEV-047.
+- **Why:** *[2026-09-24, DEV-059: `0101` moved the ten `public`-path definers (and `public.drain_outbox`) to `pg_catalog, pg_temp`; what remains are the eleven pinned `public, pg_temp`, where `pg_temp` is already last but `public` is still trusted — whether `public` is trusted on Supabase (who holds CREATE on it) is unverified.]* *[2026-09-24, DEV-055: each body read must include bare casts to generic types and plpgsql `declare`/`%rowtype` types, not only table names; SQL keyword types are not exposed — see BL-152.]* DEV-047 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; those eleven are the lower risk because `pg_temp` is searched last there (PostgreSQL's documentation shows a trusted schema before `pg_temp`; whether `public` is trusted depends on who holds CREATE on it — `0009` revokes it from PUBLIC only, and Supabase's direct grants to `anon`, `authenticated` and `service_role` are unchecked). `public.drain_outbox` (`0005`, `search_path = public`) is outside the query's `app` scope; only a superuser executes it since `0036`. Ranked by DEV-047.
 - **Evidence:** on the local database at `0098`, 2026-09-24: `select p.oid::regprocedure, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.prosecdef and p.proconfig is distinct from array['search_path=""']`. [DEV-047](tasks/DEV-047-access-helpers-search-path.md) row 5.
 - **Depends on:** a body read per function (`gp-architect`, `gp-security`); BL-106 and BL-110 are the same class.
 - **Deadline:** none recorded.
@@ -1818,11 +1820,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-152"></a>
-### BL-152 — P2 — Definer function bodies name types unqualified, which a session's temporary schema can shadow
+### BL-152 — P1 — Definer function bodies name types unqualified, which a session's temporary schema can shadow
 
-- **State:** open
+- **State:** closed → DEV-059
 - **Legacy cite:** none
-- **Why:** DEV-055's `gp-architect` design, 2026-09-24. `0100` qualified the three SQL helpers inlined into definers (BL-150), but many SECURITY DEFINER functions whose path is `''` or `public` name generic types without a schema in their own bodies — casts (`::text`, `::uuid`, `::jsonb`, `::timestamptz`) and plpgsql `declare` or `%rowtype`/`%type` references (for example `0006` `org_has_members` (`org::text` under `public`), `0007` `delete_expired_idempotency`, `0011` `accept_invitation`, `0060` (`v_member uuid`, `v_status text`), `0092` (`v_actor uuid`)); SQL keyword types (`boolean`, `integer`, `bigint`, `numeric`, `timestamp`, `interval`, `varchar`) parse as `pg_catalog.*` and are not exposed; a grep's 161 bare casts in 38 migration files is an upper bound, not all in definers. PostgreSQL searches the session's temporary schema first for type and relation names, so a session with arbitrary SQL on an application connection could shadow one — and since a PL/pgSQL domain-typed variable runs its CHECK when the block starts, a temporary domain `uuid` with a CHECK calling a `pg_temp` function would run that function with the definer owner's rights: `app.accept_invitation` (`0011`, path `public`, `new_membership uuid`, executable by the application role) is a concrete path (DEV-055's `gp-security` S1-01, reasoned, not run). The body read must also cover `%rowtype`/`%type` on unqualified relations, whether `record` declarations resolve through the path, and invoker helpers that definers call. The eleven `public, pg_temp` definers are not exposed (listing `pg_temp` puts it last). Three fixes: `alter function … set search_path = public, pg_temp` on the ten `public` definers and `pg_catalog, pg_temp` on the `''` ones — PostgreSQL's documented pattern, no body rewritten, recommended by `gp-security` (it amends the empty-path rule in `agents/COMMON.md`, the owner's call); revoke TEMP from PUBLIC (later defence in depth: hosted database ownership and the Supabase roles' TEMP needs are unverified, and a non-owner's revoke only warns); or qualify every body by hand.
+- **Why:** *[2026-09-24, DEV-059: raised to P1 by the owner after DEV-059's red run showed the probe run as `postgres` through four definers on the application and service planes; the owner chose «pg_catalog, pg_temp везде» — `0101` and the amended rule in `agents/COMMON.md`.]* DEV-055's `gp-architect` design, 2026-09-24. `0100` qualified the three SQL helpers inlined into definers (BL-150), but many SECURITY DEFINER functions whose path is `''` or `public` name generic types without a schema in their own bodies — casts (`::text`, `::uuid`, `::jsonb`, `::timestamptz`) and plpgsql `declare` or `%rowtype`/`%type` references (for example `0006` `org_has_members` (`org::text` under `public`), `0007` `delete_expired_idempotency`, `0011` `accept_invitation`, `0060` (`v_member uuid`, `v_status text`), `0092` (`v_actor uuid`)); SQL keyword types (`boolean`, `integer`, `bigint`, `numeric`, `timestamp`, `interval`, `varchar`) parse as `pg_catalog.*` and are not exposed; a grep's 161 bare casts in 38 migration files is an upper bound, not all in definers. PostgreSQL searches the session's temporary schema first for type and relation names, so a session with arbitrary SQL on an application connection could shadow one — and since a PL/pgSQL domain-typed variable runs its CHECK when the block starts, a temporary domain `uuid` with a CHECK calling a `pg_temp` function would run that function with the definer owner's rights: `app.accept_invitation` (`0011`, path `public`, `new_membership uuid`, executable by the application role) is a concrete path (DEV-055's `gp-security` S1-01, reasoned, not run). The body read must also cover `%rowtype`/`%type` on unqualified relations, whether `record` declarations resolve through the path, and invoker helpers that definers call. The eleven `public, pg_temp` definers are not exposed (listing `pg_temp` puts it last). Three fixes: `alter function … set search_path = public, pg_temp` on the ten `public` definers and `pg_catalog, pg_temp` on the `''` ones — PostgreSQL's documented pattern, no body rewritten, recommended by `gp-security` (it amends the empty-path rule in `agents/COMMON.md`, the owner's call); revoke TEMP from PUBLIC (later defence in depth: hosted database ownership and the Supabase roles' TEMP needs are unverified, and a non-owner's revoke only warns); or qualify every body by hand.
 - **Evidence:** DEV-055's architect design; `supabase/migrations/` (the files named above); [DEV-055](tasks/DEV-055-inlined-helpers-qualified.md).
 - **Depends on:** a decision between the three fixes (`gp-architect`, `gp-security`; the owner for a rule change). Revoking TEMP from PUBLIC must also rewrite DEV-055's temporary-table case in `workspace-access-rls.test.ts`, which creates its object on the application connection (DEV-055 review R1-02).
 - **Deadline:** before the product runs any SQL it did not write on an application connection.
@@ -1840,20 +1842,48 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-154"></a>
 ### BL-154 — P2 — The field client's obligation list never prints the project-sourced items disclaimer the content rules require
 
-- **State:** open
+- **State:** closed → DEV-058
 - **Legacy cite:** none
 - **Why:** DEV-057's `gp-ui-reviewer` finding U1. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires «Пункти, позначені «за робочою документацією об'єкта»…» «only on a list that also carries project-sourced items, immediately after» the довідковий disclaimer. The field obligation screen (`apps/mobile/src/screens/assignment.tsx`) labels such items «за робочою документацією об'єкта» but ends with the довідковий text only; `apps/mobile/src` has no copy of the second disclaimer, which exists in `apps/app/src/lib/statutory-act-form.ts` (`PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`) for the act alone. The retired field PWA did not print it either (`git grep` at `98040e95^`), so this is a gap since ADR-010 and migration `0059`, not a regression. The owner asked on 2026-09-24 for it to be a separate task. Ranked by DEV-057.
 - **Evidence:** `apps/mobile/src/screens/assignment.tsx` (the list and its closing `model.disclaimer`); `apps/mobile/src/lib/field/obligations.ts` (`buildObligationScreen`); `hidden-works-content-rules.md` §"Required disclaimers".
 - **Depends on:** nothing. The fix needs `gp-ui-reviewer` and a §6 screenshot of an obligation list with a project-sourced item, and a byte-for-byte guard against the content rules like `apps/mobile/src/lib/field/disclaimer.test.ts`.
-- **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client.
+- **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client. *[2026-09-24, [DEV-058](tasks/DEV-058-field-project-sourced-disclaimer.md): `buildObligationScreen` exposes the note when an item's `normRef.verification` is `PROJECT_DOCUMENTATION`, and `assignment.tsx` prints it right after the довідковий text. `disclaimer.test.ts` compares it byte for byte with the content rules. Seen in the iOS simulator with fixture data only; the real route, a screen reader and Android are NOT RUN. Merged in #127 (`5c5bbb0c`, 2026-09-24).]*
 
 <a id="bl-155"></a>
-### BL-155 — P3 — A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh
+### BL-155 — P2 — PUBLIC holds TEMP on the database
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** [DEV-058](tasks/DEV-058-field-client-decisions.md) — `gp-security` S-03 and `gp-reviewer` R5, 2026-09-24. A local sign-out closes the session storage (`closeAfterSignOut`) so that a refresh already in flight cannot write the old session back. The login screen reopens it just before `verifyOtp`. auth-js 2.112.3 already discards a refresh when the stored refresh token changed while it ran (`GoTrueClient.js`, the `storageChangedUnderUs` check). What is left is a refresh whose storage snapshot was taken after the sign-out's removal, which then completes after another user reopened storage to sign in. It needs a shared phone, an offline sign-out with an expired token, the removal landing in that gap, and the network returning inside auth-js's retry window (up to about 30 s).
-- **Evidence:** `apps/mobile/src/lib/native/sign-out.ts`, `apps/mobile/src/lib/native/session-storage.ts` (the latch), `apps/mobile/src/screens/login.tsx` (`reopenForSignIn`); the reviews recorded in DEV-058's Findings.
+- **Why:** DEV-059's `gp-architect` design, 2026-09-24. Every role — the application, service and purge logins included — may create temporary objects, which is what made BL-152 exploitable. After `0101` the definers list `pg_temp` last, so the temporary schema can no longer shadow a name `pg_catalog` defines — but it still supplies any name defined nowhere else, and nothing mechanical keeps every body qualified; revoking TEMP from the `goproceed_*` roles and their logins is the only change that closes the class (DEV-059's `gp-security` S1-01, P2). A revoke must be checked first: on the hosted project `postgres` may not own the database (a non-owner's revoke only warns), and which Supabase-managed roles need TEMP is unverified. It also breaks the temporary-object cases of DEV-055 and DEV-059.
+- **Evidence:** `packages/testing/src/definer-search-path.test.ts` (created on the application and service logins); [DEV-059](tasks/DEV-059-temporary-schema-searched-last.md).
+- **Depends on:** a read-only check of database ownership and TEMP holders, locally and hosted; the tests rewritten to assert the refusal.
+- **Deadline:** none recorded.
+
+<a id="bl-156"></a>
+### BL-156 — P2 — The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-058's `gp-reviewer` raised this as a separate question, and the owner asked on 2026-09-24 for it to be filed. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires the довідковий disclaimer «Under every generated requirement list, never collapsed», and the project-sourced items disclaimer «only on a list that also carries project-sourced items, immediately after it». The act (`apps/app/src/lib/statutory-act-form.ts`) prints both. Since DEV-058 the native field obligation screen prints both too. Two other surfaces print requirement citations with their verification label, including «за робочою документацією об'єкта», and print neither disclaimer:
+  - the Telegram assignment card and the requirement-choice prompt. Both come from `renderRequirements` in `apps/app/src/lib/telegram/cards.ts`, a numbered «Вимоги» list with a «Джерела» block;
+  - the office's blocked-reasons list in the project money overview, where each reason shows its `normRef` with the label (`apps/app/src/components/projects/blocked-reasons-list.tsx`).
+
+  Undecided:
+  - whether each surface is a «generated requirement list» in the rules' sense. The Telegram card plainly lists requirements; the blocked-reasons list lists reasons that cite one requirement each;
+  - for Telegram, how two disclaimers of about 330 and 190 characters fit the card's 4096-character budget (`MAX_TELEGRAM_MESSAGE_CHARACTERS`), which publication already gates.
+
+  Ranked by DEV-058.
+- **Evidence:** `apps/app/src/lib/telegram/cards.ts` (`renderRequirements`, `MAX_TELEGRAM_MESSAGE_CHARACTERS`); `apps/app/src/components/projects/blocked-reasons-list.tsx` (the `normRef` paragraph); `grep -rn DOVIDKOVYI_DISCLAIMER_TEXT apps/app/src` finds only `statutory-act-form.ts`; `hidden-works-content-rules.md` §"Required disclaimers".
+- **Depends on:** a reading of the content rules for each surface, owner or `gp-architect`. Telegram needs a budget decision: one sentence per card, the disclaimers only when the list carries such items, or a link. A change needs `gp-ui-reviewer`, and a byte-for-byte guard against the content rules like `apps/app/tests/act-content-fidelity.test.ts`.
+- **Deadline:** before a pilot workspace connects a Telegram group or opens the money overview with published requirements.
+
+<a id="bl-157"></a>
+### BL-157 — P3 — A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** [DEV-060](tasks/DEV-060-field-client-decisions.md) — `gp-security` S-03 and `gp-reviewer` R5, 2026-09-24. A local sign-out closes the session storage (`closeAfterSignOut`) so that a refresh already in flight cannot write the old session back. The login screen reopens it just before `verifyOtp`. auth-js 2.112.3 already discards a refresh when the stored refresh token changed while it ran (`GoTrueClient.js`, the `storageChangedUnderUs` check). What is left is a refresh whose storage snapshot was taken after the sign-out's removal, which then completes after another user reopened storage to sign in. It needs a shared phone, an offline sign-out with an expired token, the removal landing in that gap, and the network returning inside auth-js's retry window (up to about 30 s).
+- **Evidence:** `apps/mobile/src/lib/native/sign-out.ts`, `apps/mobile/src/lib/native/session-storage.ts` (the latch), `apps/mobile/src/screens/login.tsx` (`reopenForSignIn`); the reviews recorded in DEV-060's Findings.
 - **Depends on:** re-checking the guard on every auth-js upgrade. A possible hardening: before `reopenForSignIn()`, wait a bounded time for auth-js's lock (for example through `getSession()`).
 - **Deadline:** before shared field phones are used in a pilot.
 

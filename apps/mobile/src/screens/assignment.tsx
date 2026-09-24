@@ -122,6 +122,7 @@ export function AssignmentDetail({ assignmentId, heading = false }: { assignment
       </Card>;
     })}
     <AppText variant="meta" secondary>{model.disclaimer}</AppText>
+    {model.projectSourcedDisclaimer ? <AppText variant="meta" secondary>{model.projectSourcedDisclaimer}</AppText> : null}
   </Page>;
 }
 

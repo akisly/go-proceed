@@ -18,6 +18,7 @@ const SERVICE_URL = process.env.SERVICE_DB_URL
   ?? "postgresql://goproceed_service_login:service_pw@127.0.0.1:54322/postgres";
 
 export function appClient(): Client { return new Client({ connectionString: APP_URL }); }
+export function serviceClient(): Client { return new Client({ connectionString: SERVICE_URL }); }
 
 // Superuser connection for fixtures/assertions that must bypass RLS.
 export async function adminClient(): Promise<Client> {
