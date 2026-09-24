@@ -56,6 +56,21 @@ export const projectCapability = z.enum([
 ]);
 export type ProjectCapabilityValue = z.infer<typeof projectCapability>;
 
+// DEV-053 / BL-148: a window must end after it starts. Both tables CHECK
+// `valid_until > valid_from` (0010), and a violation raised 23514 and became
+// 500. The schema compares the two values when both are sent, which never
+// depends on the clock; an end not after the transaction's `now()` — the start
+// when `validFrom` is absent, and always for a grant — is refused by the route
+// inside `withIdempotency` (apps/app/src/lib/grant-window.ts), so a replay of a
+// request that was valid when it committed still returns the stored response.
+// A malformed date is left to its own format issue.
+function endsAfterStart(v: { validFrom?: string | undefined; validUntil?: string | undefined }, ctx: z.RefinementCtx): void {
+  if (v.validFrom === undefined || v.validUntil === undefined) return;
+  const from = Date.parse(v.validFrom), until = Date.parse(v.validUntil);
+  if (Number.isNaN(from) || Number.isNaN(until)) return;
+  if (!(until > from)) ctx.addIssue({ code: "custom", path: ["validUntil"], message: "must be later than validFrom" });
+}
+
 export const grantProjectAccessRequest = z.object({
   memberId: z.string().guid(),
   capabilities: z.array(projectCapability).min(1),
@@ -122,7 +137,7 @@ export const assignResponsibilityRequest = z.object({
   responsibility: responsibilityKind,
   validFrom: z.string().datetime().optional(),
   validUntil: z.string().datetime().optional(),
-});
+}).superRefine(endsAfterStart);
 export type AssignResponsibilityRequest = z.infer<typeof assignResponsibilityRequest>;
 
 export interface AssignResponsibilityResponse {

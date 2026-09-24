@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  endResponsibilityRequest, endResponsibilityResponse,
+  assignResponsibilityRequest, endResponsibilityRequest, endResponsibilityResponse, grantProjectAccessRequest,
   projectAccessNotHeldDetails, revokeProjectAccessRequest, revokeProjectAccessResponse,
 } from "./project-access";
 
@@ -67,5 +67,33 @@ describe("responsibility end contracts", () => {
     expect(endResponsibilityResponse.parse(body)).toEqual(body);
     expect(() => endResponsibilityResponse.parse({ ...body, memberId })).toThrow();
     expect(() => endResponsibilityResponse.parse({ ended: [{ assignmentId, endedAt: "2026-09-23T00:00:00Z" }] })).toThrow();
+  });
+});
+
+// DEV-053 / BL-148: an assignment's window must end after its start when both
+// are sent. An end relative to now is the route's check, not the schema's: the
+// clock must not turn a legitimate idempotent replay into 422.
+describe("grant and assign windows end after they start", () => {
+  const memberId = crypto.randomUUID();
+  const at = (ms: number) => new Date(Date.now() + ms).toISOString();
+  const pathOf = (r: { success: boolean; error?: { issues: { path: PropertyKey[] }[] } }) =>
+    r.error?.issues.map((i) => i.path.join("."));
+
+  it("the grant schema does not look at the clock: a past validUntil parses, and the route refuses it", () => {
+    expect(grantProjectAccessRequest.safeParse({ memberId, capabilities: ["contracts.edit"], validUntil: at(-60_000) }).success).toBe(true);
+  });
+
+  it("an assignment's validUntil must be later than its validFrom; without validFrom the schema leaves it to the route", () => {
+    const from = at(86_400_000);
+    expect(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: from, validUntil: at(2 * 86_400_000) }).success).toBe(true);
+    expect(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: at(-2 * 86_400_000), validUntil: at(-86_400_000) }).success).toBe(true);
+    expect(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validUntil: at(-60_000) }).success).toBe(true);
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: from, validUntil: from }))).toEqual(["validUntil"]);
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: from, validUntil: at(3_600_000) }))).toEqual(["validUntil"]);
+  });
+
+  it("a malformed date is reported once, on its own field (R1-02)", () => {
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: "2026-13-01T00:00:00Z", validUntil: at(86_400_000) }))).toEqual(["validFrom"]);
+    expect(pathOf(assignResponsibilityRequest.safeParse({ memberId, responsibility: "performer", validFrom: at(0), validUntil: "2026-13-01T00:00:00Z" }))).toEqual(["validUntil"]);
   });
 });

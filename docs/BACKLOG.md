@@ -176,6 +176,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-145](#bl-145) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
 | [BL-146](#bl-146) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 | [BL-147](#bl-147) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
+| [BL-148](#bl-148) | P3 | scheduled → DEV-053 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1767,4 +1768,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-049's `gp-reviewer` R1-05 and `gp-security`. The BFF reads, inserts and updates `public.external_access_grants` as `goproceed_app` (`occurrence_grants.issue`, `external_grants.revoke_reissue`, and since DEV-049 `project_access.revoke`'s report), under `eag_select`, `eag_insert`, `eag_update` and `eag_external_select` (`0049`), and the file has no row for the table; its RLS coverage is in `technical/database/rls-coverage.csv` only. The gap predates DEV-049, which did not widen it. Ranked by DEV-049.
 - **Evidence:** `grep external_access_grants technical/data-access-surface.csv` (none); `supabase/migrations/0049_the_link_that_decides_one_obligation.sql` (grants and policies); [DEV-049](tasks/DEV-049-removal-reports-remaining.md) row 5.
 - **Depends on:** a read of the table's current grants (column grants included) across the migrations after `0049`.
+- **Deadline:** none recorded.
+
+<a id="bl-148"></a>
+### BL-148 — P3 — A grant or assignment whose `validUntil` does not come after its start answers 500, not 422
+
+- **State:** scheduled → DEV-053
+- **Legacy cite:** none
+- **Why:** DEV-050's `gp-architect`. `project_access.grant` and `project_responsibilities.assign` accepted any datetime as `validUntil`; the insert then hit the tables' CHECK `valid_until > valid_from` (a grant starts at `now()`, an assignment at `validFrom` or `now()`), raised 23514, which no route maps, and answered 500 `INTERNAL_ERROR`. Observed on the local database by DEV-053's failing test (three 500s); a grant that would write nothing answered 201 instead. Ranked by DEV-050.
+- **Evidence:** `supabase/migrations/0010_workspace_access_module.sql` (the two CHECKs); `packages/contracts/src/project-access.ts` (the two request schemas); [DEV-053](tasks/DEV-053-window-ends-after-start.md) row 1.
+- **Depends on:** none.
 - **Deadline:** none recorded.

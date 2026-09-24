@@ -4,6 +4,7 @@ import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { grantProjectAccessRequest, type GrantProjectAccessResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 import { projectAccessMemberLock } from "../../../../../src/lib/project-access-lock";
+import { refuseEndNotAfterNow } from "../../../../../src/lib/grant-window";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,8 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       },
     }, async () => {
+      // DEV-053 / BL-148: first, so an end already past is 422 even where the grant would be a no-op.
+      await refuseEndNotAfterNow(tx, a.requestId, a.body.validUntil);
       // Target must be an ACTIVE membership of the same workspace.
       const target = await tx.query(
         `select 1 from public.memberships where organization_id = $1 and id = $2 and status = 'active'`,
