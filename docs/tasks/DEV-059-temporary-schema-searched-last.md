@@ -56,6 +56,7 @@
 | 13 | coordinator | Hosted preflight (gp-security S1-02), read-only through the connector on `goproceed-staging` at `0100`: 77 `''`, 11 `public`, 11 `public, pg_temp` definer or path-pinning functions in `app`/`public`/`api`, all owned by `postgres` (the same sets as local); database owner `postgres`; TEMPORARY held by PUBLIC, `postgres`, `dashboard_user`; CREATE on schema `public` only by `pg_database_owner` — so `public` is effectively trusted there (BL-146) | connector query, 2026-09-24 | owner's push |
 | 14 | owner | BL-155 goes to a separate cluster in a new session | chat, «займись BL-155 отдельным кластером в новой сессии» | — |
 | 15 | gp-qa | PASS on criteria 1–5: definer-search-path 7, workspace-access-rls 31, outbox 4, idempotency-expiry 2, m2-definer-authz 2, telegram-erasure 38; invitations 9, evidence-purge-principal 8, upload-intents-finalize 36 twice, m5-external 27, telegram-evidence 22; live catalog equals `dev056-after.txt` (88 `pg_catalog, pg_temp`, 11 `public, pg_temp`); `0101` re-runs cleanly (0 moved) and its assertion raises on six bad paths; N1 fixed («once» in `gp-reviewer.md`) | QA report, 2026-09-24, on `scratchpad/dev056-r2.diff` | commit |
+| 16 | Owner; coordinator (hosted push) | Renumbered DEV-056 → DEV-059 and BL-153 → BL-155 (main had taken both), merged `origin/main`, PR #131. On the owner's word «накати 0101 на hosted»: from a `git archive` of `supabase/` at `e420e3be`, `supabase link --project-ref asrvzhjaueyvrfozxpzo`, `supabase db push --linked --dry-run` (exactly `0101`; no seeds, no roles), then the push, 13:49:37–13:49:42 UTC, exit 0, CLI 2.114.0. After (read-only, connector): head `0101`; 88 functions at `pg_catalog, pg_temp`, 11 at `public, pg_temp`, none other, all owned by `postgres`; the application, service and purge roles keep EXECUTE, `anon` and `authenticated` have none. Production runs `main`, whose functions keep their bodies | `scratchpad/push-0101-dryrun.txt`, `push-0101.txt` | — |
 
 ## Findings and rework
 
@@ -80,7 +81,6 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Eleven definers still trust `public` on their path (BL-146).
 - PUBLIC still holds TEMP on the database, and `pg_temp` — searched last — still supplies any name no earlier schema defines; only qualified bodies keep that closed (BL-155, P2).
 - `technical/database/schema-v0.1.sql` (a design snapshot) still shows `set search_path = ''` on three trigger functions, and a vendor skill under `.agents/skills/` still recommends `''`.
-- `0101` is applied to the local database only; the hosted project needs the owner's push.
 
 ## Acceptance evidence
 
@@ -102,7 +102,7 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` as independent native subagents, before the commit.
 - Verified scope: criteria 1–5.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-155 is a separate cluster (owner).
-- Next bounded action and owner: the hosted push of `0101` (owner's word given 2026-09-24); merging is the owner's.
+- Next bounded action and owner: merging PR #131 is the owner's; `0101` is on staging since 2026-09-24 13:49 UTC.
 - Final state and reason: verifying until the owner's merge.
 
 ## Appendix — the 77 functions `0101` moved from `search_path=""`
