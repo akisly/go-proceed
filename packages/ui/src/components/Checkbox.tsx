@@ -26,7 +26,7 @@ import { cx } from "./cn";
  * not change. The root is transparent; state reaches the box through a NAMED
  * group (`group/checkbox`), so an ancestor `.group` carrying its own
  * `data-state` cannot paint it, and `peer` stays on the root for a sibling
- * label. A negative START margin (`-ml-1`, `touch:-ml-3.5`) cancels the hit
+ * label. A negative START margin (`-ms-1`, `touch:-ms-3.5`) cancels the hit
  * area's inset on the column side, so the painted box sits on the column edge
  * like the inputs above it. The END side keeps its inset: cancelling it would
  * pull the label under the focus ring's 2px + 2px offset (gp-ui-reviewer U6),
@@ -42,7 +42,7 @@ export function Checkbox({ className, ...rest }: ComponentProps<typeof CheckboxP
       className={cx(
         "group/checkbox peer inline-grid shrink-0 place-items-center rounded-control",
         "size-(--gp-control-target-desk) touch:size-(--gp-control-height-touch)",
-        "-ml-1 touch:-ml-3.5",
+        "-ms-1 touch:-ms-3.5",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
