@@ -29,6 +29,8 @@ describe("local queue labels", () => {
     expect(itemTitle(held)).toBe("Буде видалено");
     expect(itemProblem({ ...held, errorCode: "NETWORK" })).toBeNull();
     expect(itemDetail(held)).toMatch(/не надсилатиме/);
+    // A held photo is never sent again: its only problem line never asks to resend.
+    expect(itemProblem({ ...held, errorCode: "RECEIPT_MISMATCH" })).toBe("Сервер отримав інший файл, ніж на пристрої. Повідомте керівника проєкту.");
   });
   it("keeps requirement text verbatim, and leaves it out rather than cut it", () => {
     const text = " Перший рядок\nдругий — з ’ і 😀 ";

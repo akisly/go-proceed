@@ -139,8 +139,8 @@ export class NativeQueue {
         throw error;
       }
       // A run that listed the row before the hold (started meanwhile) fails its next check.
-      this.generation += 1;
-      this.controller?.abort();
+      // Only when one is running: a bare bump would also supersede a concurrent activate().
+      if (this.running) { this.generation += 1; this.controller?.abort(); }
       await this.deps.changed();
       let receipt: GetUploadIntentResponse;
       const read = timeoutSignal(this.timeouts.discardReadMs);

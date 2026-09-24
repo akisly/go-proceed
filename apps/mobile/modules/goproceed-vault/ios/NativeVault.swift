@@ -246,6 +246,8 @@ final class NativeVault {
     }
     guard sqlite3_open_v2(root.appendingPathComponent("journal.sqlite").path, &db, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_UNAVAILABLE") }
     do {
+      // Corruption the open did not touch must land in the error state, not in a sign-out that cannot lock photos.
+      try quickCheck()
       try sql("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS captures (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL); CREATE INDEX IF NOT EXISTS captures_owner ON captures(owner);")
       let all = try rows(nil)
       for var item in all {
@@ -260,6 +262,12 @@ final class NativeVault {
         if url.pathExtension == "part" || !retained.contains(url.deletingPathExtension().lastPathComponent) { try fm.removeItem(at: url) }
       }
     } catch { sqlite3_close(db); db = nil; throw error }
+  }
+  private func quickCheck() throws {
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "PRAGMA quick_check", -1, &statement, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_CORRUPT") }
+    defer { sqlite3_finalize(statement) }
+    guard sqlite3_step(statement) == SQLITE_ROW, let text = sqlite3_column_text(statement, 0), String(cString: text) == "ok" else { throw failure("VAULT_JOURNAL_CORRUPT") }
   }
   private func sql(_ statement: String) throws {
     guard sqlite3_exec(db, statement, nil, nil, nil) == SQLITE_OK else { throw failure("VAULT_JOURNAL_WRITE_FAILED") }

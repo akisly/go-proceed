@@ -53,9 +53,15 @@ async function resetIfReinstalled(): Promise<boolean> {
   } catch { return false; }
 }
 let installation = resetIfReinstalled();
+let retry: Promise<boolean> | null = null;
 /** Awaited before any auth or runtime storage read, and before the vault opens its journal. */
 export function installationReady(): Promise<boolean> {
-  return installation.then((done) => done || (installation = resetIfReinstalled()));
+  return installation.then((done) => {
+    if (done) return true;
+    // One retry at a time; concurrent callers share it.
+    retry ??= resetIfReinstalled().then((ok) => { if (ok) installation = Promise.resolve(true); retry = null; return ok; });
+    return retry;
+  });
 }
 
 const storage = createSessionStorage(raw, () => identityBoundary(), installationReady);

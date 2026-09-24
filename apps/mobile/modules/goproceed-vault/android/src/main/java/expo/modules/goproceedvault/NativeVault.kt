@@ -289,6 +289,9 @@ internal class NativeVault private constructor(private val context: Context) {
     try {
       // PRAGMAs that return a row are refused by execSQL; read them through rawQuery.
       for (pragma in listOf("PRAGMA synchronous=FULL", "PRAGMA secure_delete=ON")) db.rawQuery(pragma, null).use { it.moveToFirst() }
+      // Corruption the open did not touch (an index, a page) must not surface later as a
+      // sign-out that cannot lock photos: it is the error state, where a wipe is offered.
+      db.rawQuery("PRAGMA quick_check", null).use { if (!it.moveToFirst() || it.getString(0) != "ok") fail("VAULT_JOURNAL_CORRUPT") }
       db.execSQL("CREATE TABLE IF NOT EXISTS captures(id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL)")
       db.execSQL("CREATE INDEX IF NOT EXISTS captures_owner ON captures(owner)")
       rows(null).forEach {

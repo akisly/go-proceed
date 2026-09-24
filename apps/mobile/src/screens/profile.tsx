@@ -17,7 +17,8 @@ export function Profile() {
   const network = useNetworkState();
   if (!runtime.session) return <Page><Loading /></Page>;
   const offline = network.isConnected === false || network.isInternetReachable === false;
-  const broken = runtime.status === "error";
+  // Only a vault that cannot open; a failed reinstall reset is retried and never wiped.
+  const broken = runtime.status === "error" && runtime.errorReason === "vault";
 
   const summary = pendingSummary(runtime.itemsKnown, runtime.items);
   const held = heldCount(runtime.items);
@@ -74,7 +75,7 @@ export function Profile() {
         screen shows the wipe's outcome (runtime.lastWipe); a failed sign-out stays here. */}
     {broken ? <Button destructive label={wiping ? "Стираємо…" : "Стерти фото й вийти"} disabled={leaving || wiping}
       onPress={() => confirmWipe(runtime, true, () => { setWiping(true); setError(null); },
-        (message) => { setWiping(false); if (message) setError(message); })} /> : null}
+        (note) => { setWiping(false); if (note.error) setError(note.text); })} /> : null}
     <AppText variant="meta" secondary>GoProceed {Constants.expoConfig?.version ?? ""}</AppText>
   </Page>;
 }

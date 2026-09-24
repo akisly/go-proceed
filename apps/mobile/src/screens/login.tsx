@@ -6,7 +6,7 @@ import { LoginFlow, initialLoginFlowState } from "../lib/login-flow";
 import { nativeNext } from "../lib/native/destinations";
 import { useNativeRuntime } from "../lib/native/runtime";
 import { AppText, Button, Card, Notice, Page } from "../ui/primitives";
-import { confirmWipe, wipeMessage } from "../ui/vault-wipe";
+import { confirmWipe, wipeNote, type WipeNote } from "../ui/vault-wipe";
 import { corners, fonts, palette, touchHeight, typeSize, unit } from "../ui/theme";
 
 export function Login() {
@@ -15,13 +15,15 @@ export function Login() {
   const next = nativeNext(typeof params.next === "string" ? params.next : "/");
   const runtime = useNativeRuntime();
   const { session } = runtime;
-  const [wipeNote, setWipeNote] = useState<string | null>(null);
+  const [note, setNote] = useState<WipeNote | null>(null);
   const [wiping, setWiping] = useState(false);
-  // A wipe started on the profile screen signs out and lands here; its outcome is shown once.
-  const carried = runtime.lastWipe ? wipeMessage(runtime.lastWipe) : null;
+  // A wipe started on the profile screen signed out and landed here: say its outcome once.
+  const { lastWipe, clearLastWipe } = runtime;
+  useEffect(() => { if (lastWipe) { setNote(wipeNote(lastWipe)); clearLastWipe(); } }, [lastWipe, clearLastWipe]);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [state, setState] = useState(initialLoginFlowState);
+  const busy = state.pending || wiping;
   const nextRef = useRef(next);
   nextRef.current = next;
   const flowRef = useRef<LoginFlow | null>(null);
@@ -44,25 +46,28 @@ export function Login() {
         <AppText>{state.phase === "email" ? "Електронна пошта" : "Код із листа"}</AppText>
         {state.phase === "email" ? <TextInput testID="otp-email" accessibilityLabel="Електронна пошта"
           value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false}
-          keyboardType="email-address" autoComplete="email" editable={!state.pending} style={inputStyle}
-          onSubmitEditing={() => { if (email.trim()) void flow.submitEmail(email.trim()); }} /> :
+          keyboardType="email-address" autoComplete="email" editable={!busy} style={inputStyle}
+          onSubmitEditing={() => { if (email.trim() && !busy) void flow.submitEmail(email.trim()); }} /> :
           <TextInput testID="otp-code" accessibilityLabel="Код із листа" value={code} onChangeText={setCode}
-            keyboardType="number-pad" autoComplete="one-time-code" maxLength={6} editable={!state.pending}
+            keyboardType="number-pad" autoComplete="one-time-code" maxLength={6} editable={!busy}
             autoFocus style={[inputStyle, { fontVariant: ["tabular-nums"] }]} />}
         {state.message ? <Notice error announce>{state.message}</Notice> : null}
         <Button testID={state.phase === "email" ? "otp-email-submit" : "otp-code-submit"}
           label={state.pending ? "Зачекайте…" : state.phase === "email" ? "Надіслати код" : "Увійти"}
-          disabled={state.pending || (state.phase === "email" ? !email.trim() : code.length !== 6)}
+          disabled={busy || (state.phase === "email" ? !email.trim() : code.length !== 6)}
           onPress={() => { void (state.phase === "email" ? flow.submitEmail(email.trim()) : flow.submitCode(code)); }} />
-        {state.phase === "code" ? <Button secondary label="Змінити адресу пошти" disabled={state.pending}
+        {state.phase === "code" ? <Button secondary label="Змінити адресу пошти" disabled={busy}
           onPress={() => { setCode(""); flow.changeEmail(); }} /> : null}
       </Card>
-      {runtime.status === "error" ? <Card>
+      {runtime.status === "error" && runtime.errorReason === "installation" ?
+        <Notice error>Застосунок не зміг підготуватися до роботи. Звільніть місце на телефоні й перезапустіть застосунок.</Notice> : null}
+      {runtime.status === "error" && runtime.errorReason === "vault" ? <Card>
         <Notice error>Захищене сховище на цьому телефоні не відкривається, тому знімати фото зараз не можна. Увійти можна: ненадіслані фото залишаться заблокованими.</Notice>
-        <Button destructive label={wiping ? "Стираємо…" : "Стерти фото на пристрої"} disabled={wiping}
-          onPress={() => confirmWipe(runtime, false, () => { setWiping(true); setWipeNote(null); }, (message) => { setWiping(false); setWipeNote(message); })} />
+        {/* A sign-in finishing during a wipe would be signed straight back out: one at a time. */}
+        <Button destructive label={wiping ? "Стираємо…" : "Стерти фото на пристрої"} disabled={busy}
+          onPress={() => confirmWipe(runtime, false, () => { setWiping(true); setNote(null); }, (result) => { setWiping(false); setNote(result); })} />
       </Card> : null}
-      {wipeNote ?? carried ? <Notice error announce>{(wipeNote ?? carried)!}</Notice> : null}
+      {note ? <Notice error={note.error} announce>{note.text}</Notice> : null}
       <AppText variant="meta" secondary>Доступ надає адміністратор вашого робочого простору.</AppText>
     </Page>
   </KeyboardAvoidingView>;

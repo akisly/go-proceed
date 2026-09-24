@@ -183,6 +183,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-152](#bl-152) | P2 | open | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | open | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
+| [BL-155](#bl-155) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1845,3 +1846,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/mobile/src/screens/assignment.tsx` (the list and its closing `model.disclaimer`); `apps/mobile/src/lib/field/obligations.ts` (`buildObligationScreen`); `hidden-works-content-rules.md` §"Required disclaimers".
 - **Depends on:** nothing. The fix needs `gp-ui-reviewer` and a §6 screenshot of an obligation list with a project-sourced item, and a byte-for-byte guard against the content rules like `apps/mobile/src/lib/field/disclaimer.test.ts`.
 - **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client.
+
+<a id="bl-155"></a>
+### BL-155 — P3 — A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** [DEV-058](tasks/DEV-058-field-client-decisions.md) — `gp-security` S-03 and `gp-reviewer` R5, 2026-09-24. A local sign-out closes the session storage (`closeAfterSignOut`) so that a refresh already in flight cannot write the old session back. The login screen reopens it just before `verifyOtp`. auth-js 2.112.3 already discards a refresh when the stored refresh token changed while it ran (`GoTrueClient.js`, the `storageChangedUnderUs` check). What is left is a refresh whose storage snapshot was taken after the sign-out's removal, which then completes after another user reopened storage to sign in. It needs a shared phone, an offline sign-out with an expired token, the removal landing in that gap, and the network returning inside auth-js's retry window (up to about 30 s).
+- **Evidence:** `apps/mobile/src/lib/native/sign-out.ts`, `apps/mobile/src/lib/native/session-storage.ts` (the latch), `apps/mobile/src/screens/login.tsx` (`reopenForSignIn`); the reviews recorded in DEV-058's Findings.
+- **Depends on:** re-checking the guard on every auth-js upgrade. A possible hardening: before `reopenForSignIn()`, wait a bounded time for auth-js's lock (for example through `getSession()`).
+- **Deadline:** before shared field phones are used in a pilot.
+

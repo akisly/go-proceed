@@ -94,7 +94,8 @@ export function Queue() {
           <AppText variant="h3">{itemTitle(item)}</AppText>
           {item.requirementLabel ? <Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded.has(item.id) }}
             accessibilityHint={expanded.has(item.id) ? "Згорнути вимогу" : "Показати вимогу повністю"}
-            onPress={() => setExpanded((set) => set.has(item.id) ? new Set([...set].filter((id) => id !== item.id)) : new Set([...set, item.id]))}>
+            onPress={() => setExpanded((set) => set.has(item.id) ? new Set([...set].filter((id) => id !== item.id)) : new Set([...set, item.id]))}
+            style={{ minHeight: touchHeight, justifyContent: "center" }}>
             <AppText selectable={false} numberOfLines={expanded.has(item.id) ? undefined : 2}>{item.requirementLabel}</AppText>
           </Pressable> : null}
           {detail ? <AppText secondary>{detail}</AppText> : null}

@@ -29,7 +29,7 @@ const messages: Record<string, string> = {
 export function itemProblem(item: Pick<VaultItem, "state" | "errorCode" | "discardRequestedAt">): string | null {
   if (item.state !== "failed") return null;
   // A held photo's only failure worth showing: the server answered with a receipt that does not match.
-  if (item.discardRequestedAt) return item.errorCode === "RECEIPT_MISMATCH" ? messages.RECEIPT_MISMATCH! : null;
+  if (item.discardRequestedAt) return item.errorCode === "RECEIPT_MISMATCH" ? "Сервер отримав інший файл, ніж на пристрої. Повідомте керівника проєкту." : null;
   return (item.errorCode && messages[item.errorCode]) || NETWORK;
 }
 
