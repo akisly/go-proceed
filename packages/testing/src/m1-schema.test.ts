@@ -6,6 +6,8 @@ const M1_WORKSPACE_TABLES = [
   "invitations", "parties", "party_legal_profiles", "own_legal_entity_profiles",
   "party_contacts", "projects", "project_parties", "project_access_grants",
   "project_responsibility_assignments",
+  // DEV-044's end fact (0097), listed by DEV-052 (BL-144).
+  "project_responsibility_assignment_ends",
 ];
 
 let admin: Client;
@@ -45,7 +47,7 @@ describe("M1 workspace-access schema", () => {
     // tenant column is organization_id and its project_id is nullable by
     // design (workspace-scoped commands record no project).
     for (const t of ["project_parties", "project_access_grants", "project_responsibility_assignments",
-                     "audit_events"]) {
+                     "project_responsibility_assignment_ends", "audit_events"]) {
       const r = await admin.query(
         `select 1 from pg_constraint c
           join pg_class rel on rel.oid = c.conrelid

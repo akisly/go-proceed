@@ -172,7 +172,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-141](#bl-141) | P3 | scheduled → DEV-047 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
 | [BL-143](#bl-143) | P3 | scheduled → DEV-046 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
-| [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
+| [BL-144](#bl-144) | P3 | scheduled → DEV-052 | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
 | [BL-146](#bl-146) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 | [BL-147](#bl-147) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
@@ -1733,9 +1733,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-144"></a>
 ### BL-144 — P3 — `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test
 
-- **State:** open
+- **State:** scheduled → DEV-052
 - **Legacy cite:** none
-- **Why:** DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
+- **Why:** *[2026-09-24, DEV-052: all three items have their change — (1) the end table is in `m1-schema.test.ts`'s lists, closed on the same four checks run by SQL on the local database, the file's own run owed to the first CI run after the billing block; (2) and (3) have tests. The text below is kept as written.]* DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
 - **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
 - **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
 - **Deadline:** none recorded.

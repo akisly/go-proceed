@@ -41,6 +41,15 @@ describe("project access revoke contracts", () => {
     expect(() => revokeProjectAccessResponse.parse({ ...body, remaining: { externalGrants: [], telegramGroupBound: false, telegramLinked: true } })).toThrow();
   });
 
+  // DEV-052 / BL-144 (DEV-043/044's gp-qa follow-up 3): the list is bounded by
+  // the vocabulary, so a request cannot carry more entries than there are
+  // capabilities.
+  it("the capability list holds at most one entry per known capability", () => {
+    const all = revokeProjectAccessRequest.shape.capabilities.element.options;
+    expect(revokeProjectAccessRequest.parse({ memberId, capabilities: [...all] }).capabilities).toHaveLength(all.length);
+    expect(() => revokeProjectAccessRequest.parse({ memberId, capabilities: [...all, "project.view"] })).toThrow();
+  });
+
   it("the not-held conflict names the capabilities and nothing else", () => {
     expect(projectAccessNotHeldDetails.parse({ notHeld: ["imports.manage"] })).toEqual({ notHeld: ["imports.manage"] });
     expect(() => projectAccessNotHeldDetails.parse({ notHeld: [] })).toThrow();
