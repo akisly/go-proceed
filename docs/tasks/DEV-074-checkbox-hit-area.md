@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: `Checkbox`'s button — what a pointer hits and the harness measures — is 24×24 at the desk and 44×44 under `touch:`, while the visible box stays 16px, so desk density does not change and the first dashboard screen that uses it passes the 44px touch-target audit.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): a design-system change (`packages/tokens`, `packages/ui`, `apps/app`, agent instructions) → owner decision, implementation, the §5 gate and §6 pass, `gp-reviewer` + `gp-ui-reviewer`, `gp-qa`.
@@ -34,6 +34,7 @@
 | 1 | Owner | Hit area 44 on touch, 24 at the desk | Session | Implement |
 | 2 | Coordinator | Contract test red, then green after the token and the component. §6: at 1920/1440/1240/768 (fine pointer) the checkbox button measures 24×24 with a 16×16 box; at 390/360 (`pointer: coarse`) 44×44 with a 16×16 box. UI gate (`docs/design/02-building-ui.md` §5) on the working tree at base `3ded684a`: step 1 `pnpm --filter @goproceed/tokens generate` regenerated `theme.generated.css`, `tokens.generated.css`, `tw-merge.generated.ts`, `01-tokens.md`; step 2 `motion-audit: clean`; step 3 the fourteen DB-free `packages/testing` files (the thirteen usual plus the new `stock-tailwind.test.ts`) 205/205 — the rest call `resetDb()` and are NOT RUN locally (CI runs them); step 4 `pnpm turbo run typecheck --force` 10/10; step 5 `pnpm --filter @goproceed/landing build` exit 0; also `pnpm --filter @goproceed/app build` exit 0, `apps/landing` tests 272/272, `apps/app` DB-free tests 650 in 67 files | scratchpad `shots/measure.json`, `sink-checkbox-*.png` | Review |
 | 3 | gp-ui-reviewer; gp-qa | gp-ui-reviewer PASS on `f81e27a5` after U5/U6/R7; `3fc05553` swaps `-ml-*` for the logical `-ms-*` (its optional note). gp-qa PASS on `3fc05553`: re-measured on the HEAD build — 24×24 hit / 16px paint at 1920/1440/1240/768, 44×44 / 16px at 390/360, painted left = column left, no horizontal scroll; removing `touch:size-(--gp-control-height-touch)` fails `component-contract`; CI green (DEV-073 row 6) | Subagent reports (session) | Owner merges |
+| 4 | Owner | #144 merged (`08ee6916`, 2026-09-24 19:43 UTC) with DEV-073; CI green on the head `1f3f763d` (run 36049403270: `verify`, `app-qa`) and on `main` after the merge (run 36050082495) | `gh pr view 144`; the CI runs | done |
 
 ## Findings and rework
 
@@ -69,5 +70,5 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 - Review independence: independent — `gp-reviewer`, `gp-ui-reviewer`, `gp-qa` (all subagents).
 - Verified scope: §5 gate, §6 pass, DB-free tests.
 - Remaining risks / blocked requirements: database suites are CI's.
-- Next bounded action and owner: the owner reviews and merges PR #144; then the coordinator records `done`.
-- Final state and reason: verifying — every required criterion PASS (row 3); `done` is recorded after the owner merges.
+- Next bounded action and owner: none in this task.
+- Final state and reason: done — every required criterion PASS (row 3); #144 merged with CI green (row 4).
