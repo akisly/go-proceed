@@ -61,7 +61,7 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 | AC-2 self-tests cover each rule and an empty lockfile | Yes | working tree | `selfTest()` runs before every check | PASS | |
 | AC-3 overrides in the lockfile | Yes | working tree | `pnpm-lock.yaml` `overrides:` `@types/react 19.2.18`, `@types/react-dom 19.2.4` | PASS | |
 | AC-4 Expo accepts `react-dom` 19.2.3 | Yes | working tree | `expo install --check` (row 3) | PASS | |
-| AC-5 CI runs the check | Yes | working tree | `ci.yml` `verify` step `pnpm validate:lockfile`; YAML parses | PASS | first CI run pending |
+| AC-5 CI runs the check | Yes | `ef4bee57` | CI run 36019198599 `verify`: `lockfile versions: OK` | PASS | |
 
 ## Sources
 

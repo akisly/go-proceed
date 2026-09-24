@@ -35,6 +35,7 @@
 | 1 | gp-researcher | Latest 5.0.1 (2026-09-15); 4.1.11 recommended as the scoped step; v5 adds `clearMocks` default, top-level `vi.mock`, Node ≥22.12, Vite ≥6.4 peer, and drops the parent-directory config lookup that made a root config risky in v4 | Subagent report (session) | Owner |
 | 2 | Owner | «Сразу 5.0.1» | Session | Implement |
 | 3 | Coordinator | `vitest list --filesOnly` in each of the eight packages: 265 files, identical to `main`'s 266 except `packages/testing/src/temporary-privilege.test.ts`, which #133 added to `main` after this branch was cut (base drift, not Vitest). DB-free runs on 5.0.1: `apps/mobile` 199/22, `apps/landing` 272/23, `packages/contracts` 153/11, `packages/domain` 102/10, `discovery` 73/6, `apps/app` 650 in 67 files (all non-`.int` files except `src/lib/evidence/evidence-service.test.ts`, which connects), `packages/testing`'s 13 DB-free files 202. One regression: `apps/landing/tests/pilot-form.test.tsx` «aborts a stalled request» threw `The "event" argument must be an instance of Event` — under Vitest 5's jsdom environment the form's `AbortSignal.timeout` signal and the test's `new Event` come from different realms; the test now replaces `AbortSignal.timeout` with a controller it aborts (the same listener path). Vitest 5 also stopped pulling Node's types in, which DEV-067 step 2 fixes | session | Review, CI |
+| 4 | CI | Run 36019198599 on `ef4bee57` (PR #136), job `verify`: `pnpm turbo run test --concurrency=1` green on vitest 5.0.1 with the database suites on CI's disposable stack — `apps/app` 133 files / 1,499 tests, `packages/testing` 57 / 871, `apps/landing` 23 / 272, `apps/mobile` 22 / 199, `packages/contracts` 11 / 153, `packages/domain` 10 / 102, `discovery` 6 / 73, `packages/database` 4 / 32; no file skipped; `app-qa` green too. The earlier head `f9ce8a82` (run 36017823047) was green as well | `gh run view 36019198599`; job 107699454490 log | gp-qa |
 
 ## Findings and rework
 
@@ -52,7 +53,7 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 
 ## What is not true after this task
 
-- The database suites (`apps/app` `*.int.test.ts`, `evidence-service.test.ts`, `packages/testing`'s `resetDb()` suites, `packages/database`) did not run locally; CI's serialized run is their evidence.
+- The database suites did not run locally; CI's serialized run on `ef4bee57` (row 4) is their evidence.
 - `supabase/functions/outbox-drain` stays a root project outside `turbo run test`, as before.
 
 ## Acceptance evidence
@@ -61,7 +62,7 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 |---|---|---|---|---|---|
 | AC-1 same test files per package | Yes | working tree | row 3 | PASS | |
 | AC-2 DB-free sets pass | Yes | working tree | row 3 | PASS | |
-| AC-3 full serialized run incl. database suites | Yes | — | CI on the PR | NOT RUN | pending CI (environmental until it runs) |
+| AC-3 full serialized run incl. database suites | Yes | `ef4bee57` | CI run 36019198599, `verify` (row 4) | PASS | CI's disposable stack; not run locally (owner's rule) |
 | AC-4 typecheck and builds | Yes | working tree | DEV-067 AC-2, AC-3 | PASS | |
 
 ## Sources
