@@ -424,10 +424,12 @@ describe("the requirement-list disclaimers on the card and the prompt (BL-156)",
   });
 
   it("prints the same disclaimers on the requirement-choice prompt", () => {
-    expect(formatRequirementChoicePrompt([seeded]).text).toContain(DOVIDKOVYI_DISCLAIMER_TEXT);
+    expect(formatRequirementChoicePrompt([seeded]).text.split(DOVIDKOVYI_DISCLAIMER_TEXT)).toHaveLength(2);
     expect(formatRequirementChoicePrompt([seeded]).text).not.toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
-    expect(formatRequirementChoicePrompt([seeded, project]).text)
-      .toContain(`${DOVIDKOVYI_DISCLAIMER_TEXT}\n\n${PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT}`);
+    const mixed = formatRequirementChoicePrompt([seeded, project]).text;
+    expect(mixed).toContain(`${DOVIDKOVYI_DISCLAIMER_TEXT}\n\n${PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT}`);
+    expect(mixed.split(DOVIDKOVYI_DISCLAIMER_TEXT)).toHaveLength(2);
+    expect(mixed.split(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT)).toHaveLength(2);
   });
 
   it("keeps the prompt no longer than the card when a project-sourced item is on both", () => {

@@ -51,8 +51,8 @@ export const DOVIDKOVYI_DISCLAIMER_TEXT =
  *   `"never_collapsed"` — `DOVIDKOVYI_DISCLAIMER_TEXT` above and the act's
  *                          decision-block disclaimers: shown every time
  *                          their host block is shown at all, which is why
- *                          every other `disclaimer()` call in this file
- *                          passes `neverCollapse: true` (`statutory-act-form.ts`).
+ *                          every other `disclaimer()` call in
+ *                          `statutory-act-form.ts` passes `neverCollapse: true`.
  *   `"conditional"`     — shown only when a further fact about the host
  *                          list's CONTENTS holds, true on some lists and
  *                          false on others. `PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`
@@ -102,7 +102,6 @@ export const PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT =
   + "Їх текст не є витягом з ДБН і видавцем цієї системи не перевірявся.";
 
 export const PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT: DisclaimerPlacement = "conditional";
-
 
 /**
  * The disclaimers a requirement list carries, in the rule's order: the

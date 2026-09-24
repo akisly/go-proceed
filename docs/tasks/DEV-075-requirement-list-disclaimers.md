@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: every surface that prints a requirement list carries the disclaimers that `docs/product/hidden-works-content-rules.md` §"Required disclaimers" requires. The Telegram assignment card, the requirement-choice prompt and the office's «Заблоковані вимоги» panel print the довідковий disclaimer under the list. When an item on the list is labelled «за робочою документацією об'єкта», the project-sourced items note follows immediately after it. Before this change only the act and the native field screen printed them.
-- State: implementing
+- State: reviewing
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): executed code under `apps/app` that touches the Telegram channel workflow's card renderer and a dashboard component. Route: `gp-architect` → implementation with failing tests first → `gp-reviewer` + `gp-ui-reviewer` → `gp-qa`.
@@ -65,13 +65,25 @@
 | 4 | Coordinator | Single-source sweep added. Mutation: appending `// відтворений дослівно` to `cards.ts` fails it (1 failed, 22 passed); restored | Session output | Gate |
 | 5 | Coordinator | §5 gate on the working tree at `248053c6`: step 1 skipped (`tokens.json` unchanged); step 2 `motion-audit: clean`; step 3 the fourteen DB-free `packages/testing` files 209/209 (the rest call `resetDb()`, NOT RUN locally, CI runs them); step 4 `pnpm turbo run typecheck` 10/10; step 5 `pnpm --filter @goproceed/landing build` exit 0. Also `apps/app` `pnpm build` exit 0 and `vitest run src tests/act-content-fidelity.test.ts tests/project-path-ids.test.ts` 572 passed, 1 skipped, in 63 files | `scratchpad/dev075-gate.log` | §6 |
 | 6 | Coordinator | §6 on a fixture: the panel rendered with `renderToStaticMarkup` (one Додаток Н reason, one project-sourced reason; and the Додаток Н one alone) inside the built app's CSS, measured with puppeteer at 1920, 1440, 1240, 768 (fine pointer), 390 and 360 (touch). Mixed list: two disclaimers; Додаток Н alone: one; 12px `text-ink-muted`; 680px wide (`measure`) at the desk and 356/326px at 390/360; no horizontal scroll and no overflowing element at any width. A sample card with both reasons is 1,282 of 4,096 characters. The fixture file was deleted after the run | `scratchpad/dev075/mixed-1440.png`, `mixed-390.png`, `telegram-card.txt` | Reviews |
+| 7 | Coordinator | Committed `80259340` as work in progress and pushed it to the task branch only. The container had already restarted once in this session, and the session's stop hook asks for pushed work. No pull request is opened before the findings below are settled | `git log` | — |
+| 8 | gp-ui-reviewer | PASS, with U1 (advisory) and U2 (optional). Roles only; `text-meta`/`text-ink-muted` match the field screen's `meta secondary`. It agrees that no copy-catalog row is right. Not run: the live route, and four of the six widths as images (they are seen through the measurements) | Subagent report (session) | — |
+| 9 | gp-reviewer | PASS WITH FINDINGS, no blocker or major: R1–R6 (below). It confirmed that the moved texts are the same bytes, that the act's output and `RENDERER_VERSION` are unchanged, and that the prompt-subset argument holds (candidates come from the card's snapshot, `0084`; occurrences are immutable, `0043`). It also found that the panel's bundle does not pull in `node:crypto` | Subagent report (session) | Fixes |
+| 10 | Coordinator | R1: BL-163 filed `open`, not `deferred (owner)`, since the owner has not ruled; U1 added to it. R2: re-run read-only through the connector on `goproceed-staging` as `postgres` (`rolbypassrls` true), with positive controls: `communication_messages` 0, `requirement_occurrences` 1, `schema_migrations` 102. R3: the moved comment names `statutory-act-form.ts`, and the double blank line is gone. R6: the prompt cases assert «once» with `split(…)`. `cards.test.ts` 31 of 31 | Connector result; session output | gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1 | minor | gp-reviewer; `docs/BACKLOG.md` BL-163 | Filed `deferred (owner)` with no owner ruling recorded | Coordinator | Fixed: `open`, no Resume field (row 10) |
+| R2 | minor | gp-reviewer; row 2 | «No rows» had no role and no positive control | Coordinator | Fixed: re-run as `postgres` bypassing RLS, with controls (row 10) |
+| R3 | nit | gp-reviewer; `required-disclaimers.ts` | The moved comment said «in this file»; a double blank line | Coordinator | Fixed (row 10) |
+| R4 | nit | gp-reviewer; `apps/mobile/src/lib/field/disclaimer.ts` header | It says the app's constants live in `statutory-act-form.ts`; they are defined in `required-disclaimers.ts` and re-exported there | Coordinator | Not fixed here: the path is outside this task's allowed paths and would add `apps/mobile/src` to the route. The statement is still true as an import site. Left for the next change to that file |
+| R5 | nit | gp-reviewer; `technical/copy-catalog.csv` `dash.project_money.*` | Every other string on the panel has a catalog row; the disclaimers have none | Coordinator | No change, reason recorded: these are regulatory strings whose one source is the content rules, checked byte for byte by `act-content-fidelity.test.ts`. A catalog row would be the second copy the sweep forbids. The act's disclaimers have no row either. gp-architect (row 1) and gp-ui-reviewer (row 8) concur |
+| R6 | nit | gp-reviewer; `cards.test.ts` prompt case | AC-1's «once» was not asserted on the prompt | Coordinator | Fixed (row 10) |
+| U1 | minor (advisory) | gp-ui-reviewer | The approved text bolds two phrases; every surface prints them plain | Coordinator | Not this diff's (a precedent across the act, mobile and now these surfaces); added to BL-163 for the owner's ruling |
+| U2 | optional | gp-ui-reviewer; the disclaimer block | It has a row's padding and border, so it could be read as a third row | Coordinator | Stays as is: the block's muted 12px text and lack of a criterion line already set it apart from a row, and the finding is marked optional |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: none. R1, R2, R3 and R6 are stated fixes after the first review; no QA FAIL so far.
 
 ## What is not true after this task
 
@@ -93,8 +105,8 @@ No third-party documentation was needed: the change renders fixed strings throug
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
+- Review independence: independent — `gp-architect`, `gp-reviewer` and `gp-ui-reviewer` (native subagents); `gp-qa` pending.
 - Verified scope: rows 3–6.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-reviewer` and `gp-ui-reviewer`.
-- Final state and reason: implementing.
+- Next bounded action and owner: `gp-qa` on the fixed revision.
+- Final state and reason: reviewing — review findings settled; `gp-qa` next.

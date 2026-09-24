@@ -191,7 +191,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-160](#bl-160) | P2 | open | Four DEV-061 field-client behaviours have no observed run: a hold resolved by the server, the received-anyway notice, «Стираємо…» signed in, and the reinstall-reset retry |
 | [BL-161](#bl-161) | P3 | open | No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL |
 | [BL-162](#bl-162) | P3 | open | `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers |
-| [BL-163](#bl-163) | P3 | deferred (owner) | The довідковий disclaimer calls every requirement list «довідковий Додаток Н… відтворений дослівно», including lists with no Додаток Н item |
+| [BL-163](#bl-163) | P3 | open | The довідковий disclaimer calls every requirement list «довідковий Додаток Н… відтворений дослівно», including lists with no Додаток Н item |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1955,10 +1955,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-163"></a>
 ### BL-163 — P3 — The довідковий disclaimer calls every requirement list «довідковий Додаток Н… відтворений дослівно», including lists with no Додаток Н item
 
-- **State:** deferred (owner)
+- **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-075's `gp-architect`, 2026-09-24. `hidden-works-content-rules.md` §"Required disclaimers" puts one text «under every generated requirement list». It opens «Наведений перелік — це довідковий Додаток Н ДБН А.3.1-5:2016 … відтворений дослівно». A list whose every item is project-sourced (ADR-010), or carries a workspace's own rule, is not Додаток Н, so the sentence misdescribes it. The act (`statutory-act-form.ts`), the native field screen (DEV-058) and, since DEV-075, the Telegram card and the office's blocked-reasons list all print it that way. The text is transcribed byte for byte from an Approved document, so a surface cannot vary it. Ranked by DEV-075.
 - **Evidence:** `apps/app/src/lib/required-disclaimers.ts` (`DOVIDKOVYI_DISCLAIMER_TEXT`, `requirementListDisclaimers`); `apps/app/tests/act-content-fidelity.test.ts`.
-- **Depends on:** an owner decision to amend the Approved content rules under `docs/README.md` change control (for example, a variant for a list with no Додаток Н item), then every surface and the mobile copy.
+- **Depends on:** gp-ui-reviewer's U1 in DEV-075 adds a second question for the same ruling: the approved text bolds «довідковий Додаток Н» and «Обов'язковий перелік прихованих робіт для вашого об'єкта визначає робоча документація», and every surface prints them plain; whether the emphasis is part of the mandate. Both need an owner decision to amend the Approved content rules under `docs/README.md` change control (for example, a variant for a list with no Додаток Н item), then every surface and the mobile copy.
 - **Deadline:** none recorded.
-- **Resume:** the owner rules on the wording; a task then amends the document and the constants together.
