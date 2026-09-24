@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour a user sees changes. INV-116's catalog checks (DEV-060's T1, T2, T3, T6, T8) live in one read-only SQL file, `technical/database/checks/inv-116-temporary-privilege.sql`. Three things run it: `temporary-privilege.test.ts`, with a negative control per check; `pnpm db:catalog-snapshot`, which records the database ACL and the TEMP holders and exits 1 on a violation; and a new step, `infra/README-staging.md` §2.3, run through the Supabase connector after every hosted push or restore. The database ACL that `0102` set, which no migration re-checks, is then compared on the hosted project instead of assumed.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** executed code under `scripts/` and `packages/testing`, a catalog file read by tests, and a check of grants and database roles on a hosted project: `gp-architect` → owner decisions → failing test → implementation → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -62,6 +62,7 @@
 | 16 | gp-reviewer | r2 PASS WITH FINDINGS: R1-02..R1-06 PASS; R1-01 residual minor (a T2 row «via» another product role was routed to a membership revoke, though logins reach their roles by design; a superuser was routed to `0102`); R2-01 nit (a failed `cron.job` query would abort the read-only transaction), R2-02 nit (no run showed a compliant URL passing the TLS gate) | review, 2026-09-24, on `scratchpad/dev071-r2.diff` | fixes |
 | 17 | coordinator | R1-01: §2.3 reads rows in order — «missing» stop; T1 first (its T2 rows clear with it); «via» a `goproceed_*` role → re-apply `0102`; «via» a non-product role → revoke the membership; a superuser → platform or owner action, not `0102`. R2-01: `cron.job` checked with `to_regclass` first, not caught (local snapshot exit 0, `## cron_jobs (3)`). R2-02: a compliant `verify-full` + `sslrootcert` URL to an unresolvable host passes the gate and fails at connect («getaddrinfo ENOTFOUND nonexistent.invalid», exit 1, not 2), and the output names neither the URL nor the CA path. §2.3 notes the free plan's IPv6-only direct host and the session pooler | `scratchpad/dev071-r4-snapshot.txt` | gp-qa |
 | 18 | gp-qa | PASS on criteria 1–4, every stated fix in place: the file 0 rows as `postgres`, as `anon` and with `standard_conforming_strings` off; suite «Tests 28 passed (28)»; T3 mutation «× N-T3 … Tests 1 failed \| 27 passed (28)», restored (`cmp` equal); snapshot exit 0 locally, exit 1 on `_supabase` with violations first, exit 2 for no TLS, `require`, `verify-full` without a CA, the libpq-compat URL and a `?host=` override; a compliant URL fails at connect; a fake password echoed nowhere; the hosted write branch (proxy copy) wrote `drwx------`/`-rw-------` under `$TMPDIR`; the round-2 hash matches §2.3; `tsc`, `validate:canonical-docs`, `validate:agents` OK. Q-01 nit (`::1` never matches: pg reports `[::1]`), Q-02 nit (Completion said criteria 1–3) | QA report, 2026-09-24, on `scratchpad/dev071-r3.diff` | commit |
+| 19 | owner | #141 merged (`7b0a1ba1`, 18:52 UTC) after merging `origin/main` (#135 brought BL-159 and BL-160, #138 INV-117 and INV-118; conflicts kept both sides in id order); CI green on the head `15ecfc47` (run 36029065822): `verify` ran all 57 `packages/testing` files, `temporary-privilege.test.ts` 28 tests | `gh pr view 141`; the CI run | done |
 
 ## Findings and rework
 
@@ -122,5 +123,5 @@ Rework count and hypothesis changes: none (first review; fixes are the stated on
 - Review independence: `gp-architect`, `gp-reviewer` (r1, r2), `gp-security` (r1, r2) and `gp-qa` as independent native subagents, before the commit.
 - Verified scope: criteria 1–4 (`gp-qa` PASS).
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: CI on the pull request; the owner's merge; then a closure that sets BL-157 closed and this task done.
-- Final state and reason: verifying.
+- Next bounded action and owner: none in this task; after every hosted push or restore the coordinator runs §2.3 and adds a Status row. BL-161 and BL-162 are open.
+- Final state and reason: done — #141 merged with CI green; the check file compared on `goproceed-staging` (0 rows).
