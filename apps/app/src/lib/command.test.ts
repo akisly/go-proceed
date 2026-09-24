@@ -153,3 +153,43 @@ describe("queryRoute", () => {
     });
   });
 });
+
+/**
+ * DEV-048 / BL-141: a malformed path id is 404 before the Idempotency-Key, the
+ * body and the handler. `projectId` is checked on every route; a route names its
+ * own nested ids; any other parameter is left to the handler.
+ */
+describe("malformed path ids", () => {
+  let ran = 0;
+  const handler = async () => { ran++; return { status: 200, body: {} }; };
+  const post = (route: ReturnType<typeof commandRoute>, params: Record<string, string>, headers: Record<string, string> = {}) =>
+    route(new Request("http://x/v1/p", { method: "POST", headers: { "content-type": "application/json", ...headers }, body: "{oops" }),
+      { params: Promise.resolve(params) });
+
+  it("commandRoute answers a malformed projectId 404 even with no key and a broken body, and never runs the handler", async () => {
+    const res = await post(commandRoute(z.object({}), handler), { projectId: "p-1" });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: "RESOURCE_NOT_FOUND", detail: "Проєкт не знайдено.", retryable: false });
+    expect(ran).toBe(0);
+  });
+
+  it("commandRoute checks a nested id the route declares, with its own detail, and leaves undeclared ones alone", async () => {
+    const route = commandRoute(z.object({}).strict(), handler, { pathIds: { versionId: "Версію договору не знайдено." } });
+    const res = await post(route, { projectId: "0f0e0d0c-0b0a-4000-8000-000000000001", versionId: "v1" });
+    expect(res.status).toBe(404);
+    expect((await res.json()).detail).toBe("Версію договору не знайдено.");
+    const other = await route(new Request("http://x/v1/p", { method: "POST", headers: { "idempotency-key": "k" }, body: "{}" }),
+      { params: Promise.resolve({ versionNo: "3" }) });
+    expect(other.status).toBe(200);
+  });
+
+  it("queryRoute answers a malformed projectId 404 and never runs the handler; an upper-case UUID passes", async () => {
+    const before = ran;
+    const route = queryRoute(handler);
+    const bad = await route(new Request("http://x/v1/p"), { params: Promise.resolve({ projectId: "' or 1=1" }) });
+    expect(bad.status).toBe(404);
+    expect(ran).toBe(before);
+    const upper = await route(new Request("http://x/v1/p"), { params: Promise.resolve({ projectId: "0F0E0D0C-0B0A-4000-8000-000000000001" }) });
+    expect(upper.status).toBe(200);
+  });
+});

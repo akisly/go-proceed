@@ -184,12 +184,25 @@ cascade. A revoke that takes away a live `project.admin` grant is refused
 unless another active member keeps a live admin grant with no end date, the
 actor's own included (INV-110), because the
 creator's bootstrap no longer applies to a project that has grants and a
-workspace role confers no project capability. The rule covers revokes only: a
-project whose administrator grants are all dated can still lapse, and a
-suspension still leaves it without an administrator (BL-137). The application role may
-update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
+workspace role confers no project capability. With the creator's undated grant
+from `projects.create` and a grant route that never touches an existing admin
+row, the product keeps such an administrator on every project: a dated admin
+grant can only exist beside an undated one (DEV-051). What can still orphan a
+project is outside the product today — grants rewritten by SQL, a future
+membership suspension (BL-014 must refuse it), or an only administrator who has
+left while their membership stays active (BL-137). The application role may
+update a grant's `revoked_at` and `version` and nothing else (`0096`), and since
+`0099` no role may do more than revoke a grant once, at the transaction's time,
+and no role may delete one (INV-113, DEV-052); only the table owner can bypass
+that — replica mode, which fixtures use to stage a lapsed or removed grant,
+`DISABLE TRIGGER` or `TRUNCATE`. A revoke
 does not end responsibilities (INV-021), work assignments, Telegram member
-links or external review links the member issued.
+links or external review links the member issued. A removal (a revoke naming
+`project.view`) reports what it leaves live instead (ADR-014 decision 5,
+DEV-050): the member's active, unexpired review links on the project, by id and
+version but never by address, and whether the project has a connected Telegram
+group, as of the revoke's read; the office retires the links with
+`external_grants.revoke_reissue`, which needs `packages.submit` on the project.
 
 ### Project responsibilities
 

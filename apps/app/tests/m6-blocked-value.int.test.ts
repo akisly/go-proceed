@@ -743,7 +743,7 @@ describe("who may read the blocked money", () => {
     // Before this date the fixture's member kept `project.admin` and was refused
     // anyway; the assertion passed for a reason that was a defect.
     await q(`update public.project_access_grants set revoked_at = now()
-              where project_id = $1 and capability in ('readiness.view', 'project.admin')`,
+              where project_id = $1 and capability in ('readiness.view', 'project.admin') and revoked_at is null`,
       [fx.projectId]);
     const res = await blockedValueRes(fx.projectId);
     expect(res.status).toBe(403);
@@ -753,7 +753,7 @@ describe("who may read the blocked money", () => {
   it("refuses a member holding readiness.view but not project.view", async () => {
     const fx = await baseline();
     await q(`update public.project_access_grants set revoked_at = now()
-              where project_id = $1 and capability in ('project.view', 'project.admin')`,
+              where project_id = $1 and capability in ('project.view', 'project.admin') and revoked_at is null`,
       [fx.projectId]);
     const res = await blockedValueRes(fx.projectId);
     // NOT AN EMPTY SCREEN, AND NOT A TOTAL OF ZERO — which is the whole of what

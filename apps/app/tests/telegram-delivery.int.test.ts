@@ -93,7 +93,7 @@ databaseDescribe("Telegram assignment-card publication", () => {
   it("requires assignments.manage in addition to project.view", async () => {
     // Break caught: project visibility alone could publish field instructions.
     await client.query(`update public.project_access_grants set revoked_at=now()
-      where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='assignments.manage'`,
+      where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='assignments.manage' and revoked_at is null`,
     [fixture.workspaceId, fixture.projectId, fixture.memberId]);
     const { POST } = await import("../app/v1/assignments/[assignmentId]/communication-card/route");
     const response = await POST(jsonRequest(assignmentId, crypto.randomUUID()), { params: Promise.resolve({ assignmentId }) });

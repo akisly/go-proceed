@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-23
+**Last reviewed:** 2026-09-24
 
 **Related decisions:** [ADR-006](ADR-006-pilot-shaped-v0.1.md), [ADR-002](ADR-002-tenancy-parties-and-contracts.md), [ADR-012](ADR-012-invitation-revoke.md)
 
@@ -132,10 +132,13 @@ for:
   stay live until `external_grants.revoke_reissue` retires them.
 - Keeping a project administrable when its only administrator grant lapses
   through `valid_until` or its holder's membership is suspended (BL-014); the
-  last-administrator rule covers revokes only.
+  last-administrator rule covers revokes only. *[Amended 2026-09-24 (DEV-051):
+  neither path is reachable through the product in v0.1 — see «Amendment,
+  2026-09-24 — what the last-administrator rule already covers».]*
 - A trigger that makes `revoked_at` write-once or the other grant columns
   immutable; with the column grant, the product can still clear `revoked_at`
-  through a defect.
+  through a defect. *[Amended 2026-09-24 (DEV-052): authorised and built — see
+  «Amendment, 2026-09-24 — a grant's revoke is written once».]*
 - Membership lifecycle commands or re-admission (BL-014).
 
 ## Approval
@@ -164,3 +167,97 @@ audit records and the absence of outbox events, and decision 4's column grant �
 and the owner's merge ratifies them with the rest. The coordinator wrote this
 section and the Status to transcribe the ruling (`docs/README.md` «ADR
 lifecycle and approval»).
+
+## Amendment, 2026-09-24 — a removal reports what it leaves live
+
+Recorded by the coordinator of [DEV-050](../tasks/DEV-050-removal-reports-remaining.md)
+(BL-142) to transcribe the owner's ruling below. It adds one optional field to
+decision 1's response and changes no other decision; the cascade exclusions in
+«What this decision does NOT authorise» stand.
+
+**Context.** Revoking `project.view` removes a member from the project in the
+product and nothing else (decision 1). The review links the member issued stay
+live until `external_grants.revoke_reissue` retires them, and that command
+needs a link's id and version, which no route lists. The person may also still
+be in the project's connected Telegram group. The office had no way to see
+either from the revoke.
+
+**Decision 5.** A `project_access.revoke` whose `capabilities` name
+`project.view` answers with `remaining` beside `revoked`:
+
+- `externalGrants`: every link the member issued on the project that is
+  `active` and not expired **as of the read** (a link the member issues
+  concurrently may commit after it) — `grantId`, `requirementOccurrenceId`, `version`,
+  `expiresAt`, `exchanged` (whether its exchange was consumed) and
+  `decidesEvidence`. The recipient's address and the token never appear.
+- `telegramGroupBound`: whether the project has a Telegram binding that is not
+  disconnected.
+
+It is read under the actor's RLS, in the revoke's transaction, before the
+update — an administrator removing themselves revokes their own `project.admin`
+in that update, after which the policies would hide both. The audit record
+`project_access.revoked` carries `remainingExternalGrantIds`. A revoke that
+keeps `project.view` answers as before, without `remaining`. Nothing cascades:
+the listed links stay `active` and the group is untouched. Retiring a listed
+link with `external_grants.revoke_reissue` needs `project.view` and
+`packages.submit` on the project, which a `project.admin` may have to grant
+itself first; an administrator who removed themselves can act on none of them.
+
+**Not decided here.** Whether the product removes the person from the Telegram
+group, or records that the office must, is decided when the webhook is enabled
+(BL-024); until then, `telegramGroupBound` is the only signal. The person's
+Telegram member link is not reported and stays open with the group (BL-142);
+the resolvers check the grant at each action, so it cannot act.
+
+**Approval.** Approved by the owner on 2026-09-24, in conversation, on the
+options the coordinator put: «Только отчёт» (decision 5) and «Решить при
+BL-024» (the group). The field names, the audit key and the read-before-update
+order are the coordinator's detail of that option, ratified by the owner's
+merge.
+
+## Amendment, 2026-09-24 — what the last-administrator rule already covers
+
+Recorded by the coordinator of [DEV-051](../tasks/DEV-051-last-admin-records.md)
+(BL-137) to transcribe the owner's ruling below. It changes no behaviour.
+
+The clause above that decision 1 does not keep a project administrable «when
+its only administrator grant lapses through `valid_until` or its holder's
+membership is suspended» describes paths the product does not allow. `projects.create`
+gives the creator an undated `project.admin`; the revoke never takes the last
+undated one; and the grant route skips a capability its holder already has
+unrevoked, so it never dates or replaces an existing admin grant. A dated
+`project.admin` can therefore exist only beside an undated one, and no product
+command suspends or ends a membership in v0.1. What can still leave a project
+without an administrator is outside the product today: grants rewritten by SQL, a
+future suspend or end command (BL-014, which must refuse it under a lock
+shared with the revoke), and an only administrator who has left while their
+membership stays active. A recovery path for a workspace owner is decided with
+BL-014.
+
+**Approval.** Approved by the owner on 2026-09-24, in conversation, on the
+option «Зафиксировать + BL-014» after the `gp-architect` design; the wording is
+the coordinator's, ratified by the owner's merge.
+
+## Amendment, 2026-09-24 — a grant's revoke is written once
+
+Recorded by the coordinator of [DEV-052](../tasks/DEV-052-grant-revoke-write-once.md)
+(BL-138) to transcribe the owner's ruling below. It adds a guard and changes no
+operation, contract or error code.
+
+**Decision 6.** Migration `0099` adds a BEFORE UPDATE OR DELETE row trigger on
+`project_access_grants` (INV-113). A grant is never deleted; the one change it
+accepts is its revoke — `revoked_at` from null to the transaction's `now()`, the
+rule `0097` sets for `ended_at`, with `version` unchanged or up by one — and a
+revoked grant never changes again. Every other column is frozen. The guard fires
+for every row-level UPDATE and DELETE by every role, superusers included, with
+the default enablement. Only the table owner can bypass it — replica mode,
+which fixtures use, `DISABLE TRIGGER`, or `TRUNCATE`, which only the owner holds
+since `0058`; no product role can set `session_replication_role` or owns the
+table. Both product
+writers — decision 1's revoke and the grant's replacement of `project.view`
+(DEV-049) — already write exactly the revoke. A defect that tried anything else
+answers 500; no error code is added, since only a defect reaches it.
+
+**Approval.** Approved by the owner on 2026-09-24, in conversation, on the
+option «Делать, version +0/+1» after the `gp-architect` design; the trigger's
+detail is the coordinator's and the architect's, ratified by the owner's merge.

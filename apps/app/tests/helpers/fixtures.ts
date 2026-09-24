@@ -49,6 +49,33 @@ export async function q<T extends Record<string, unknown> = Record<string, unkno
 }
 
 /**
+ * One fixture statement with user triggers suppressed, in a transaction of its
+ * own. DEV-052 / BL-138 (0099): a project access grant accepts only its revoke,
+ * for superusers too, so a fixture that stages a lapsed, re-granted or removed
+ * grant goes through `session_replication_role = replica` — the bypass
+ * dropWorkspaces already uses. Referential-integrity triggers are skipped as
+ * well, so it is for rewriting or removing existing rows, not for inserts.
+ */
+export async function qBypassingGuards<T extends Record<string, unknown> = Record<string, unknown>>(
+  sql: string, p: unknown[] = [],
+): Promise<T[]> {
+  const c = new Client({ connectionString: ADMIN_URL });
+  await c.connect();
+  try {
+    await c.query("begin");
+    await c.query("set local session_replication_role = replica");
+    const r = await c.query(sql, p);
+    await c.query("commit");
+    return r.rows as T[];
+  } catch (e) {
+    await c.query("rollback").catch(() => undefined);
+    throw e;
+  } finally {
+    await c.end().catch(() => undefined);
+  }
+}
+
+/**
  * Empties the world between cases.
  *
  * THE CONNECTION IS CLOSED EVEN WHEN THE TRUNCATE FAILS, and that is not

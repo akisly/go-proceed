@@ -56,6 +56,21 @@ export const projectCapability = z.enum([
 ]);
 export type ProjectCapabilityValue = z.infer<typeof projectCapability>;
 
+// DEV-054 / BL-149: a window must end after it starts. Both tables CHECK
+// `valid_until > valid_from` (0010), and a violation raised 23514 and became
+// 500. The schema compares the two values when both are sent, which never
+// depends on the clock; an end not after the transaction's `now()` — the start
+// when `validFrom` is absent, and always for a grant — is refused by the route
+// inside `withIdempotency` (apps/app/src/lib/grant-window.ts), so a replay of a
+// request that was valid when it committed still returns the stored response.
+// A malformed date is left to its own format issue.
+function endsAfterStart(v: { validFrom?: string | undefined; validUntil?: string | undefined }, ctx: z.RefinementCtx): void {
+  if (v.validFrom === undefined || v.validUntil === undefined) return;
+  const from = Date.parse(v.validFrom), until = Date.parse(v.validUntil);
+  if (Number.isNaN(from) || Number.isNaN(until)) return;
+  if (!(until > from)) ctx.addIssue({ code: "custom", path: ["validUntil"], message: "must be later than validFrom" });
+}
+
 export const grantProjectAccessRequest = z.object({
   memberId: z.string().guid(),
   capabilities: z.array(projectCapability).min(1),
@@ -63,8 +78,11 @@ export const grantProjectAccessRequest = z.object({
 });
 export type GrantProjectAccessRequest = z.infer<typeof grantProjectAccessRequest>;
 
+// DEV-049 late review (gp-security S1-01, owner 2026-09-24 «Раскрывать»): each
+// granted row names the end it was written with (null: none), so an
+// administrator sees when a covering project.view came out longer than asked.
 export interface GrantProjectAccessResponse {
-  granted: { capability: string; grantId: string }[];
+  granted: { capability: string; grantId: string; validUntil: string | null }[];
 }
 
 // BL-021 / DEV-043 / ADR-014 decision 1: `project_access.revoke` is addressed
@@ -79,8 +97,30 @@ export const revokeProjectAccessRequest = z.object({
 }).strict();
 export type RevokeProjectAccessRequest = z.infer<typeof revokeProjectAccessRequest>;
 
+// DEV-050 / BL-142 / ADR-014's amendment of 2026-09-24: a revoke that removes
+// the member from the project (it names `project.view`) reports what it leaves
+// live, and cascades to none of it. `externalGrants` are the review links the
+// member issued on the project that are still active and unexpired — the ids
+// and versions `external_grants.revoke_reissue` needs, since no route lists
+// links — and never the recipient's address. The key is not named «…links»:
+// withIdempotency refuses to store a key ending in `link` (INV-102, DEV-023). `telegramGroupBound` says whether
+// the project has a connected Telegram group the person may still be in.
+export const projectAccessRemaining = z.object({
+  externalGrants: z.array(z.object({
+    grantId: z.string().guid(),
+    requirementOccurrenceId: z.string().guid(),
+    version: z.number().int().min(1),
+    expiresAt: z.string().datetime(),
+    exchanged: z.boolean(),
+    decidesEvidence: z.boolean(),
+  }).strict()),
+  telegramGroupBound: z.boolean(),
+}).strict();
+export type ProjectAccessRemaining = z.infer<typeof projectAccessRemaining>;
+
 export const revokeProjectAccessResponse = z.object({
   revoked: z.array(z.object({ capability: projectCapability, grantId: z.string().guid() }).strict()),
+  remaining: projectAccessRemaining.optional(),
 }).strict();
 export type RevokeProjectAccessResponse = z.infer<typeof revokeProjectAccessResponse>;
 
@@ -100,7 +140,7 @@ export const assignResponsibilityRequest = z.object({
   responsibility: responsibilityKind,
   validFrom: z.string().datetime().optional(),
   validUntil: z.string().datetime().optional(),
-});
+}).superRefine(endsAfterStart);
 export type AssignResponsibilityRequest = z.infer<typeof assignResponsibilityRequest>;
 
 export interface AssignResponsibilityResponse {

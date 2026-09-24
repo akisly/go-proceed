@@ -364,7 +364,7 @@ databaseDescribe("upload_intents.finalize", () => {
     // the recheck exists for.
     await q(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
+        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record' and revoked_at is null`,
       [fx.workspaceId, fx.memberId]);
 
     const res = await finalize(intent.uploadIntentId);
@@ -610,7 +610,7 @@ databaseDescribe("a creator who lost access can still abandon the upload (BL-032
   it("orphans the upload of an active creator who lost both the project read and evidence.record", async () => {
     const { intent, memberId } = await stagedByB();
     await q(`update public.project_access_grants set revoked_at = now()
-              where workspace_id = $1 and member_id = $2`, [fx.workspaceId, memberId]);
+              where workspace_id = $1 and member_id = $2 and revoked_at is null`, [fx.workspaceId, memberId]);
     await expectAbandoned(await finalize(intent.uploadIntentId));
     expect(await stateOf(intent.uploadIntentId))
       .toEqual({ status: "orphaned_for_purge", failure_code: "authorization_revoked" });
@@ -663,7 +663,7 @@ databaseDescribe("a creator who lost access can still abandon the upload (BL-032
     // The same caller, stripped of the read only, is not fully authorized.
     await q(`update public.project_access_grants set revoked_at = now()
               where workspace_id = $1 and capability = 'project.view'
-                and member_id = (select id from public.memberships where user_id = $2)`,
+                and member_id = (select id from public.memberships where user_id = $2) and revoked_at is null`,
       [fx.workspaceId, B]);
     expect(await ask()).toBe(true);
     expect((await stateOf(intent.uploadIntentId)).status).toBe("orphaned_for_purge");

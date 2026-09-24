@@ -255,7 +255,7 @@ describe("v0.1-M2-A vertical scenario", () => {
 
     await q(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
+        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record' and revoked_at is null`,
       [fx.workspaceId, fx.memberId]);
 
     const res = await post(

@@ -106,7 +106,7 @@ describe("upload_intents.get", () => {
     const intent = await createIntent(JPEG);
     await q(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability <> 'project.view'`,
+        where workspace_id = $1 and member_id = $2 and capability <> 'project.view' and revoked_at is null`,
       [fx.workspaceId, fx.memberId]);
     expect((await getIntent(intent.uploadIntentId)).status).toBe(200);
   });
