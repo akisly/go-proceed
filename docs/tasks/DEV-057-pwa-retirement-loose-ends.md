@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the field client's code says truthfully which of its modules are the only copy now and which are deliberate duplicates of `apps/app`, and the duplicates that print text a user reads are held equal by tests; dead web icons and the unused `safe-next.ts` are gone. Nothing a user sees changes.
-- State: reviewing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): an `apps/mobile` change → `gp-mobile` for requirements; `gp-reviewer`, `gp-ui-reviewer` (paths under `apps/mobile/src`), `gp-security` (`apps/mobile/.env.example`), `gp-qa`.
@@ -42,6 +42,7 @@
 | 3 | Coordinator | Implemented plan steps 1–4. `pnpm --filter @goproceed/mobile typecheck` exit 0; `test` 188 passed in 22 files (`main`: 186 in 20; −`safe-next.test.ts`, +`disclaimer.test.ts`, `otp-error-twin.test.ts`, one norm-ref case, and DEV-056's 7). `expo export --platform ios --platform android` on `main` and on this tree: both exit 0; the file lists (hashes masked) differ in exactly `icons/apple-touch-icon.png`, `icons/icon-192.png`, `icons/icon-512.png`, `icons/icon-maskable-512.png`, which the native export had been copying from `public/` into `dist/` although nothing native references them (unmasked, the Hermes bundle names also differ — iOS `entry-e88bc6a4…` → `entry-83e9e8ca…`, Android `entry-493f696b…` → `entry-9791ae45…` — expected from the comment edits shifting source positions, not measured; that no rendered string changed rests on the comment-only diff); `expo config --type public` names no favicon or web icon. `validate:canonical-docs` needed BL numbers to stay sequential, so the new entry is BL-146 and code comments cite «a backlog entry», not the number (the parallel «Доступ и админы» branch also starts at BL-146) | scratchpad `ac22.log` | Gate, reviews |
 | 4 | Coordinator | UI gate (`docs/design/02-building-ui.md` §5) at `e43c5ecf` + working tree: step 1 skipped (`tokens.json` unchanged); step 2 `motion-audit: clean`; step 3 only the thirteen `packages/testing` files that touch no database (contrast, token-fidelity, palette-derivation, primitive-leak, component-contract, app-entry, motion-audit, motion-contract, copy-catalog-fidelity, status-label-fidelity, tw-merge, subtle-body-copy, error-catalog-fidelity): 202 passed in 13 files — the rest call `resetDb()` (`supabase db reset`) and are NOT RUN without the owner; step 4 `pnpm turbo run typecheck` first failed on `@goproceed/app#typecheck` in this fresh worktree before any `next build` had generated its route types, then passed 10/10 (`--force`) after step 5; step 5 `pnpm --filter @goproceed/landing build` exit 0; `pnpm --filter @goproceed/app build` exit 0 (AC-21) | scratchpad `gate.log` | Reviews |
 | 5 | gp-reviewer, gp-ui-reviewer, gp-security; Coordinator | gp-ui-reviewer: PASS (U1 pre-existing major → BL-147; U2 minor; U3, U4 optional). gp-reviewer: PASS with findings (R1–R3 minor, R7–R9 nit for this task). gp-security: PASS, and the `safe-next.ts` deletion removes no live protection (`nativeNext` is a stricter allow-list). Fixed R1–R3, R7, R9, U2–U4; R8 kept (Findings). Re-run: `pnpm --filter @goproceed/mobile typecheck` exit 0; `test` 191 passed in 22 files; `validate:canonical-docs` OK; the gate log gained the step 3 and step 4 re-runs | scratchpad `gate.log` | gp-qa |
+| 6 | gp-qa | gp-qa on `36cb88bd`: all 23 criteria PASS (AC-1…AC-23 across DEV-056 and DEV-057), every Fixed finding in place; typecheck exit 0, 191 tests in 22 files, `validate:canonical-docs` OK, `validate:agents` OK; the committed signature re-verified independently with OpenSSL 3.6.3 (`dgst -blake2b512`, `pkeyutl -verify -rawin`); host, iOS and Gradle (`--offline`) tampered runs fail and restored runs pass with build outputs unchanged; mutations: U+02BC in the disclaimer, a Latin `o` in a label, an extra key in the app's label map, a double space in the app's label, `!` in `OTP_VERIFY_FAILED`, an extra `OTP_EXTRA` in the app — each fails its guard; AC-19: mobile test cache hit → miss after a blank line in `apps/app/src/lib/otp-error.ts` → hit after restore; `git status` empty at the end. New: Q1 (nit) — the verifier-call guard matched a commented-out call; Q2 — a misleading `exit 0` in `tamper-podinstall.log`; Q1 and Q2 are DEV-056's | scratchpad `qa-*.log` | Owner merges |
 
 ## Findings and rework
 
@@ -90,8 +91,8 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: independent — `gp-mobile`; reviews pending.
+- Review independence: independent — `gp-mobile`, `gp-reviewer`, `gp-ui-reviewer`, `gp-security`, `gp-qa` (all subagents).
 - Verified scope: unit tests, typecheck, native export comparison.
 - Remaining risks / blocked requirements: CI NOT RUN (billing block).
-- Next bounded action and owner: gate output, `gp-reviewer`, `gp-ui-reviewer`, `gp-security`, `gp-qa`; then the owner merges.
-- Final state and reason: reviewing.
+- Next bounded action and owner: the owner reviews and merges the PR; then the coordinator records `done`.
+- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.

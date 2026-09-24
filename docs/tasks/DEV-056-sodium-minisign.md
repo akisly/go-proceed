@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the pinned libsodium archive the field client's vault is built from must carry libsodium's own minisign signature, checked on every build that uses it, besides the sha256 digest it already had. This closes DEV-042's open «Independent minisign verification of the digest» (security m5). No user-visible change; the library's bytes are unchanged.
-- State: reviewing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): a build supply-chain change in `apps/mobile` → `gp-mobile` for requirements, then implementation, `gp-reviewer` + `gp-security`, `gp-qa`.
@@ -36,6 +36,7 @@
 | 2 | Coordinator | Prototype on the cached 1.0.22 archive: algorithm `ED`, key id equal to the published key's, file and global signatures valid, a one-bit tamper refused; the `.minisig` from the GitHub release and from download.libsodium.org are byte-identical (sha256 `c0186d6c…abbff0f3`), and the committed JSON string hashes the same | scratchpad `verify.mjs`; `shasum -a 256` | Implement |
 | 3 | Coordinator | Implemented plan steps 1–3. Unit: 7 tests pass. Host: `node scripts/prepare-sodium.mjs host` exit 0; with one character of the global signature changed, exit 1 `Error: minisign: the trusted comment does not verify`, no new `.build/` entry; restored, exit 0. iOS: `sodium-xcframework.mjs` rebuilt once (stamp changed, 2.4 s, exit 0), a second run exited at once with the same stamp; tampered, exit 1 with the minisign error and the old stamp left in place; restored, exit 0 without work. Android (fresh `expo prebuild --platform android` in this worktree, `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a`): `:goproceed-vault:prepareSodium` built both ABIs, BUILD SUCCESSFUL; tampered, `prepare-sodium failed for armeabi-v7a: … Error: minisign: the trusted comment does not verify`; restored, BUILD SUCCESSFUL in 2 s, the same two build directories | scratchpad `ac9.log`, `ac10.log` | gp-reviewer, gp-security |
 | 4 | gp-reviewer, gp-security; Coordinator | gp-security: PASS (S1, S2 minor; S3–S5 nit). gp-reviewer: PASS with findings (R4 minor and R5, R6 nit for this task; R1–R3, R7–R9 are DEV-057's). Fixed S1–S5, R4–R6 (Findings). Re-run: `minisign.test.mjs` 9 passed; host good → tampered exit 1 `Error: minisign: the trusted comment does not verify`, `.build/` listing unchanged → restored exit 0; iOS tampered exit 1 with the stamp unchanged (`aa74dee5…`), restored exit 0 with one rebuild (the stamp covers the edited `minisign.mjs`, now `a699c77b…`) and a second run exiting at once; `pod install` tampered exit 1 `[!] Invalid \`GoProceedVault.podspec\` file: GoProceedVault: building the pinned libsodium xcframework failed.`, restored exit 0 | scratchpad `tamper-host-ios.log`, `tamper-podinstall.log`, `pod-tampered-full.log` | gp-qa |
+| 5 | gp-qa; Coordinator | gp-qa on `36cb88bd`: all 23 criteria PASS (AC-1…AC-23 across DEV-056 and DEV-057), every Fixed finding in place; typecheck exit 0, 191 tests in 22 files, `validate:canonical-docs` OK, `validate:agents` OK; the committed signature re-verified independently with OpenSSL 3.6.3 (`dgst -blake2b512`, `pkeyutl -verify -rawin`); host, iOS and Gradle (`--offline`) tampered runs fail and restored runs pass with build outputs unchanged; mutations: U+02BC in the disclaimer, a Latin `o` in a label, an extra key in the app's label map, a double space in the app's label, `!` in `OTP_VERIFY_FAILED`, an extra `OTP_EXTRA` in the app — each fails its guard; AC-19: mobile test cache hit → miss after a blank line in `apps/app/src/lib/otp-error.ts` → hit after restore; `git status` empty at the end. New: Q1 (nit) — the verifier-call guard matched a commented-out call; Q2 — a misleading `exit 0` in `tamper-podinstall.log`. Fixed Q1 (the test now requires the call as a statement at the start of a line; with the call commented out it fails 1 of 9, restored 9/9) and annotated Q2 in the log | scratchpad `qa-*.log`, `tamper-podinstall.log` | Owner merges |
 
 ## Findings and rework
 
@@ -47,6 +48,8 @@
 | S4, R4 | nit, minor | AC-7, AC-9 evidence | the host and iOS tamper runs were not in a log; the podspec `raise` never driven | Coordinator | Fixed: `tamper-host-ios.log` and `tamper-podinstall.log` (row 4) |
 | S5, R6 | nit | `minisign.mjs` | a missing `minisig` reported «LF line endings» | Coordinator | Fixed: its own message «no signature text (the pin carries no .minisig)», tested |
 | R5 | nit | `prepare-sodium.mjs` | nothing proved the build still calls the verifier | Coordinator | Fixed: a static test asserts the import and that the call precedes `tar` and `configure` |
+| Q1 | nit | `minisign.test.mjs` | the call guard used `indexOf`, so a commented-out call passed and a tampered host build then exited 0 | Coordinator | Fixed: a line-anchored statement match; commented-out call → 1 failed, restored → 9 passed |
+| Q2 | note | `tamper-podinstall.log` | a first `exit 0` was grep's pipe status | Coordinator | Annotated in the log; `pod install`'s own exit 1 is in its later lines and `pod-tampered-full.log` |
 
 Rework count and hypothesis changes: one rework after the first review (not a round: no QA FAIL, no blocker); every change is a stated fix above.
 
@@ -86,8 +89,8 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: independent — `gp-mobile`; reviews pending.
+- Review independence: independent — `gp-mobile`, `gp-reviewer`, `gp-security`, `gp-qa` (all subagents).
 - Verified scope: host, iOS xcframework and Android Gradle builds on this Mac; unit tests.
 - Remaining risks / blocked requirements: CI NOT RUN (billing block); EAS NOT RUN.
-- Next bounded action and owner: `gp-reviewer`, `gp-security`, `gp-qa`; then the owner merges.
-- Final state and reason: reviewing.
+- Next bounded action and owner: the owner reviews and merges the PR; then the coordinator records `done`.
+- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.

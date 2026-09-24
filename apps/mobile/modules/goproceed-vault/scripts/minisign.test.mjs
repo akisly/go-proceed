@@ -61,7 +61,8 @@ describe('verifyMinisign', () => {
 
   it('is what prepare-sodium.mjs calls, on the archive, before it extracts or configures', () => {
     const script = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'prepare-sodium.mjs'), 'utf8');
-    const call = script.indexOf('verifyMinisign(release, minisig, `libsodium-${version}.tar.gz`)');
+    // A statement on its own line, so a commented-out call does not count.
+    const call = script.search(/^verifyMinisign\(release, minisig, `libsodium-\$\{version\}\.tar\.gz`\);$/m);
     expect(script).toContain("import { verifyMinisign } from './minisign.mjs';");
     expect(call).toBeGreaterThan(-1);
     expect(call).toBeLessThan(script.indexOf("execFileSync('tar'"));
