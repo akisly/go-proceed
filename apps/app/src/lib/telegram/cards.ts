@@ -1,5 +1,6 @@
 import type { VerificationTagValue } from "@goproceed/contracts";
 import { NORM_REF_VERIFICATION_LABELS, normRefVerificationLabel } from "../norm-ref-labels";
+import { requirementListDisclaimers } from "../required-disclaimers";
 
 export const MAX_TELEGRAM_MESSAGE_CHARACTERS = 4096;
 
@@ -160,6 +161,15 @@ export function formatAssignmentCard(payload: AssignmentCardPayload): TelegramFo
  * budget and turns a lawful publication into a refusal its author cannot act
  * on. The source is never abbreviated: a truncated sha256 or a cut URL is a
  * string rendered without its source, which is the thing this slice fixes.
+ *
+ * THE DISCLAIMERS FOLLOW THE SOURCES (BL-156). The card is a generated
+ * requirement list (prohibition T), so it carries what
+ * hidden-works-content-rules.md §"Required disclaimers" puts under one: the
+ * довідковий text, then the project-sourced note when a PRINTED citation is
+ * `PROJECT_DOCUMENTATION` — a withheld one prints no label to explain. In full
+ * and never in `<blockquote expandable>` or `<tg-spoiler>`: «never collapsed».
+ * They count toward the 4096 budget; a card they push over it is refused, not
+ * shortened.
  */
 function renderRequirements(
   occurrences: ReadonlyArray<{ criterion: string; normRef: AssignmentCardCitation | null }>,
@@ -177,8 +187,11 @@ function renderRequirements(
   });
   const sources = [...markers.entries()]
     .map(([source, marker]) => `[${marker}] ${escapeTelegramHtml(flattenToOneLine(source))}`);
+  const disclaimers = requirementListDisclaimers(occurrences.map((occurrence) => occurrence.normRef))
+    .map((disclaimer) => `\n\n${escapeTelegramHtml(disclaimer)}`);
   return `\n\n<b>${heading}</b>\n${lines.join("\n")}`
-    + (sources.length > 0 ? `\n\n<b>Джерела</b>\n${sources.join("\n")}` : "");
+    + (sources.length > 0 ? `\n\n<b>Джерела</b>\n${sources.join("\n")}` : "")
+    + disclaimers.join("");
 }
 
 /**
@@ -191,9 +204,13 @@ function renderRequirements(
  * the same закрита група the card had just withheld it from.
  *
  * IT CANNOT OVERFLOW. Its lines are a subset of the card's (the candidates for
- * one file), its sources are the subset those lines cite, and its heading is
- * shorter than the card's title plus instruction; the card already passed the
- * 4096 gate at publication, so this fits whenever that did.
+ * one file), its sources are the subset those lines cite, its disclaimers are a
+ * subset of the card's (the project-sourced note needs a project-sourced
+ * candidate, and every candidate is on the card), and its heading is shorter
+ * than the card's title plus instruction; the card already passed the 4096 gate
+ * at publication, so this fits whenever that did. A card published before
+ * BL-156 carried no disclaimers and would break that argument; on 2026-09-24 no
+ * hosted project held a single `communication_messages` row (DEV-075).
  */
 export function formatRequirementChoicePrompt(
   occurrences: ReadonlyArray<{ criterion: string; normRef: AssignmentCardCitation | null }>,
