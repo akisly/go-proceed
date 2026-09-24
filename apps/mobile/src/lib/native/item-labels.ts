@@ -5,10 +5,12 @@ import { clientStateLabel } from "../status-labels";
  * Catalog label (status.client_state.*) as the title, shared with the office
  * dashboard; field.capture.saved_local underneath once the vault has committed.
  */
-export function itemTitle(item: Pick<VaultItem, "state">): string {
-  return clientStateLabel(item.state);
+export function itemTitle(item: Pick<VaultItem, "state" | "discardRequestedAt">): string {
+  // A hold is not a client state: the photo keeps its state but is never sent again.
+  return item.discardRequestedAt ? "Буде видалено" : clientStateLabel(item.state);
 }
-export function itemDetail(item: Pick<VaultItem, "state">): string | null {
+export function itemDetail(item: Pick<VaultItem, "state" | "discardRequestedAt">): string | null {
+  if (item.discardRequestedAt) return "Сервер ще може отримати це фото. Застосунок більше не надсилатиме його й видалить, щойно сервер підтвердить, що не отримав його.";
   return item.state === "not_sent" ? "Збережено на пристрої" : null;
 }
 
@@ -22,14 +24,18 @@ const messages: Record<string, string> = {
 };
 
 /** Why an item is not sent, without paths, keys or server internals. */
-export function itemProblem(item: Pick<VaultItem, "state" | "errorCode">): string | null {
-  if (item.state !== "failed") return null;
+export function itemProblem(item: Pick<VaultItem, "state" | "errorCode" | "discardRequestedAt">): string | null {
+  if (item.state !== "failed" || item.discardRequestedAt) return null;
   return (item.errorCode && messages[item.errorCode]) || NETWORK;
 }
 
-/** Items the user still has to wait for; confirmed ones have already left the device. */
-export function pendingCount(items: readonly Pick<VaultItem, "state">[]): number {
-  return items.filter((item) => item.state !== "server_confirmed").length;
+/** Items the user still has to wait for; confirmed ones have left, held ones will not be sent. */
+export function pendingCount(items: readonly Pick<VaultItem, "state" | "discardRequestedAt">[]): number {
+  return items.filter((item) => item.state !== "server_confirmed" && !item.discardRequestedAt).length;
+}
+/** Photos the user asked to delete that wait for the server to say it did not receive them. */
+export function heldCount(items: readonly Pick<VaultItem, "state" | "discardRequestedAt">[]): number {
+  return items.filter((item) => item.state !== "server_confirmed" && item.discardRequestedAt).length;
 }
 
 /**
@@ -37,8 +43,16 @@ export function pendingCount(items: readonly Pick<VaultItem, "state">[]): number
  * journal was actually read for the current identity; otherwise it is unknown.
  */
 export type PendingSummary = { known: true; pending: number } | { known: false };
-export function pendingSummary(itemsKnown: boolean, items: readonly Pick<VaultItem, "state">[]): PendingSummary {
+export function pendingSummary(itemsKnown: boolean, items: readonly Pick<VaultItem, "state" | "discardRequestedAt">[]): PendingSummary {
   return itemsKnown ? { known: true, pending: pendingCount(items) } : { known: false };
+}
+
+/**
+ * The requirement text for the queue card, verbatim (content rules forbid trimming
+ * or shortening it); left out rather than cut when it is empty or over the limit.
+ */
+export function requirementLabel(text: string): string | undefined {
+  return text.length > 0 && text.length <= 2000 && !text.includes("\u0000") ? text : undefined;
 }
 
 /** Pending count that switching to `target` would park (the vault sends one workspace at a time). */

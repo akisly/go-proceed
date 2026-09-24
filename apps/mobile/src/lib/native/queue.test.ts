@@ -31,12 +31,18 @@ function fixture(initial: VaultItem = item()) {
     quarantine: async () => { events.push("quarantine"); row.state = "quarantined"; },
     restore: async () => { if (row.state === "quarantined") row.state = "not_sent"; },
     warnQuarantine: async () => {}, discard: async () => {}, purgeExpired: async () => {},
+    requestDiscard: vi.fn(async () => { events.push("hold"); row = { ...row, discardRequestedAt: "2026-09-24T00:00:00.000Z" }; return row; }),
+    wipe: async () => ({ keysDeleted: true, ciphertextDeleted: true, directoryDeleted: true }),
+    installationCheck: async () => ({ fresh: false }), installationMark: async () => {},
   };
   const get = vi.fn(async () => { events.push("get"); return available; });
   const post = vi.fn(async (path: string, _body?: unknown, _key?: string) => { events.push(path.endsWith("finalize") ? "finalize" : "create"); return path.endsWith("finalize") ? available : created; });
   const authorize = vi.fn(async () => { events.push("authorize"); });
-  const queue = new NativeQueue({ vault, api: { get, post }, authorize, changed: async () => {} });
-  return { queue, vault, get, post, authorize, events, current: () => row };
+  const received: string[] = [];
+  const queue = new NativeQueue({ vault, api: { get, post }, authorize, changed: async () => {},
+    receivedDespiteDiscard: (held) => { received.push(held.id); },
+    timeouts: { runWaitMs: 40, discardReadMs: 40, holdReadMs: 40 } });
+  return { queue, vault, get, post, authorize, events, received, current: () => row };
 }
 
 describe("native durable queue", () => {
@@ -152,7 +158,7 @@ describe("native durable queue", () => {
     f.vault.discard = vi.fn(async () => {});
     await f.queue.activate(context); const running = f.queue.run();
     await vi.waitFor(() => expect(finalizeStarted).toBe(true));
-    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "RECEIPT_PENDING" }); await running;
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" }); await running;
     expect(finalizeSignal?.aborted).toBe(true);
     expect(f.vault.discard).not.toHaveBeenCalled();
     expect(f.vault.confirmReceipt).not.toHaveBeenCalled();
@@ -171,13 +177,14 @@ describe("native durable queue", () => {
     expect(f.vault.discard).toHaveBeenCalledWith("capture", { confirmed: true });
     expect(f.get).not.toHaveBeenCalled();
   });
-  it("refuses to discard when the intent cannot be read", async () => {
+  it("holds instead of deleting when the intent cannot be read", async () => {
     const f = fixture(item({ intentId: "intent", state: "failed" }));
     f.get.mockRejectedValue(new Error("offline"));
     f.vault.discard = vi.fn(async () => {});
     await f.queue.activate(context);
-    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "RECEIPT_PENDING" });
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" });
     expect(f.vault.discard).not.toHaveBeenCalled();
+    expect(f.current().discardRequestedAt).toBeTruthy();
   });
   it("does not claim receipt when a second discard finds the row already gone", async () => {
     const f = fixture(item({ state: "failed" }));
@@ -241,6 +248,89 @@ describe("native durable queue", () => {
     await f.queue.activate(context);
     await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "ALREADY_RECEIVED" });
     expect(f.vault.discard).not.toHaveBeenCalled();
+  });
+  it("holds before reading the intent, so a refused discard is never sent again", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed" }));
+    f.get.mockImplementation(async () => { f.events.push("get"); return { ...available, status: "intent_authorized" }; });
+    await f.queue.activate(context);
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" });
+    expect(f.events.indexOf("hold")).toBeLessThan(f.events.lastIndexOf("get"));
+    f.events.length = 0; f.post.mockClear();
+    await f.queue.run();
+    expect(f.events).toEqual(["get"]);
+    expect(f.post).not.toHaveBeenCalled(); expect(f.authorize).not.toHaveBeenCalled(); expect(f.vault.upload).not.toHaveBeenCalled();
+  });
+  it("a held photo is removed once the server reports its intent terminal", async () => {
+    const f = fixture(item({ intentId: "intent", state: "not_sent", discardRequestedAt: "2026-09-24T00:00:00.000Z" }));
+    f.get.mockResolvedValue({ ...available, status: "expired", evidenceObjectId: null } as unknown as typeof available);
+    f.vault.discard = vi.fn(async () => {});
+    await f.queue.activate(context); await f.queue.run();
+    expect(f.vault.discard).toHaveBeenCalledWith("capture", { confirmed: true });
+    expect(f.post).not.toHaveBeenCalled();
+  });
+  it("marks a held awaiting_receipt photo failed before deleting it (the native vault refuses otherwise)", async () => {
+    const f = fixture(item({ intentId: "intent", state: "awaiting_receipt", discardRequestedAt: "2026-09-24T00:00:00.000Z" }));
+    f.get.mockResolvedValue({ ...available, status: "orphaned_for_purge", evidenceObjectId: null, failureCode: "ORPHANED" } as unknown as typeof available);
+    const order: string[] = [];
+    f.vault.markFailed = vi.fn(async (_id, code) => { order.push(`failed:${code}`); });
+    f.vault.discard = vi.fn(async () => { order.push("discard"); });
+    await f.queue.activate(context); await f.queue.run();
+    expect(order).toEqual(["failed:ORPHANED", "discard"]);
+  });
+  it("a held photo the server received anyway is confirmed and reported, not deleted", async () => {
+    const f = fixture(item({ intentId: "intent", state: "awaiting_receipt", discardRequestedAt: "2026-09-24T00:00:00.000Z" }));
+    f.vault.discard = vi.fn(async () => {});
+    await f.queue.activate(context); await f.queue.run();
+    expect(f.vault.confirmReceipt).toHaveBeenCalledTimes(1);
+    expect(f.vault.discard).not.toHaveBeenCalled();
+    expect(f.received).toEqual(["capture"]);
+    expect(f.post).not.toHaveBeenCalled();
+  });
+  it("keeps holding when the read fails, the intent is unknown or another intent answers", async () => {
+    for (const answer of [() => Promise.reject(new Error("offline")), () => Promise.reject(new QueueRequestError(404, "NOT_FOUND")),
+      () => Promise.resolve({ ...available, uploadIntentId: "other", status: "expired" })]) {
+      const f = fixture(item({ intentId: "intent", state: "failed", discardRequestedAt: "2026-09-24T00:00:00.000Z" }));
+      f.get.mockImplementation(answer as never);
+      f.vault.discard = vi.fn(async () => {});
+      await f.queue.activate(context); await f.queue.run();
+      expect(f.vault.discard).not.toHaveBeenCalled(); expect(f.vault.confirmReceipt).not.toHaveBeenCalled();
+      expect(f.current()).toMatchObject({ state: "failed", discardRequestedAt: expect.any(String) });
+    }
+  });
+  it("a hung read keeps the photo held and does not block the queue", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed", discardRequestedAt: "2026-09-24T00:00:00.000Z" }));
+    f.get.mockImplementation(((_path: string, signal?: AbortSignal) =>
+      new Promise((_, reject) => signal?.addEventListener("abort", () => reject(new Error("AbortError"))))) as never);
+    await f.queue.activate(context); await f.queue.run();
+    expect(f.current().discardRequestedAt).toBeTruthy();
+  });
+  it("a revoked session quarantines a held photo and keeps the hold", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed", discardRequestedAt: "2026-09-24T00:00:00.000Z" }));
+    f.get.mockRejectedValue(new QueueRequestError(401, "AUTH_REQUIRED"));
+    await f.queue.activate(context); await f.queue.run();
+    expect(f.queue.revoked).toBe(true);
+    expect(f.current()).toMatchObject({ state: "quarantined", discardRequestedAt: expect.any(String) });
+  });
+  it("a run that does not stop in time still ends in a hold, never a send", async () => {
+    const f = fixture(item({ intentId: "intent", state: "not_sent" }));
+    f.authorize.mockImplementation(() => new Promise(() => {}));
+    f.get.mockResolvedValueOnce({ ...available, status: "intent_authorized" }).mockResolvedValue({ ...available, status: "intent_authorized" });
+    await f.queue.activate(context); void f.queue.run();
+    await vi.waitFor(() => expect(f.authorize).toHaveBeenCalled());
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" });
+    expect(f.vault.upload).not.toHaveBeenCalled();
+  });
+  it("a slow receipt read on discard holds the photo", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed" }));
+    f.get.mockImplementation(((_path: string, signal?: AbortSignal) =>
+      new Promise((_, reject) => signal?.addEventListener("abort", () => reject(new Error("AbortError"))))) as never);
+    await f.queue.activate(context);
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" });
+  });
+  it("stop() forgets the identity without the native quarantine", async () => {
+    const f = fixture(); await f.queue.activate(context); f.events.length = 0;
+    f.queue.stop();
+    expect(f.queue.identity).toBeNull(); expect(f.events).not.toContain("quarantine");
   });
   it("fails only the item when a project grant is lost at create", async () => {
     const f = fixture(); f.post.mockRejectedValueOnce(new QueueRequestError(403, "SCOPE_PROJECT_DENIED"));

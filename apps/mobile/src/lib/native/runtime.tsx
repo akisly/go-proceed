@@ -8,11 +8,12 @@ import type { Session } from "@supabase/supabase-js";
 import { meContextResponse } from "@goproceed/contracts";
 import { apiGet, apiPost, readProblem, requireSession } from "../api";
 import { SUPABASE_URL } from "../env";
-import { setSessionIdentityBoundary, supabase } from "../supabase";
-import { requireVault, type ImportPhoto, type VaultAPI, type VaultItem } from "../vault";
+import { AUTH_STORAGE_KEY, AUTH_STORAGE_KEYS, LAST_WORKSPACE, LAST_WORKSPACE_OPTIONS, authStorage, installationReady, setSessionIdentityBoundary, supabase } from "../supabase";
+import { requireVault, type ImportPhoto, type VaultAPI, type VaultItem, type WipeResult } from "../vault";
 import { createAuthorize } from "./authorize";
 import { pendingCount } from "./item-labels";
 import { NativeQueue, QueueRequestError, type QueueAPI } from "./queue";
+import { signOutLocally } from "./sign-out";
 
 /**
  * booting: session or vault not known yet. ready: the vault can import and send.
@@ -50,12 +51,24 @@ export interface NativeRuntime {
   holdCapture(): () => void;
   send(): Promise<void>;
   discard(id: string): Promise<void>;
+  /**
+   * Removes the session from this phone, with or without a network. Unsent photos are
+   * locked first (or, when the vault cannot open, stay locked where they are).
+   */
   signOut(): Promise<void>;
+  /**
+   * Deletes every account's unsent photos on this phone without opening the journal,
+   * then signs out if signed in. Throws WIPE_FAILED when the photos could still be opened.
+   */
+  wipe(): Promise<WipeResult>;
+  /** Held photos the server received anyway (in memory only). */
+  receivedAnyway: readonly string[];
+  dismissReceivedAnyway(): void;
 }
 
 const RuntimeContext = createContext<NativeRuntime | null>(null);
-const LAST_WORKSPACE = "gp.runtime.workspace";
-const secure: SecureStore.SecureStoreOptions = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
+const secure = LAST_WORKSPACE_OPTIONS;
+
 const appVersion = Constants.expoConfig?.version ?? "0.0.0";
 
 async function json(response: Response): Promise<unknown> {
@@ -100,6 +113,11 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   const [elsewhere, setElsewhere] = useState<ReadonlySet<string>>(new Set());
   const [memberships, setMemberships] = useState<number | null>(null);
   const known = useRef<{ workspaceId: string | null; pending: number | null }>({ workspaceId: null, pending: null });
+  const vaultStatusRef = useRef<RuntimeStatus>("booting");
+  // Set by a verified wipe: nothing openable is left, so the boundary has nothing to lock.
+  const wiped = useRef(false);
+  const signingOut = useRef(false);
+  const [receivedAnyway, setReceivedAnyway] = useState<readonly string[]>([]);
 
   const refresh = useCallback(async () => {
     const vault = vaultRef.current, queue = queueRef.current;
@@ -116,7 +134,7 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   /** Runs the queue; a 401/403 inside it quarantines and drops the identity. */
   const runQueue = useCallback(async () => {
     const queue = queueRef.current;
-    if (!queue?.identity) return;
+    if (!queue?.identity || signingOut.current) return;
     const subject = subjectRef.current;
     await queue.run().catch(() => undefined);
     if (queue.revoked && subject && subjectRef.current === subject) {
@@ -137,19 +155,25 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
       setVaultStatus("unavailable");
       return () => { current = false; release(); };
     }
-    const queue = new NativeQueue({ vault, api: queueApi, authorize, changed: () => refresh() });
+    const queue = new NativeQueue({ vault, api: queueApi, authorize, changed: () => refresh(),
+      receivedDespiteDiscard: (item) => setReceivedAnyway((ids) => ids.includes(item.id) ? ids : [...ids, item.id]) });
     vaultRef.current = vault;
     queueRef.current = queue;
     release = setSessionIdentityBoundary(async () => {
       setWorkspaceId(null);
-      await queue.quarantine();
+      // A vault that never opened has no identity open and nothing readable: its photos
+      // stay locked where they are (owner, 2026-09-24). After a verified wipe nothing is left.
+      if (vaultStatusRef.current === "error" || wiped.current) queue.stop();
+      else await queue.quarantine();
       await forgetWorkspace();
       if (importing.current === 0) sweepCaptureCache();
     });
     sweepCaptureCache();
-    void vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] })
-      .then(() => { if (current) setVaultStatus("ready"); })
-      .catch(() => { if (current) setVaultStatus("error"); });
+    // The installation check must see the vault directory before initialize creates it.
+    void installationReady()
+      .then(() => vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] }))
+      .then(() => { if (current) { vaultStatusRef.current = "ready"; setVaultStatus("ready"); } })
+      .catch(() => { if (current) { vaultStatusRef.current = "error"; setVaultStatus("error"); } });
     return () => { current = false; release(); void queue.pause(); };
   }, [refresh]);
 
@@ -169,7 +193,7 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   const activateWorkspace = useCallback(async (next: string) => {
     // The owner is the bearer's subject, not React state that lags the boundary.
     const owner = (await requireSession())?.user.id ?? null;
-    if (!owner || owner !== subjectRef.current) throw new Error("SESSION_CHANGED");
+    if (!owner || owner !== subjectRef.current || signingOut.current) throw new Error("SESSION_CHANGED");
     const queue = queueRef.current;
     if (queue && vaultStatus === "ready") {
       const left = known.current;
@@ -193,7 +217,7 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
     setWorkspaceId(null); setAccessChanged(false); setElsewhere(new Set()); setMemberships(null);
     if (!subject || vaultStatus !== "ready") { setItems([]); setItemsKnown(false); return; }
     let current = true;
-    void SecureStore.getItemAsync(LAST_WORKSPACE, secure).then(async (value) => {
+    void installationReady().then(() => SecureStore.getItemAsync(LAST_WORKSPACE, secure)).then(async (value) => {
       const [owner, last] = value?.split(":") ?? [];
       if (!current || owner !== subject || !last) return;
       await activateWorkspace(last);
@@ -236,7 +260,7 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
 
   const importPhoto = useCallback(async ({ workspaceId: expected, ...input }: CaptureImport) => {
     const vault = vaultRef.current, queue = queueRef.current;
-    if (!vault || !queue?.identity || vaultStatus !== "ready") throw new Error("VAULT_NOT_READY");
+    if (!vault || !queue?.identity || vaultStatus !== "ready" || signingOut.current) throw new Error("VAULT_NOT_READY");
     // The vault stamps its open identity; refuse unless that is what the screen authorized.
     if (queue.identity.workspaceId !== expected || queue.identity.subjectId !== subjectRef.current) {
       throw new Error("WORKSPACE_MISMATCH");
@@ -271,20 +295,47 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
     try { await queue.discard(id); } finally { await refresh(); void runQueue(); }
   }, [refresh, runQueue]);
 
-  const signOut = useCallback(async () => {
-    // Removing the session runs the identity boundary, which quarantines first.
-    // auth-js returns (not throws) when it could not load the session to remove.
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    if (error) throw error;
-    setItems([]); setItemsKnown(false); setWorkspaceId(null);
+  const clearSignedOut = useCallback(() => {
+    setSession(null); setItems([]); setItemsKnown(false); setWorkspaceId(null);
+    setElsewhere(new Set()); setMemberships(null); setAccessChanged(false); setReceivedAnyway([]);
   }, []);
+
+  /** Works offline; see signOutLocally. New work is refused while it runs. */
+  const signOut = useCallback(async () => {
+    signingOut.current = true;
+    try {
+      await signOutLocally({ auth: supabase.auth, storage: authStorage, key: AUTH_STORAGE_KEY, keys: AUTH_STORAGE_KEYS });
+      clearSignedOut();
+    } finally { signingOut.current = false; }
+  }, [clearSignedOut]);
+
+  const wipe = useCallback(async () => {
+    const vault = vaultRef.current, queue = queueRef.current;
+    if (!vault || !queue) throw new Error("VAULT_NOT_READY");
+    queue.stop();
+    const result = await vault.wipe({ confirmed: true });
+    // Photos cannot be opened without their keys, or without their ciphertext.
+    if (!result.keysDeleted && !result.ciphertextDeleted) throw new Error("WIPE_FAILED");
+    wiped.current = true;
+    setItems([]); setItemsKnown(false);
+    if (await authStorage.getItem(AUTH_STORAGE_KEY) !== null) await signOut();
+    // A fresh vault, in this process: the next sign-in can reach ready without a restart.
+    try {
+      await vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] });
+      wiped.current = false; vaultStatusRef.current = "ready"; setVaultStatus("ready");
+    } catch { vaultStatusRef.current = "error"; setVaultStatus("error"); }
+    return result;
+  }, [signOut]);
+  const dismissReceivedAnyway = useCallback(() => setReceivedAnyway([]), []);
 
   const status: RuntimeStatus = !sessionKnown ? "booting" : vaultStatus;
   const pendingElsewhere = elsewhere.size > 0;
   const othersUnknown = memberships !== 1;
   const value = useMemo<NativeRuntime>(() => ({
     status, session, workspaceId, items, itemsKnown, accessChanged, pendingElsewhere, othersUnknown, activateWorkspace, importPhoto, holdCapture, send, discard, signOut,
-  }), [status, session, workspaceId, items, itemsKnown, accessChanged, pendingElsewhere, othersUnknown, activateWorkspace, importPhoto, holdCapture, send, discard, signOut]);
+    wipe, receivedAnyway, dismissReceivedAnyway,
+  }), [status, session, workspaceId, items, itemsKnown, accessChanged, pendingElsewhere, othersUnknown, activateWorkspace, importPhoto, holdCapture, send, discard, signOut,
+    wipe, receivedAnyway, dismissReceivedAnyway]);
   return <RuntimeContext.Provider value={value}>{children}</RuntimeContext.Provider>;
 }
 

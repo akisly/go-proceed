@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { VaultState } from "../vault";
 import { clientStateLabel } from "../status-labels";
-import { itemDetail, itemProblem, itemTitle, mediaList, megabytes, parkedBySwitch, pendingCount, pendingSummary } from "./item-labels";
+import { heldCount, itemDetail, itemProblem, itemTitle, mediaList, megabytes, parkedBySwitch, pendingCount, pendingSummary, requirementLabel } from "./item-labels";
 
 const states: VaultState[] = ["not_sent", "sending", "awaiting_receipt", "failed", "quarantined", "server_confirmed"];
 
@@ -21,6 +21,22 @@ describe("local queue labels", () => {
   });
   it("counts everything not yet confirmed by the server", () => {
     expect(pendingCount([{ state: "not_sent" }, { state: "failed" }, { state: "server_confirmed" }])).toBe(2);
+  });
+  it("counts a held photo apart from the unsent ones", () => {
+    const held = { state: "failed" as const, discardRequestedAt: "2026-09-24T00:00:00.000Z" };
+    expect(pendingCount([held, { state: "not_sent" }])).toBe(1);
+    expect(heldCount([held, { state: "not_sent" }])).toBe(1);
+    expect(itemTitle(held)).toBe("Буде видалено");
+    expect(itemProblem({ ...held, errorCode: "NETWORK" })).toBeNull();
+    expect(itemDetail(held)).toMatch(/не надсилатиме/);
+  });
+  it("keeps requirement text verbatim, and leaves it out rather than cut it", () => {
+    const text = " Перший рядок\nдругий — з ’ і 😀 ";
+    expect(requirementLabel(text)).toBe(text);
+    expect(requirementLabel("x".repeat(2000))).toHaveLength(2000);
+    expect(requirementLabel("x".repeat(2001))).toBeUndefined();
+    expect(requirementLabel("")).toBeUndefined();
+    expect(requirementLabel("a\u0000b")).toBeUndefined();
   });
   it("never reports zero pending when the journal was not read", () => {
     expect(pendingSummary(false, [])).toEqual({ known: false });

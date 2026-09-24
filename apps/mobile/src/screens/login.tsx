@@ -6,13 +6,16 @@ import { LoginFlow, initialLoginFlowState } from "../lib/login-flow";
 import { nativeNext } from "../lib/native/destinations";
 import { useNativeRuntime } from "../lib/native/runtime";
 import { AppText, Button, Card, Notice, Page } from "../ui/primitives";
+import { confirmWipe } from "../ui/vault-wipe";
 import { corners, fonts, palette, touchHeight, typeSize, unit } from "../ui/theme";
 
 export function Login() {
   const router = useRouter();
   const params = useLocalSearchParams<{ next?: string | string[] }>();
   const next = nativeNext(typeof params.next === "string" ? params.next : "/");
-  const { session } = useNativeRuntime();
+  const runtime = useNativeRuntime();
+  const { session } = runtime;
+  const [wipeMessage, setWipeMessage] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [state, setState] = useState(initialLoginFlowState);
@@ -51,6 +54,11 @@ export function Login() {
         {state.phase === "code" ? <Button secondary label="Змінити адресу пошти" disabled={state.pending}
           onPress={() => { setCode(""); flow.changeEmail(); }} /> : null}
       </Card>
+      {runtime.status === "error" ? <Card>
+        <Notice error>Захищене сховище на цьому телефоні не відкривається, тому знімати фото зараз не можна. Увійти можна: ненадіслані фото залишаться заблокованими.</Notice>
+        {wipeMessage ? <Notice error announce>{wipeMessage}</Notice> : null}
+        <Button secondary label="Стерти фото на пристрої" onPress={() => confirmWipe(runtime, false, setWipeMessage)} />
+      </Card> : null}
       <AppText variant="meta" secondary>Доступ надає адміністратор вашого робочого простору.</AppText>
     </Page>
   </KeyboardAvoidingView>;

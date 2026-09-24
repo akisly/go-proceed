@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSessionStorage } from "./session-storage";
+import { clearPersisted, createSessionStorage } from "./session-storage";
 
 function fixture() {
   const values = new Map<string, string>();
@@ -42,5 +42,30 @@ describe("protected session persistence", () => {
     }, async () => { throw Error("journal locked"); });
     await expect(guarded.removeItem("auth")).rejects.toThrow("journal locked");
     expect(await guarded.getItem("auth")).toBe(session("one"));
+  });
+  it("reads nothing and writes nothing until the reinstall reset is done", async () => {
+    const f = fixture(); await f.storage.setItem("auth", session("one"));
+    let done = false;
+    const gated = createSessionStorage({
+      getItem: async (key) => f.values.get(key) ?? null,
+      setItem: async (key, value) => { f.values.set(key, value); },
+      removeItem: async (key) => { f.values.delete(key); },
+    }, async () => {}, async () => done);
+    expect(await gated.getItem("auth")).toBeNull();
+    await expect(gated.setItem("auth", session("two"))).rejects.toThrow("INSTALLATION_RESET_FAILED");
+    await expect(gated.removeItem("auth")).rejects.toThrow("INSTALLATION_RESET_FAILED");
+    done = true;
+    expect(await gated.getItem("auth")).toBe(session("one"));
+  });
+  it("clears a persisted value without the identity boundary", async () => {
+    const f = fixture(); await f.storage.setItem("auth", session("one", "x".repeat(2000))); f.events.length = 0;
+    await clearPersisted({
+      getItem: async (key) => f.values.get(key) ?? null,
+      setItem: async (key, value) => { f.values.set(key, value); },
+      removeItem: async (key) => { f.events.push("remove"); f.values.delete(key); },
+    }, "auth");
+    expect(f.events).not.toContain("quarantine");
+    expect([...f.values.keys()]).toEqual([]);
+    expect(await f.storage.getItem("auth")).toBeNull();
   });
 });

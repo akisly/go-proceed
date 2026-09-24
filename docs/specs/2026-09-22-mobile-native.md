@@ -34,6 +34,8 @@ Persist local capture identity, immutable request and idempotency keys. Never pe
 
 Logout/account switch/revocation aborts sending and quarantines before session removal. Another identity cannot enumerate, decrypt, preview, send or delete the item. Same subject/workspace reauthorization restores it. Warned deletion is explicit; seven-day expiry begins after displayed warning. No background expiry claim when the app is not running.
 
+*[Corrected 2026-09-24 (owner; [ADR-013 amendment](../decisions/ADR-013-native-field-client.md#amendment-2026-09-24--sign-out-wipe-discard-hold-and-retention-for-the-internal-beta); DEV-056): the v0.1 internal beta keeps quarantined items without the seven-day expiry until a public store launch. Sign-out works offline, and the refresh token is then not revoked on the server. A vault whose journal cannot open keeps its items locked across sign-out and sign-in, and a confirmed wipe deletes every identity's items on the phone — the one exception to «another identity cannot … delete the item». A discard the server may still receive is held and never sent again, then removed on a terminal intent.]*
+
 ## Verification
 
 Unit/contract tests: legacy/opt-in API, immutable pinning, unauthorized cross-workspace access, media limits/provenance, permission cancellation, duplicate attempt guard, restart at every commit/upload boundary, corruption/truncation, receipt mismatch, identity switching, warned retention, deep-link allowlist and glass fallback.
