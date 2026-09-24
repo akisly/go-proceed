@@ -8,16 +8,16 @@
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** executed code under `scripts/` and `packages/testing`, a catalog file read by tests, and a check of grants and database roles on a hosted project: `gp-architect` → owner decisions → failing test → implementation → `gp-reviewer` + `gp-security` → `gp-qa`.
 - **Triggered stages and why:** `gp-architect` (how grants and database roles on a hosted project are checked); `gp-security` (grants, database roles; the runbook describes a hosted remedy that changes a grant and passing a hosted URL to a script); `gp-reviewer` (always); `gp-qa` (always). `gp-ui-reviewer`, `gp-mobile`: not triggered. `gp-researcher`: not needed — the Supabase and PostgreSQL documentation read directly (Sources).
-- **Owning module and allowed edit paths:** `technical/database/checks/inv-116-temporary-privilege.sql` (new); `packages/testing/src/temporary-privilege.test.ts`; `scripts/snapshot-db-catalog.mjs`; `infra/README-staging.md` (§2.3); `technical/database/invariant-catalog.csv` (INV-116); `technical/data-access-surface.csv` (DA-202); `docs/architecture/tenancy-and-security.md` (control 8, rule 8, risk 4); `docs/architecture/data-model.md` (risk 4); `docs/delivery/pilot-execution-runbook.md`; `docs/BACKLOG.md` (BL-157, BL-159, BL-160); this record; `docs/tasks/README.md`.
+- **Owning module and allowed edit paths:** `technical/database/checks/inv-116-temporary-privilege.sql` (new); `packages/testing/src/temporary-privilege.test.ts`; `scripts/snapshot-db-catalog.mjs`; `infra/README-staging.md` (§2.3); `technical/database/invariant-catalog.csv` (INV-116); `technical/data-access-surface.csv` (DA-202); `docs/architecture/tenancy-and-security.md` (control 8, rule 8, risk 4); `docs/architecture/data-model.md` (risk 4); `docs/delivery/pilot-execution-runbook.md`; `docs/BACKLOG.md` (BL-157, BL-161, BL-162); this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; [DEV-060](DEV-060-no-product-temporary-schema.md) (its checks, the hosted preflight and postflight, findings R1-04, S1-02, S1-04).
 - **Linked spec, ADR or earlier task:** BL-157, filed by DEV-060. No ADR: detection only (`gp-architect`).
 - **Baseline:** `3ded684a` (main, #139 merged); local database at `0102`; `goproceed-staging` at `0102`.
-- **Dependencies / constraints / out of scope:** no migration, grant or contract changes. A runtime self-check in the product, event triggers (they do not fire for shared objects), a re-asserting migration and a `pg_cron` check are rejected (architect; owner). A restore procedure is BL-159. A full snapshot of a hosted project needs the hosted `postgres` password and is not taken.
+- **Dependencies / constraints / out of scope:** no migration, grant or contract changes. A runtime self-check in the product, event triggers (they do not fire for shared objects), a re-asserting migration and a `pg_cron` check are rejected (architect; owner). A restore procedure is BL-161. A full snapshot of a hosted project needs the hosted `postgres` password and is not taken.
 - **Required acceptance criteria:**
   1. The shared file returns 0 rows on the local database at `0102`; `temporary-privilege.test.ts` reads T1, T2, T3, T6 and T8 from it (red while the file is absent, green after), and a rolled-back negative control per check shows it returns rows for its own violation; a mutation of one clause turns its control red.
   2. `pnpm db:catalog-snapshot` writes `database_acl`, `temp_privilege` and `inv116_violations`, exits 0 on the local database, and exits 1 with the violations on stderr on a database that breaks INV-116; it never prints the URL.
   3. `infra/README-staging.md` §2.3 says when and how to compare, what to do with each check's rows, and records the first hosted run; that run on `goproceed-staging` returns 0 rows.
-  4. INV-116, DA-202, the architecture and runbook docs, BL-157 and BL-159 are updated; `pnpm validate:canonical-docs` and `tsc` for `packages/testing` pass.
+  4. INV-116, DA-202, the architecture and runbook docs, BL-157 and BL-161 are updated; `pnpm validate:canonical-docs` and `tsc` for `packages/testing` pass.
 - **Skipped stages and rationale:** see «Triggered stages».
 
 ## Owner decisions
@@ -28,7 +28,8 @@
 | 2026-09-24 | The architect's approach: one shared SQL file for the test, the snapshot and a runbook step; no runtime self-check, no event triggers | chat, answer «Да, как предложено (Рекоменд.)» |
 | 2026-09-24 | The coordinator may run the read-only check on `goproceed-staging` through the connector at any time — now and after every push or restore; hosted remedies still need the owner's word | chat, answer «Да, read-only всегда (Рекоменд.)» |
 | 2026-09-24 | Hosted catalog snapshots are not committed; only the INV-116 result is recorded | chat, answer «Нет, только результат INV-116 (Рекоменд.)» |
-| 2026-09-24 | File a backlog item for a restore/DR procedure | chat, answer «Да, завести (Рекоменд.)» → BL-159 |
+| 2026-09-24 | File a backlog item for a restore/DR procedure | chat, answer «Да, завести (Рекоменд.)» → BL-161 |
+| 2026-09-24 | (coordinator) BL-159 and BL-160 are held by DEV-061's unmerged branch `claude/field-decisions`, which the owner already cites; this task's items renumbered BL-161 (restore procedure) and BL-162 (`adminClient()` guard). The backlog validator needs BL-159 and BL-160 on main first | `git show origin/claude/field-decisions:docs/BACKLOG.md` |
 
 ## Plan
 
@@ -75,7 +76,7 @@
 | R2-01 | nit | the script | a failed `cron.job` query would abort the read-only transaction | coordinator | fixed: `to_regclass('cron.job')` first |
 | R2-02 | nit | evidence | no run showed a compliant URL passing the TLS gate | coordinator | fixed: row 17 |
 | S1-07 | info | the script | `new URL(url)` would echo an unparseable URL | coordinator | fixed: the host comes from the pg client |
-| S1-08 | info | `adminClient()` | no local-only guard | coordinator | filed as BL-160; §2.3's warning names the destructive fixtures |
+| S1-08 | info | `adminClient()` | no local-only guard | coordinator | filed as BL-162; §2.3's warning names the destructive fixtures |
 | S2-01 | low | the script | the hosted snapshot directory predictable and world-readable on a shared host | coordinator | fixed: `mkdtemp`, mode `0600` |
 | S2-02 | info | the script | a second `sslmode=require` with libpq compat disabled hostname checking but passed the gate | coordinator | fixed: the gate also requires no `checkServerIdentity` override; checked, exit 2 |
 | S2-03 | info | §2.3 | a port-forward counts as local | coordinator | fixed: §2.3 forbids it |
@@ -92,10 +93,10 @@ Rework count and hypothesis changes: none (first review; fixes are the stated on
 
 - The hosted ACL is compared only when §2.3 runs; drift between runs is invisible. Nothing runs it on a schedule.
 - The hosted checks read catalogs only; the refusal itself is proven locally and in CI.
-- `adminClient()` still connects wherever `SUPABASE_DB_URL` points (BL-160).
+- `adminClient()` still connects wherever `SUPABASE_DB_URL` points (BL-162).
 - No full catalog snapshot of any hosted project exists (it needs the hosted `postgres` password); control 8 is Partial.
 - Whether unpausing a free project or Supabase's in-place Postgres upgrade preserves the database ACL is undocumented; §2.3 lists both as moments to re-check.
-- There is no restore procedure (BL-159).
+- There is no restore procedure (BL-161).
 - `0102`'s assertion block keeps its own copy of the checks (migrations are append-only).
 
 ## Acceptance evidence

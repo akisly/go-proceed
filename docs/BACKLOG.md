@@ -187,8 +187,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 | [BL-157](#bl-157) | P3 | scheduled → DEV-071 | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
 | [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
-| [BL-159](#bl-159) | P3 | open | No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL |
-| [BL-160](#bl-160) | P3 | open | `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers |
+| [BL-161](#bl-161) | P3 | open | No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL |
+| [BL-162](#bl-162) | P3 | open | `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1885,7 +1885,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** scheduled → DEV-071
 - **Legacy cite:** none
-- **Why:** *[2026-09-24, DEV-071: INV-116's catalog checks moved to one read-only file, `technical/database/checks/inv-116-temporary-privilege.sql`, run by `temporary-privilege.test.ts` (with a negative control per check), by `pnpm db:catalog-snapshot` (new `database_acl`, `temp_privilege`, `inv116_violations` sections; exit 1 on a violation) and on hosted projects after every push or restore (`infra/README-staging.md` §2.3; the owner allowed the coordinator to run it read-only through the connector at any time). First hosted run: `goproceed-staging`, 0 rows. The `pg_shdepend` point is documentation only — `DROP OWNED` revokes privileges on shared objects, and §2.3 names the remedy. Detection, not prevention; the missing restore procedure is BL-159.]* DEV-060's `gp-architect` design, 2026-09-24. `0102` changes the database's own ACL (PUBLIC loses TEMPORARY; INV-116). That ACL is not part of any schema: pg_dump carries database access privileges only with `--create` (PostgreSQL 17, «pg_dump»), so a restore or clone into a new project would bring PUBLIC's TEMP back while `schema_migrations` still records `0102` — silently. Roles created after `0102` (a future Supabase-managed role, a new `goproceed_*` login) also sit outside what `0102` enumerated. `packages/testing/src/temporary-privilege.test.ts` checks the local stack only — including T6, the only check that the roles keeping TEMP reach no definer. And each direct grant `0102` made records a dependency on that platform role, so a platform-side `DROP ROLE` (a retired `pgbouncer`, say) would fail on «privileges for database postgres» until a revoke runs first (DEV-060 review R1-04).
+- **Why:** *[2026-09-24, DEV-071: INV-116's catalog checks moved to one read-only file, `technical/database/checks/inv-116-temporary-privilege.sql`, run by `temporary-privilege.test.ts` (with a negative control per check), by `pnpm db:catalog-snapshot` (new `database_acl`, `temp_privilege`, `inv116_violations` sections; exit 1 on a violation) and on hosted projects after every push or restore (`infra/README-staging.md` §2.3; the owner allowed the coordinator to run it read-only through the connector at any time). First hosted run: `goproceed-staging`, 0 rows. The `pg_shdepend` point is documentation only — `DROP OWNED` revokes privileges on shared objects, and §2.3 names the remedy. Detection, not prevention; the missing restore procedure is BL-161.]* DEV-060's `gp-architect` design, 2026-09-24. `0102` changes the database's own ACL (PUBLIC loses TEMPORARY; INV-116). That ACL is not part of any schema: pg_dump carries database access privileges only with `--create` (PostgreSQL 17, «pg_dump»), so a restore or clone into a new project would bring PUBLIC's TEMP back while `schema_migrations` still records `0102` — silently. Roles created after `0102` (a future Supabase-managed role, a new `goproceed_*` login) also sit outside what `0102` enumerated. `packages/testing/src/temporary-privilege.test.ts` checks the local stack only — including T6, the only check that the roles keeping TEMP reach no definer. And each direct grant `0102` made records a dependency on that platform role, so a platform-side `DROP ROLE` (a retired `pgbouncer`, say) would fail on «privileges for database postgres» until a revoke runs first (DEV-060 review R1-04).
 - **Evidence:** `supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql` (header); INV-116 «Not covered»; [DEV-060](tasks/DEV-060-no-product-temporary-schema.md).
 - **Depends on:** the catalog comparison against the hosted project (`docs/architecture/tenancy-and-security.md`). The cheapest step is a `database_acl` section in `scripts/snapshot-db-catalog.mjs` next to `roles`, plus T6's query, compared after every hosted push and restore.
 - **Deadline:** before any restore or clone of a hosted database.
@@ -1905,8 +1905,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the first `::warning::app-qa /login (code step)` annotation, or finding, on a run that includes DEV-063.
 - **Deadline:** none recorded. Close it by naming the cause and removing the repeat, or by recording the cause as outside the repository. If no annotation or finding appears by 2026-10-31, remove the repeat, keep the diagnostic and close it as not reproduced. That fallback is proposed and still needs the owner's agreement.
 
-<a id="bl-159"></a>
-### BL-159 — P3 — No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL
+<a id="bl-161"></a>
+### BL-161 — P3 — No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL
 
 - **State:** open
 - **Legacy cite:** none
@@ -1915,8 +1915,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the owner's choice of backup source on the free plan (or a paid plan) and of who runs a restore.
 - **Deadline:** before production holds data that must survive a lost project.
 
-<a id="bl-160"></a>
-### BL-160 — P3 — `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers
+<a id="bl-162"></a>
+### BL-162 — P3 — `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers
 
 - **State:** open
 - **Legacy cite:** none

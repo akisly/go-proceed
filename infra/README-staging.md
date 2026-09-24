@@ -234,7 +234,7 @@ locally and in CI, not on the hosted project.
   agent never receives the hosted password, and it never goes on a command
   line (shell history, `ps`) or into an exported variable (an exported
   `SUPABASE_DB_URL` would point `packages/testing`'s `adminClient()` — and the
-  destructive fixture writes behind it — at the hosted database; BL-160).
+  destructive fixture writes behind it — at the hosted database; BL-162).
   Download the project's CA certificate (Dashboard → Database Settings → SSL
   Configuration; https://supabase.com/docs/guides/platform/ssl-enforcement),
   keep the password in `~/.pgpass` (mode `0600`) or type it with
