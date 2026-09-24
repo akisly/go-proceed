@@ -69,6 +69,13 @@ describe("local sign-out", () => {
     expect(await w.storage.getItem(KEY)).toBeNull();
     expect(Date.now() - started).toBeLessThan(2_000);
   });
+  it("a refresh that lands after the sign-out does not bring the session back", async () => {
+    const w = await world({ fetch: offline });
+    await signOutLocally({ auth: w.client.auth, storage: w.storage, key: KEY, keys: KEYS });
+    // What auth-js's in-flight refresh would do once its lock is released.
+    await expect(w.storage.setItem(KEY, stored(3600))).rejects.toThrow("SIGNED_OUT");
+    expect(await w.storage.getItem(KEY)).toBeNull();
+  });
   it("keeps the session when unsent photos could not be locked first", async () => {
     let locked = false;
     const w = await world({ fetch: offline, boundary: async () => { if (locked) throw new Error("journal locked"); } });

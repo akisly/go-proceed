@@ -21,6 +21,8 @@ export function Queue() {
   const [error, setError] = useState<string | null>(null);
   // One discard per item at a time; its outcome is a modal alert, read by VoiceOver.
   const [discarding, setDiscarding] = useState<ReadonlySet<string>>(new Set());
+  // Requirement text is verbatim (content rules): two lines until the user opens it, as on the camera screen.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const discardingNow = useRef(new Set<string>()); // synchronous guard; state lags a render
   if (!runtime.session || runtime.status === "booting") return <Page><Loading /></Page>;
 
@@ -64,12 +66,13 @@ export function Queue() {
     {runtime.status === "unavailable" || runtime.status === "error" ?
       <Notice error>Захищене сховище недоступне. Фото на цьому пристрої зараз не можна переглянути чи надіслати.</Notice> : null}
     {runtime.accessChanged ? <Notice error title="Доступ змінився">Сервер більше не приймає фото від вас у цьому робочому просторі. Фото залишаються на пристрої заблокованими. Зверніться до керівника проєкту.</Notice> : null}
-    {network.isConnected === false ? <Notice title="Немає з’єднання">Фото залишаються збереженими на пристрої. Надішлемо, коли з’явиться зв’язок і застосунок буде відкритий.</Notice> : null}
+    {/* Held photos are never sent, so «надішлемо» only speaks for unsent ones (or an unread journal). */}
+    {network.isConnected === false && (!summary.known || summary.pending > 0) ? <Notice title="Немає з’єднання">Фото залишаються збереженими на пристрої. Надішлемо, коли з’явиться зв’язок і застосунок буде відкритий.</Notice> : null}
     {error ? <Notice error>{error}</Notice> : null}
-    {runtime.receivedAnyway.length > 0 ? <Notice title="Сервер уже отримав фото, яке ви видаляли">
-      <AppText>Воно залишиться в дорученні. Якщо його не слід було надсилати, повідомте керівника проєкту.</AppText>
+    {runtime.receivedAnyway.length > 0 ? <>
+      <Notice title="Сервер уже отримав фото, яке ви видаляли" announce>Воно залишиться в дорученні. Якщо його не слід було надсилати, повідомте керівника проєкту.</Notice>
       <Button secondary label="Зрозуміло" onPress={runtime.dismissReceivedAnyway} />
-    </Notice> : null}
+    </> : null}
     {runtime.pendingElsewhere ? <Notice title="Є фото в іншому робочому просторі">Вони чекають, доки ви знову відкриєте доручення того робочого простору. Лише тоді їх буде надіслано.</Notice> : null}
     {!summary.known ? (runtime.status === "ready" && !runtime.accessChanged ?
       <Notice>Відкрийте доручення, щоб побачити фото цього робочого простору.</Notice> : null)
@@ -89,8 +92,11 @@ export function Queue() {
         return <Card key={item.id}>
           <AppText variant="meta" secondary>{item.originMethod === "photo_picker" ? "З галереї" : "Камера"} · {formatTime(item.claimedCaptureTime)}</AppText>
           <AppText variant="h3">{itemTitle(item)}</AppText>
-          {/* Verbatim requirement text (content rules): clipped on screen only, read in full by screen readers. */}
-          {item.requirementLabel ? <AppText numberOfLines={2} accessibilityLabel={item.requirementLabel}>{item.requirementLabel}</AppText> : null}
+          {item.requirementLabel ? <Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded.has(item.id) }}
+            accessibilityHint={expanded.has(item.id) ? "Згорнути вимогу" : "Показати вимогу повністю"}
+            onPress={() => setExpanded((set) => set.has(item.id) ? new Set([...set].filter((id) => id !== item.id)) : new Set([...set, item.id]))}>
+            <AppText selectable={false} numberOfLines={expanded.has(item.id) ? undefined : 2}>{item.requirementLabel}</AppText>
+          </Pressable> : null}
           {detail ? <AppText secondary>{detail}</AppText> : null}
           {problem ? <Notice error>{problem}</Notice> : null}
           <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: "/a/[assignmentId]", params: { assignmentId: item.assignmentId } })}

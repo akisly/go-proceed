@@ -91,7 +91,8 @@ export class NativeQueue {
     this.generation += 1;
     this.controller?.abort();
     this.context = null;
-    void this.deps.vault.cancelUpload().catch(() => undefined);
+    // Natively too: the identity is closed even if JavaScript's view of the vault was wrong.
+    this.deps.vault.closeIdentity();
   }
 
   async pause(): Promise<void> {
@@ -137,6 +138,9 @@ export class NativeQueue {
         if (isNotFound(error)) throw new QueueRequestError(0, "ITEM_GONE");
         throw error;
       }
+      // A run that listed the row before the hold (started meanwhile) fails its next check.
+      this.generation += 1;
+      this.controller?.abort();
       await this.deps.changed();
       let receipt: GetUploadIntentResponse;
       const read = timeoutSignal(this.timeouts.discardReadMs);
@@ -218,6 +222,8 @@ export class NativeQueue {
           else await this.process(item, controller.signal, check);
         } catch (error) {
           if (generation !== this.generation || controller.signal.aborted) break;
+          // Held since this run listed it: nothing to mark, the hold path takes it next time.
+          if (error instanceof QueueRequestError && error.code === "CANCELLED") continue;
           // A project grant lost between authorize and create/finalize fails only this item.
           if (error instanceof QueueRequestError && (error.status === 401 || error.status === 403) && error.code !== "SCOPE_PROJECT_DENIED") {
             // Set before awaiting: an activation during the native quarantine must be able to clear it.
@@ -249,6 +255,9 @@ export class NativeQueue {
     }
 
     await this.deps.authorize(item, signal);
+    check();
+    // The hold is re-read natively before anything is sent: never trust the run's snapshot.
+    await this.notHeld(item.id);
     check();
 
     if (item.intentId) {
@@ -289,7 +298,15 @@ export class NativeQueue {
     await this.finalize(pinned, signal, check);
   }
 
+  /** Throws when the user asked to delete the item since this run listed it. */
+  private async notHeld(id: string): Promise<void> {
+    const current = (await this.deps.vault.list()).find((row) => row.id === id);
+    if (!current || current.discardRequestedAt) throw new QueueRequestError(0, "CANCELLED");
+  }
+
   private async finalize(item: VaultItem, signal: AbortSignal, check: () => void): Promise<void> {
+    await this.notHeld(item.id);
+    check();
     const finalized = await this.deps.api.post(
       `/v1/upload-intents/${item.intentId}/finalize`, {}, item.finalizeIdempotencyKey, signal,
     ) as FinalizeUploadIntentResponse;

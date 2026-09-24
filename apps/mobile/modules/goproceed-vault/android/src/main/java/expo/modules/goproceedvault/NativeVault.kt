@@ -2,6 +2,7 @@ package expo.modules.goproceedvault
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.DatabaseErrorHandler
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.os.Build
@@ -235,7 +236,8 @@ internal class NativeVault private constructor(private val context: Context) {
     }.getOrDefault(false)
     root.deleteRecursively()
     val directoryDeleted = !root.exists()
-    val ciphertextDeleted = directoryDeleted || root.listFiles()?.none { it.extension in listOf("vault", "part", "import") } != false
+    // A directory that survives and cannot be listed counts as not deleted.
+    val ciphertextDeleted = directoryDeleted || (root.listFiles()?.none { it.extension in listOf("vault", "part", "import") } ?: false)
     return JSONObject().put("keysDeleted", keysDeleted).put("ciphertextDeleted", ciphertextDeleted).put("directoryDeleted", directoryDeleted)
   }
   private val installation = File(File(context.noBackupFilesDir, "goproceed-installation"), "marker")
@@ -278,7 +280,11 @@ internal class NativeVault private constructor(private val context: Context) {
   private fun openJournal() {
     if (database != null) return
     if (!root.mkdirs() && !root.isDirectory) fail("VAULT_JOURNAL_UNAVAILABLE")
-    val db = SQLiteDatabase.openDatabase(File(root, "journal.sqlite").path, null, SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING)
+    // Never the platform's default handler: it deletes a corrupt journal, and the sweep
+    // below would then delete every identity's photos without anyone deciding to. A corrupt
+    // journal fails the open instead (the error state, where the user may choose a wipe).
+    val keep = DatabaseErrorHandler { }
+    val db = SQLiteDatabase.openDatabase(File(root, "journal.sqlite").path, null, SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING, keep)
     database = db
     try {
       // PRAGMAs that return a row are refused by execSQL; read them through rawQuery.

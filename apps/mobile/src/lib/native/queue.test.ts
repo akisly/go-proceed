@@ -34,6 +34,7 @@ function fixture(initial: VaultItem = item()) {
     requestDiscard: vi.fn(async () => { events.push("hold"); row = { ...row, discardRequestedAt: "2026-09-24T00:00:00.000Z" }; return row; }),
     wipe: async () => ({ keysDeleted: true, ciphertextDeleted: true, directoryDeleted: true }),
     installationCheck: async () => ({ fresh: false }), installationMark: async () => {},
+    closeIdentity: vi.fn(() => { events.push("close"); }),
   };
   const get = vi.fn(async () => { events.push("get"); return available; });
   const post = vi.fn(async (path: string, _body?: unknown, _key?: string) => { events.push(path.endsWith("finalize") ? "finalize" : "create"); return path.endsWith("finalize") ? available : created; });
@@ -313,12 +314,39 @@ describe("native durable queue", () => {
   });
   it("a run that does not stop in time still ends in a hold, never a send", async () => {
     const f = fixture(item({ intentId: "intent", state: "not_sent" }));
-    f.authorize.mockImplementation(() => new Promise(() => {}));
-    f.get.mockResolvedValueOnce({ ...available, status: "intent_authorized" }).mockResolvedValue({ ...available, status: "intent_authorized" });
-    await f.queue.activate(context); void f.queue.run();
+    let release!: () => void;
+    f.authorize.mockImplementation(() => new Promise<void>((resolve) => { release = resolve; }));
+    f.get.mockImplementation(async () => ({ ...available, status: "intent_authorized" }));
+    await f.queue.activate(context); const running = f.queue.run();
     await vi.waitFor(() => expect(f.authorize).toHaveBeenCalled());
+    // The run outlives the discard's wait, then resumes after the hold is recorded.
     await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" });
+    release(); await running;
+    expect(f.post).not.toHaveBeenCalled();
     expect(f.vault.upload).not.toHaveBeenCalled();
+  });
+  it("a run that started during a discard never finalizes the held photo", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed" }));
+    f.get.mockImplementation(async () => ({ ...available, status: "intent_authorized" }));
+    await f.queue.activate(context);
+    const listed = f.vault.list;
+    let started: Promise<void> | null = null;
+    // The discard lists the row; meanwhile a run starts (network back, app active) and lists it unheld.
+    f.vault.list = async () => { const rows = await listed(); if (!started) started = f.queue.run(); return rows; };
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "DISCARD_HELD" });
+    await started;
+    expect(f.post.mock.calls.filter(([path]) => String(path).endsWith("/finalize"))).toEqual([]);
+    expect(f.vault.upload).not.toHaveBeenCalled();
+    expect(f.current().discardRequestedAt).toBeTruthy();
+  });
+  it("re-reads the hold natively before a create or finalize", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed" }));
+    f.get.mockImplementation(async () => ({ ...available, status: "intent_authorized" }));
+    // Held after this run's snapshot, without the queue's discard (a stale snapshot).
+    f.authorize.mockImplementation(async () => { f.events.push("authorize"); await f.vault.requestDiscard("capture", { confirmed: true }); });
+    await f.queue.activate(context); await f.queue.run();
+    expect(f.post).not.toHaveBeenCalled();
+    expect(f.current().state).toBe("failed"); // not re-marked by the cancelled run
   });
   it("a slow receipt read on discard holds the photo", async () => {
     const f = fixture(item({ intentId: "intent", state: "failed" }));
@@ -331,6 +359,7 @@ describe("native durable queue", () => {
     const f = fixture(); await f.queue.activate(context); f.events.length = 0;
     f.queue.stop();
     expect(f.queue.identity).toBeNull(); expect(f.events).not.toContain("quarantine");
+    expect(f.vault.closeIdentity).toHaveBeenCalledTimes(1);
   });
   it("fails only the item when a project grant is lost at create", async () => {
     const f = fixture(); f.post.mockRejectedValueOnce(new QueueRequestError(403, "SCOPE_PROJECT_DENIED"));

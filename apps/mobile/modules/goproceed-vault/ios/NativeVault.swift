@@ -195,14 +195,19 @@ final class NativeVault {
     running?.cancel()
     if let db { sqlite3_close_v2(db) }
     db = nil; initialized = false; origins = []
-    let status = SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService] as CFDictionary)
-    let keysDeleted = status == errSecSuccess || status == errSecItemNotFound
+    _ = SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService] as CFDictionary)
+    // Deleted means none is left, not that the delete call returned success.
+    let keysDeleted = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: keyService, kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, nil) == errSecItemNotFound
     let fm = FileManager.default
     let directory = try vaultRoot()
     if fm.fileExists(atPath: directory.path) { try? fm.removeItem(at: directory) }
     let directoryDeleted = !fm.fileExists(atPath: directory.path)
-    let left = (try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
-    let ciphertextDeleted = directoryDeleted || !left.contains { ["vault", "part", "import"].contains($0.pathExtension) }
+    // A directory that survives and cannot be listed counts as not deleted.
+    let ciphertextDeleted: Bool
+    if directoryDeleted { ciphertextDeleted = true }
+    else if let left = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+      ciphertextDeleted = !left.contains { ["vault", "part", "import"].contains($0.pathExtension) }
+    } else { ciphertextDeleted = false }
     return ["keysDeleted": keysDeleted, "ciphertextDeleted": ciphertextDeleted, "directoryDeleted": directoryDeleted]
   }
   /**

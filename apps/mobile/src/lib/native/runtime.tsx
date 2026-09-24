@@ -22,6 +22,8 @@ import { signOutLocally } from "./sign-out";
  */
 export type RuntimeStatus = "booting" | "ready" | "unavailable" | "error";
 /** `workspaceId` is the workspace the capture screen authorized; the import refuses any other. */
+/** signedOut: null when no one was signed in. reopened: the vault reached ready again. */
+export type WipeOutcome = WipeResult & { signedOut: boolean | null; reopened: boolean };
 export type CaptureImport = Omit<ImportPhoto, "sourceAppVersion" | "expectedSubjectId" | "expectedWorkspaceId"> & { workspaceId: string };
 
 export interface NativeRuntime {
@@ -58,9 +60,12 @@ export interface NativeRuntime {
   signOut(): Promise<void>;
   /**
    * Deletes every account's unsent photos on this phone without opening the journal,
-   * then signs out if signed in. Throws WIPE_FAILED when the photos could still be opened.
+   * then signs out if signed in. Throws WIPE_FAILED when the photos could still be opened;
+   * a sign-out or reopen that fails afterwards is reported, not thrown.
    */
-  wipe(): Promise<WipeResult>;
+  wipe(): Promise<WipeOutcome>;
+  /** The last wipe's outcome, kept for the login screen the user lands on. */
+  lastWipe: WipeOutcome | null;
   /** Held photos the server received anyway (in memory only). */
   receivedAnyway: readonly string[];
   dismissReceivedAnyway(): void;
@@ -118,6 +123,8 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   const wiped = useRef(false);
   const signingOut = useRef(false);
   const [receivedAnyway, setReceivedAnyway] = useState<readonly string[]>([]);
+  const toldReceived = useRef(new Set<string>());
+  const [lastWipe, setLastWipe] = useState<WipeOutcome | null>(null);
 
   const refresh = useCallback(async () => {
     const vault = vaultRef.current, queue = queueRef.current;
@@ -156,22 +163,27 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
       return () => { current = false; release(); };
     }
     const queue = new NativeQueue({ vault, api: queueApi, authorize, changed: () => refresh(),
-      receivedDespiteDiscard: (item) => setReceivedAnyway((ids) => ids.includes(item.id) ? ids : [...ids, item.id]) });
+      receivedDespiteDiscard: (item) => {
+        if (toldReceived.current.delete(item.id)) return; // the discard's own alert already said so
+        setReceivedAnyway((ids) => ids.includes(item.id) ? ids : [...ids, item.id]);
+      } });
     vaultRef.current = vault;
     queueRef.current = queue;
     release = setSessionIdentityBoundary(async () => {
       setWorkspaceId(null);
       // A vault that never opened has no identity open and nothing readable: its photos
       // stay locked where they are (owner, 2026-09-24). After a verified wipe nothing is left.
-      if (vaultStatusRef.current === "error" || wiped.current) queue.stop();
+      if (vaultStatusRef.current === "error" || wiped.current) queue.stop(); // closes the native identity too
       else await queue.quarantine();
       await forgetWorkspace();
       if (importing.current === 0) sweepCaptureCache();
     });
     sweepCaptureCache();
     // The installation check must see the vault directory before initialize creates it.
+    // A failed reinstall reset must not let the vault create its directory: the retry would
+    // then read the reinstall as an update and resume the earlier installation's session.
     void installationReady()
-      .then(() => vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] }))
+      .then((ready) => { if (!ready) throw new Error("INSTALLATION_RESET_FAILED"); return vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] }); })
       .then(() => { if (current) { vaultStatusRef.current = "ready"; setVaultStatus("ready"); } })
       .catch(() => { if (current) { vaultStatusRef.current = "error"; setVaultStatus("error"); } });
     return () => { current = false; release(); void queue.pause(); };
@@ -292,12 +304,17 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   const discard = useCallback(async (id: string) => {
     const queue = queueRef.current;
     if (!queue?.identity) throw new Error("VAULT_NOT_READY");
-    try { await queue.discard(id); } finally { await refresh(); void runQueue(); }
+    try { await queue.discard(id); }
+    catch (error) {
+      if (error instanceof QueueRequestError && error.code === "ALREADY_RECEIVED") toldReceived.current.add(id);
+      throw error;
+    } finally { await refresh(); void runQueue(); }
   }, [refresh, runQueue]);
 
   const clearSignedOut = useCallback(() => {
     setSession(null); setItems([]); setItemsKnown(false); setWorkspaceId(null);
     setElsewhere(new Set()); setMemberships(null); setAccessChanged(false); setReceivedAnyway([]);
+    known.current = { workspaceId: null, pending: null };
   }, []);
 
   /** Works offline; see signOutLocally. New work is refused while it runs. */
@@ -318,13 +335,21 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
     if (!result.keysDeleted && !result.ciphertextDeleted) throw new Error("WIPE_FAILED");
     wiped.current = true;
     setItems([]); setItemsKnown(false);
-    if (await authStorage.getItem(AUTH_STORAGE_KEY) !== null) await signOut();
-    // A fresh vault, in this process: the next sign-in can reach ready without a restart.
+    let signedOut: boolean | null = null, reopened = false;
     try {
-      await vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] });
-      wiped.current = false; vaultStatusRef.current = "ready"; setVaultStatus("ready");
-    } catch { vaultStatusRef.current = "error"; setVaultStatus("error"); }
-    return result;
+      if (await authStorage.getItem(AUTH_STORAGE_KEY) !== null) {
+        signedOut = await signOut().then(() => true, () => false);
+      }
+      // A fresh vault, in this process: the next sign-in can reach ready without a restart.
+      try {
+        if (!(await installationReady())) throw new Error("INSTALLATION_RESET_FAILED");
+        await vault.initialize({ storageOrigins: [new URL(SUPABASE_URL).origin] });
+        reopened = true; vaultStatusRef.current = "ready"; setVaultStatus("ready");
+      } catch { vaultStatusRef.current = "error"; setVaultStatus("error"); }
+    } finally { wiped.current = false; }
+    const outcome = { ...result, signedOut, reopened };
+    setLastWipe(outcome);
+    return outcome;
   }, [signOut]);
   const dismissReceivedAnyway = useCallback(() => setReceivedAnyway([]), []);
 
@@ -333,9 +358,9 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   const othersUnknown = memberships !== 1;
   const value = useMemo<NativeRuntime>(() => ({
     status, session, workspaceId, items, itemsKnown, accessChanged, pendingElsewhere, othersUnknown, activateWorkspace, importPhoto, holdCapture, send, discard, signOut,
-    wipe, receivedAnyway, dismissReceivedAnyway,
+    wipe, lastWipe, receivedAnyway, dismissReceivedAnyway,
   }), [status, session, workspaceId, items, itemsKnown, accessChanged, pendingElsewhere, othersUnknown, activateWorkspace, importPhoto, holdCapture, send, discard, signOut,
-    wipe, receivedAnyway, dismissReceivedAnyway]);
+    wipe, lastWipe, receivedAnyway, dismissReceivedAnyway]);
   return <RuntimeContext.Provider value={value}>{children}</RuntimeContext.Provider>;
 }
 

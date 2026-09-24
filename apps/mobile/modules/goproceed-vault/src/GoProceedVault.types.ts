@@ -65,5 +65,7 @@ export interface VaultAPI {
   /** True when neither the installation marker nor a vault exists: a new install. */
   installationCheck(): Promise<{ fresh: boolean }>;
   installationMark(): Promise<void>;
+  /** Lock-free: stops any transfer and closes the native identity, without opening the journal. */
+  closeIdentity(): void;
   purgeExpired(): Promise<void>;
 }

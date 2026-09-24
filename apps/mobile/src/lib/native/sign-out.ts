@@ -13,7 +13,7 @@ interface AuthClient {
 export interface LocalSignOut {
   auth: AuthClient;
   /** The persisted session, through the identity boundary. */
-  storage: Pick<SecretStore, "getItem" | "removeItem">;
+  storage: Pick<SecretStore, "getItem" | "removeItem"> & { closeAfterSignOut?(): void };
   key: string;
   keys: readonly string[];
   /** How long to wait for the library's own removal before removing the session here. */
@@ -46,6 +46,8 @@ export async function signOutLocally({ auth, storage, key, keys, waitMs = 3_000 
       await within(auth.signOut({ scope: "local" }), 1_000);
     }
     if (await storage.getItem(key) !== null) throw new Error("SIGN_OUT_INCOMPLETE");
+    // A refresh already in flight (auth-js's lock outlasts our waits) must not bring it back.
+    storage.closeAfterSignOut?.();
   } finally {
     await auth.startAutoRefresh().catch(() => undefined);
   }

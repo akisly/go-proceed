@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
-import { supabase } from "../lib/supabase";
+import { authStorage, supabase } from "../lib/supabase";
 import { LoginFlow, initialLoginFlowState } from "../lib/login-flow";
 import { nativeNext } from "../lib/native/destinations";
 import { useNativeRuntime } from "../lib/native/runtime";
 import { AppText, Button, Card, Notice, Page } from "../ui/primitives";
-import { confirmWipe } from "../ui/vault-wipe";
+import { confirmWipe, wipeMessage } from "../ui/vault-wipe";
 import { corners, fonts, palette, touchHeight, typeSize, unit } from "../ui/theme";
 
 export function Login() {
@@ -15,7 +15,10 @@ export function Login() {
   const next = nativeNext(typeof params.next === "string" ? params.next : "/");
   const runtime = useNativeRuntime();
   const { session } = runtime;
-  const [wipeMessage, setWipeMessage] = useState<string | null>(null);
+  const [wipeNote, setWipeNote] = useState<string | null>(null);
+  const [wiping, setWiping] = useState(false);
+  // A wipe started on the profile screen signs out and lands here; its outcome is shown once.
+  const carried = runtime.lastWipe ? wipeMessage(runtime.lastWipe) : null;
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [state, setState] = useState(initialLoginFlowState);
@@ -24,7 +27,7 @@ export function Login() {
   const flowRef = useRef<LoginFlow | null>(null);
   flowRef.current ??= new LoginFlow({
     signInWithOtp: address => supabase.auth.signInWithOtp({ email: address, options: { shouldCreateUser: false } }),
-    verifyOtp: (address, token) => supabase.auth.verifyOtp({ email: address, token, type: "email" }),
+    verifyOtp: (address, token) => { authStorage.reopenForSignIn(); return supabase.auth.verifyOtp({ email: address, token, type: "email" }); },
     onSignedIn: () => router.replace(nativeNext(nextRef.current) as Href),
   }, setState);
   const flow = flowRef.current;
@@ -56,9 +59,10 @@ export function Login() {
       </Card>
       {runtime.status === "error" ? <Card>
         <Notice error>Захищене сховище на цьому телефоні не відкривається, тому знімати фото зараз не можна. Увійти можна: ненадіслані фото залишаться заблокованими.</Notice>
-        {wipeMessage ? <Notice error announce>{wipeMessage}</Notice> : null}
-        <Button secondary label="Стерти фото на пристрої" onPress={() => confirmWipe(runtime, false, setWipeMessage)} />
+        <Button destructive label={wiping ? "Стираємо…" : "Стерти фото на пристрої"} disabled={wiping}
+          onPress={() => confirmWipe(runtime, false, () => { setWiping(true); setWipeNote(null); }, (message) => { setWiping(false); setWipeNote(message); })} />
       </Card> : null}
+      {wipeNote ?? carried ? <Notice error announce>{(wipeNote ?? carried)!}</Notice> : null}
       <AppText variant="meta" secondary>Доступ надає адміністратор вашого робочого простору.</AppText>
     </Page>
   </KeyboardAvoidingView>;

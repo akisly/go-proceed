@@ -57,6 +57,16 @@ describe("protected session persistence", () => {
     done = true;
     expect(await gated.getItem("auth")).toBe(session("one"));
   });
+  it("after a local sign-out, a late refresh cannot write the session back until a sign-in", async () => {
+    const f = fixture(); await f.storage.setItem("auth", session("one"));
+    await f.storage.removeItem("auth");
+    f.storage.closeAfterSignOut();
+    await expect(f.storage.setItem("auth", session("one", "refreshed"))).rejects.toThrow("SIGNED_OUT");
+    expect(await f.storage.getItem("auth")).toBeNull();
+    f.storage.reopenForSignIn();
+    await f.storage.setItem("auth", session("two"));
+    expect(await f.storage.getItem("auth")).toBe(session("two"));
+  });
   it("clears a persisted value without the identity boundary", async () => {
     const f = fixture(); await f.storage.setItem("auth", session("one", "x".repeat(2000))); f.events.length = 0;
     await clearPersisted({

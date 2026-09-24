@@ -31,6 +31,7 @@ const api: VaultAPI = {
   wipe: (confirmation) => call('wipe', confirmation),
   installationCheck: () => call('installationCheck'),
   installationMark: () => call('installationMark'),
+  closeIdentity: () => { native?.cancel(true); },
   purgeExpired: () => call('purgeExpired'),
 };
 export function requireVault(): VaultAPI {

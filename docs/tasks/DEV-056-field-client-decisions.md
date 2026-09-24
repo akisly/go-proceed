@@ -25,7 +25,7 @@
   - `docs/tasks/README.md`.
 - Read context: DEV-042 (Findings, «Owner decisions owed»), DEV-046, ADR-013, the spec's vault section, `docs/product/hidden-works-content-rules.md` (INV-073).
 - Linked: [DEV-042](DEV-042-mobile-native.md), [DEV-046](DEV-046-android-vault.md), [ADR-013](../decisions/ADR-013-native-field-client.md).
-- Baseline: `origin/main` `e43c5ecf`; branch `claude/field-decisions` in worktree `.claude/worktrees/android-vault`.
+- Baseline: `origin/main` `e43c5ecf`; branch `claude/field-decisions` in worktree `.claude/worktrees/android-vault`. `origin/main` `406f5efe` was merged in on 2026-09-24 (commit `ed400aa3`): main's cluster had taken DEV-047…055 and INV-113/114, so this task became DEV-056 and its invariants INV-115/116.
 - Dependencies / constraints / out of scope:
   - No server change: no migration, grant, contract or error code.
   - No OTP email is triggered by the agent, so signed-in paths need the owner.
@@ -55,6 +55,8 @@
 | 3 | Coordinator | Implementation. | See «What changed» below | Builds, device pass, reviews |
 | 4 | Coordinator | **Unit tests.** `apps/mobile`: 206/206, run with no database. New cases:<br>• sign-out against the real supabase-js 2.112.3 client with a scripted `fetch`: online; offline with a valid token; offline with an expired token; a hung request; a failing boundary; and the pinned key compared with the unpinned default;<br>• the hold, the timeouts and `stop`;<br>• held counts and the verbatim label;<br>• the storage gate and `clearPersisted`.<br>Observed along the way: with an expired token offline, auth-js keeps retrying the refresh under its lock for up to about 30 s, so `SIGNED_OUT` may not fire. The session is removed anyway and the runtime clears its own state.<br>**Builds.** Android debug and release for ARM, and iOS Debug for the simulator, all succeed. | `pnpm --filter @goproceed/mobile test`; `./gradlew :app:assembleDebug :app:assembleRelease`; `xcodebuild … -sdk iphonesimulator` | Emulator and simulator |
 | 5 | Coordinator | **Vault pass on the arm64 Android 16 emulator and the iOS 18.1 iPhone 16 Pro simulator** (debug builds, calls over the Hermes debugger, identical results on both platforms):<br>• The installation check reads `fresh:false` after launch; the app has already checked and marked.<br>• A multi-line label with `’` and `№` is stored and listed verbatim. A 2001-unit label is refused (`VAULT_INVALID_ARGUMENT`) and nothing is written. An import without a label works.<br>• `requestDiscard` without confirmation is refused, and is idempotent. On a held photo, `upload`, `markAwaitingReceipt` and a new `setUploadIntent` are refused with `VAULT_DISCARD_REQUESTED`.<br>• Holds survive quarantine → authenticate → restore.<br>• `wipe` without confirmation is refused. The wipe returns all three parts done. `list` then reads `VAULT_AUTH_REQUIRED`, the marker is kept, and re-initialize, authenticate and list give an empty vault.<br>**Install detection:** no marker with a vault present reads as an update (`fresh:false`); no marker and no vault reads as a new install (`fresh:true`).<br>**iOS reinstall with real keychain values:**<br>• after an update, both values remain;<br>• after uninstall and install (new container), `gp.runtime.workspace` is `null`, while a control key survives. That proves the keychain outlives deletion, which is the bug being fixed.<br>• The marker is under Application Support with `com_apple_backup_excludeItem`; on Android it is under `no_backup`.<br>**A vault that cannot open.** On iOS, the corrupt journal gives the login screen's error card, and «Стерти фото на пристрої» → confirmation → «Стерти» re-initializes in-process and the card goes away. On Android, a corrupt journal is deleted and recreated by the platform's `DefaultDatabaseErrorHandler` (logcat), so the vault self-heals with its items lost. The error state was forced by a file in place of the vault directory instead, and then showed the same card, confirmation and recovery. | `cdp-run.mjs` steps; `simctl`, `adb run-as`, `uiautomator`; screenshots | Reviews |
+| 6 | gp-ui-reviewer, gp-security, gp-reviewer (first round) | UI: HOLD (U1–U15, P1 base drift). Security: FAIL (S-01 reinstall reset fails open; S-02 a run started during a discard could finalize a held photo; S-03–S-06). Reviewer: major R1 (= S-02), R2 (= U1/S-06), R3 (Android deletes a corrupt journal); minor/nit R4–R14. | Subagent reports (session) | Rework |
+| 7 | Coordinator (rework) | Stated fixes applied; see Findings. `apps/mobile` 210/210. Mutation check: with the S-02 fix removed, the two new race tests fail; restored, they pass. Rebuilt Android (arm64 debug) and iOS (simulator debug); the row 5 vault pass repeated on both with identical results (iOS `keysDeleted` now verified by `SecItemCopyMatching` returning not-found). R3 on the emulator: a photo imported, the journal corrupted → the app opens to the error card; the corrupt journal and the `.vault` stay on disk (no `DefaultDatabaseErrorHandler` deletion in logcat); «Стерти фото на пристрої» (attention colour) → confirm → vault recreated, card gone. U7: iOS screenshots recaptured with Metro running (error card, confirmation, after wipe). | `pnpm --filter @goproceed/mobile test`; `cdp-run.mjs`; `adb`, `simctl`; screenshots `a16-corrupt-card.png`, `a16-after-wipe2.png`, `ios-broken-login.png`, `ios-wipe-alert.png`, `ios-after-wipe.png` | Re-review, QA |
 
 ### What changed
 
@@ -77,7 +79,39 @@
 
 ## Findings and rework
 
-Rework count and hypothesis changes: 0.
+| Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
+|---|---|---|---|---|---|
+| S-01 / R4 | Medium / minor | `runtime.tsx`, `supabase.ts` | a failed reinstall reset must keep the vault closed, or the retry reads an update | Coordinator | Fixed: `initialize` only when `installationReady()` is true (mount and wipe) |
+| S-02 / R1 | Medium / major | `queue.ts` | a run started during a discard must never finalize the held photo | Coordinator | Fixed: generation bump and abort after `requestDiscard`; the native hold is re-read before create and finalize (`notHeld`); two tests that fail without the fix (row 7) |
+| S-03 / R5 | Low / minor | `sign-out.ts`, `session-storage.ts` | a refresh in flight must not write the session back after a sign-out | Coordinator | Fixed: the adapter refuses session writes after a local sign-out until the login screen reopens it before `verifyOtp`; test. Residual (nit, deferred): a sign-in within the ~30 s of auth-js's pending refresh could still be overwritten by it |
+| S-04 / R6 | Low / minor | `runtime.tsx`, vault bridge | the error-state skip must close the native identity; a sign-out failing after a wipe must not strand state | Coordinator | Fixed: `queue.stop()` calls `closeIdentity()` (native `cancel(true)`); `wipe()` reports `signedOut`/`reopened` instead of throwing, `wiped` cleared in `finally`; test |
+| S-05 / R8 | Low / minor | `NativeVault.swift`, `NativeVault.kt` | an unlistable surviving directory is not «deleted»; iOS keys verified gone | Coordinator | Fixed on both platforms; iOS `keysDeleted` = `SecItemCopyMatching` not-found |
+| S-06 / U1 / R2 | Low / major / major | `profile.tsx` | the wipe only for a vault that cannot open (owner decision) | Coordinator | Fixed: button only when `status === "error"`; failure copy follows the cause (U9) |
+| R3 | major (existing code) | `NativeVault.kt` openJournal | a corrupt journal must not be deleted by the platform | Coordinator | Fixed: a non-deleting `DatabaseErrorHandler`; the error state and the user's own wipe decide (row 7) |
+| U2 | Major | `vault-wipe.ts`, `runtime.tsx` | a wipe whose sign-out failed must not say «не вдалося стерти» | Coordinator | Fixed: messages built from the reported outcome |
+| U3 | Major | `profile.tsx` | held photos are not «всі підтверджено» | Coordinator | Fixed: held count shown |
+| U4 | Major | `queue.tsx` | the verbatim label must be readable in full | Coordinator | Fixed: expand toggle as on the camera screen. The citation question (rule T / INV-073 on the native card) is recorded as open for the owner or gp-architect |
+| U5 | Major | `primitives.tsx`, login, profile | the wipe must look destructive | Coordinator | Fixed: `Button destructive` in the attention role (screenshots row 7) |
+| U6 | Major | login, profile | progress while wiping; no parallel actions | Coordinator | Fixed: «Стираємо…», buttons disabled |
+| U7 | Major (evidence) | screenshots | the iOS «after wipe» image showed LogBox | Coordinator | Fixed: recaptured with Metro running (row 7) |
+| U8 | Minor | `profile.tsx` | offline copy must be true; no extra tap when nothing is at stake | Coordinator | Fixed |
+| U9 | Minor | `profile.tsx` | failure copy names the real cause | Coordinator | Fixed |
+| U10 | Minor | `queue.tsx` | «надішлемо» not promised for held photos | Coordinator | Fixed |
+| U11 | Minor | `queue.tsx` | the received-anyway notice is announced | Coordinator | Fixed: string body with `announce` |
+| U12 / R13 | Minor / nit | `runtime.tsx`, `item-labels.ts` | one event reported once; a held mismatch is shown | Coordinator | Fixed: an item already reported by the discard alert is not reported again; a held photo with `RECEIPT_MISMATCH` shows the problem. Residual (nit): the card reads «Буде видалено» until the next run confirms it |
+| U13 | Minor | `profile.tsx`, `login.tsx` | a wipe's outcome reaches the screen the user lands on | Coordinator | Fixed: `runtime.lastWipe` shown on login |
+| U14, U15 | Nit | copy, comment | «зняти або додати знову»; comment | Coordinator | Fixed |
+| R7 | nit | `runtime.tsx` | reset `known` on sign-out | Coordinator | Fixed |
+| R9 | minor | tests, INV-116 witness | tests that can fail; witnesses named | Coordinator | Fixed: the timeout test releases the run after the hold; R1 tests; INV-116 names the device pass and marks the error-state choice unwitnessed |
+| R10, R11, R12 | nit | INV-115/116, ADR, transition row | wording matches the mechanism | Coordinator | Fixed |
+| R14 / P1 | minor | the diff, the record | review the rebuilt diff from the merge base; renumber | Coordinator | Renumbered (Baseline); the re-review uses a diff against `origin/main` `406f5efe` |
+
+Owner questions raised by gp-security, recorded (none blocks):
+1. A time-box or inactivity timeout for hosted sessions left unrevoked by an offline sign-out. This needs the Supabase Pro plan and the hosted settings were not inspected; the owner already accepted non-revocation.
+2. An online sign-out whose request times out also becomes local-only, with no copy saying so. That is a limit.
+3. A held photo whose `available` receipt does not match cannot be resolved, and the user cannot cancel the hold. That is a limit, and the problem is now shown on the card.
+
+Rework count and hypothesis changes: 0 failed rounds (no QA FAIL yet); one review round with rework.
 
 ## What is not true after this task
 

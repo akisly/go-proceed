@@ -4,6 +4,8 @@ import { clientStateLabel } from "../status-labels";
 /**
  * Catalog label (status.client_state.*) as the title, shared with the office
  * dashboard; field.capture.saved_local underneath once the vault has committed.
+ * A held photo (discardRequestedAt) is titled «Буде видалено» instead: a hold is
+ * not a client state.
  */
 export function itemTitle(item: Pick<VaultItem, "state" | "discardRequestedAt">): string {
   // A hold is not a client state: the photo keeps its state but is never sent again.
@@ -25,7 +27,9 @@ const messages: Record<string, string> = {
 
 /** Why an item is not sent, without paths, keys or server internals. */
 export function itemProblem(item: Pick<VaultItem, "state" | "errorCode" | "discardRequestedAt">): string | null {
-  if (item.state !== "failed" || item.discardRequestedAt) return null;
+  if (item.state !== "failed") return null;
+  // A held photo's only failure worth showing: the server answered with a receipt that does not match.
+  if (item.discardRequestedAt) return item.errorCode === "RECEIPT_MISMATCH" ? messages.RECEIPT_MISMATCH! : null;
   return (item.errorCode && messages[item.errorCode]) || NETWORK;
 }
 

@@ -42,13 +42,20 @@ export async function clearPersisted(store: SecretStore, key: string): Promise<v
  * A failed write leaves the previous generation readable; orphaned inactive
  * chunks are recoverable from that slot's count on the next write/removal.
  */
+export interface SessionStorage extends SecretStore {
+  /** After a local sign-out: a late refresh must not write the session back. */
+  closeAfterSignOut(): void;
+  /** Just before a sign-in writes a new session. */
+  reopenForSignIn(): void;
+}
 export function createSessionStorage(
   store: SecretStore,
   beforeIdentityChange: () => Promise<void>,
   /** Resolves true once a reinstall reset is done; false keeps storage closed (reads null). */
   ready: () => Promise<boolean> = async () => true,
-): SecretStore {
+): SessionStorage {
   let tail: Promise<unknown> = Promise.resolve();
+  let signedOut = false;
   const serial = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = tail.then(operation, operation);
     tail = result.catch(() => undefined);
@@ -77,8 +84,11 @@ export function createSessionStorage(
   const open = async () => { if (!(await ready())) throw new Error("INSTALLATION_RESET_FAILED"); };
   return {
     getItem: (key) => serial(async () => (await ready()) ? read(key) : null),
+    closeAfterSignOut: () => { signedOut = true; },
+    reopenForSignIn: () => { signedOut = false; },
     setItem: (key, value) => serial(async () => {
       await open();
+      if (signedOut && subject(value) !== null) throw new Error("SIGNED_OUT");
       const count = Math.max(1, Math.ceil(value.length / CHUNK_CHARACTERS));
       if (count > MAX_CHUNKS) throw new Error("SESSION_STORAGE_LIMIT");
       if (subject(await read(key)) !== subject(value)) await beforeIdentityChange();
