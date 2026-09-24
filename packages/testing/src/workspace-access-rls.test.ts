@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import type { Client } from "pg";
-import { adminClient, asActor, bypassingGuards, dropWorkspaces } from "./pg";
+import { adminClient, appClient, asActor, asService, bypassingGuards, dropWorkspaces } from "./pg";
 
 /**
  * READINESS GATE 11, MODULE workspace_access (DEV-014, BL-098).
@@ -529,5 +529,79 @@ describe("the workspace-access helpers pin an empty search_path (DEV-046)", () =
          from unnest($1::text[]) as f order by 1`,
       [["app.active_member_id(uuid)", "app.has_project_capability(uuid,uuid,text[])", "app.project_has_grants(uuid,uuid)"]]);
     expect(r.rows.every((row) => row.app && row.service)).toBe(true);
+  });
+});
+
+/**
+ * DEV-054 / BL-149 (migration 0100): the SQL helpers that definer functions
+ * inline — `app.current_actor()`, `app.current_external_session()`,
+ * `app.service_workspace()` — name `pg_catalog.uuid` and
+ * `pg_catalog.current_setting`. An inlined helper is parsed under its caller's
+ * search path, and PostgreSQL searches the session's temporary schema first for
+ * type names even under an empty path, so a temporary object named `uuid`
+ * used to shadow the cast inside the workspace-access definers.
+ *
+ * The regression case creates that object in a transaction it rolls back.
+ */
+describe("the inlined helpers name their types (DEV-054, BL-149)", () => {
+  const HELPERS = ["app.current_actor()", "app.current_external_session()", "app.service_workspace()"];
+
+  it("each stays an inlinable invoker SQL STABLE function and names pg_catalog.uuid and pg_catalog.current_setting", async () => {
+    const r = await admin.query<{ fn: string; definer: boolean; config: string[] | null; volatile: string; lang: string; src: string }>(
+      `select p.oid::regprocedure::text as fn, p.prosecdef as definer, p.proconfig as config,
+              p.provolatile as volatile, l.lanname as lang, p.prosrc as src
+         from pg_proc p join pg_language l on l.oid = p.prolang
+        where p.oid = any($1::regprocedure[]) order by 1`, [HELPERS]);
+    expect(r.rows).toHaveLength(3);
+    for (const row of r.rows) {
+      expect({ fn: row.fn, definer: row.definer, config: row.config, volatile: row.volatile, lang: row.lang })
+        .toEqual({ fn: row.fn, definer: false, config: null, volatile: "s", lang: "sql" });
+      expect(row.src, row.fn).toMatch(/::pg_catalog\.uuid/);
+      expect(row.src, row.fn).not.toMatch(/::uuid\b/);
+      // gp-security S1-03: every cast target names pg_catalog, in either spelling.
+      expect(row.src, row.fn).not.toMatch(/::\s*(?!pg_catalog\.)[a-z_]/i);
+      expect(row.src, row.fn).not.toMatch(/\bas\s+(?!pg_catalog\.)[a-z_]\w*\s*\)/i);
+      expect(row.src, row.fn).not.toMatch(/(^|[^.])current_setting\(/);
+    }
+  });
+
+  it("app.current_actor() is still inlined for the application role", async () => {
+    const plan = await asActor<{ "QUERY PLAN": string }>(USER_A, WS_A, (c) =>
+      c.query("explain (verbose, costs off) select app.current_actor()"));
+    const text = plan.rows.map((row) => row["QUERY PLAN"]).join("\n");
+    expect(text).toMatch(/current_setting/);
+    expect(text).not.toMatch(/current_actor\(/);
+  });
+
+  it("a temporary object named uuid does not change what the owner of A reads", async () => {
+    // The application's own connection: PUBLIC holds TEMP on the database, so it can create one.
+    // Revoking TEMP from PUBLIC (BL-151) must rewrite this case.
+    const c = appClient();
+    await c.connect();
+    try {
+      await c.query("begin");
+      await c.query("create temp table uuid (x int)");
+      await c.query("set local role goproceed_app");
+      await c.query("select set_config('app.actor_user_id', $1, true)", [USER_A]);
+      await c.query("select set_config('app.organization_id', $1, true)", [WS_A]);
+      const r = await c.query<{ ws: string }>("select workspace_id as ws from public.projects");
+      // Review R1-03: the owner of A reads A's projects and nothing else.
+      expect(r.rows.length).toBeGreaterThan(0);
+      expect(new Set(r.rows.map((row) => row.ws))).toEqual(new Set([WS_A]));
+    } finally {
+      await c.query("rollback").catch(() => undefined);
+      await c.end().catch(() => undefined);
+    }
+  });
+
+  // gp-security S1-04: the service plane inlines app.service_workspace() into its policies.
+  it("a temporary object named uuid does not make the service plane's policies error", async () => {
+    // The table has no rows here: the case pins the error the old body raised (gp-qa), not the scoping.
+    const r = await asService<{ ws: string }>(USER_A, WS_A, async (c) => {
+      await c.query("create temp table uuid (x int)");
+      return c.query("select workspace_id as ws from public.telegram_chat_bindings");
+    });
+    expect(Array.isArray(r.rows)).toBe(true);
+    expect(r.rows.every((row) => row.ws === WS_A)).toBe(true);
   });
 });

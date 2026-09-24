@@ -134,7 +134,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-103](#bl-103) | P2 | closed → DEV-020 | A repeat of an idempotent command replays its stored response before membership is checked |
 | [BL-104](#bl-104) | P1 | closed → DEV-019 | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
-| [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
+| [BL-106](#bl-106) | P3 | scheduled → DEV-054 | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
@@ -177,8 +177,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-146](#bl-146) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 | [BL-147](#bl-147) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
 | [BL-148](#bl-148) | P3 | scheduled → DEV-053 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
-| [BL-149](#bl-149) | P2 | open | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
+| [BL-149](#bl-149) | P2 | scheduled → DEV-054 | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
 | [BL-150](#bl-150) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
+| [BL-151](#bl-151) | P2 | open | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1322,9 +1323,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-106"></a>
 ### BL-106 — P3 — `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it
 
-- **State:** open
+- **State:** scheduled → DEV-054
 - **Legacy cite:** none
-- **Why:** DEV-017's `gp-security` review (S1-06). `app.service_workspace()` (`0062`) is an invoker `sql` function reading `current_setting('app.organization_id', true)` with no `set search_path` and an unqualified `current_setting`. Every service-plane policy resolves through it — the Telegram tables, the two readiness projections (`0086`) and now `ce_insert_server` (`0087`) — so it is load-bearing. Exploiting it needs a role able to create a shadowing `current_setting` in a schema that precedes `pg_catalog` on the search path, which `goproceed_app` and `goproceed_service` should not have; this is hardening, not an observed hole. The fix is a later migration adding `set search_path to ''` and `pg_catalog.current_setting`, and the same review for `app.current_actor()`. Ranked by DEV-017.
+- **Why:** *[2026-09-24, DEV-054: the fix is qualified names, not a SET clause — a SET clause would stop the function being inlined; `0100` re-creates it with `pg_catalog.current_setting` and `pg_catalog.uuid`.]* DEV-017's `gp-security` review (S1-06). `app.service_workspace()` (`0062`) is an invoker `sql` function reading `current_setting('app.organization_id', true)` with no `set search_path` and an unqualified `current_setting`. Every service-plane policy resolves through it — the Telegram tables, the two readiness projections (`0086`) and now `ce_insert_server` (`0087`) — so it is load-bearing. Exploiting it needs a role able to create a shadowing `current_setting` in a schema that precedes `pg_catalog` on the search path, which `goproceed_app` and `goproceed_service` should not have; this is hardening, not an observed hole. The fix is a later migration adding `set search_path to ''` and `pg_catalog.current_setting`, and the same review for `app.current_actor()`. Ranked by DEV-017.
 - **Evidence:** observed 2026-09-18 at `e7e35aa`: the function definition in the local database at `0087`. Unverified: whether any role in a hosted project holds `CREATE` on a schema that precedes `pg_catalog`.
 - **Depends on:** none.
 - **Deadline:** none recorded.
@@ -1747,7 +1748,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-046 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; those eleven are the lower risk because `pg_temp` is searched last there (PostgreSQL's documentation shows a trusted schema before `pg_temp`; whether `public` is trusted depends on who holds CREATE on it — `0009` revokes it from PUBLIC only, and Supabase's direct grants to `anon`, `authenticated` and `service_role` are unchecked). `public.drain_outbox` (`0005`, `search_path = public`) is outside the query's `app` scope; only a superuser executes it since `0036`. Ranked by DEV-046.
+- **Why:** *[2026-09-24, DEV-054: each body read must include bare casts to generic types and plpgsql `declare`/`%rowtype` types, not only table names; SQL keyword types are not exposed — see BL-151.]* DEV-046 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; those eleven are the lower risk because `pg_temp` is searched last there (PostgreSQL's documentation shows a trusted schema before `pg_temp`; whether `public` is trusted depends on who holds CREATE on it — `0009` revokes it from PUBLIC only, and Supabase's direct grants to `anon`, `authenticated` and `service_role` are unchecked). `public.drain_outbox` (`0005`, `search_path = public`) is outside the query's `app` scope; only a superuser executes it since `0036`. Ranked by DEV-046.
 - **Evidence:** on the local database at `0098`, 2026-09-24: `select p.oid::regprocedure, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.prosecdef and p.proconfig is distinct from array['search_path=""']`. [DEV-046](tasks/DEV-046-access-helpers-search-path.md) row 5.
 - **Depends on:** a body read per function (`gp-architect`, `gp-security`); BL-106 and BL-110 are the same class.
 - **Deadline:** none recorded.
@@ -1785,7 +1786,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-149"></a>
 ### BL-149 — P2 — `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers
 
-- **State:** open
+- **State:** scheduled → DEV-054
 - **Legacy cite:** none
 - **Why:** DEV-046's late `gp-reviewer` (R1-01) and `gp-security` (S1-03) reviews, 2026-09-24. `app.current_actor()` (`0003`) is `nullif(current_setting(…), '')::uuid` with no `SET` clause, so it is inlined and parsed under its caller's path. Inside the three workspace-access definers that path is empty since `0098` (it was `public` before), and PostgreSQL still searches the session's temporary schema first for type names. A session with arbitrary SQL as `goproceed_app` (PUBLIC holds TEMP on the database; no migration revokes it) can create `pg_temp.uuid` — a table, which makes the helpers fail closed, or a domain whose CHECK calls a `pg_temp` function, which the reviewer reads as running with the helper owner's rights. Pre-existing; `0098` neither causes nor fixes it. `app.current_actor()::text` (`0007`) is the same class.
 - **Evidence:** `supabase/migrations/0003_roles_and_grants.sql` (`app.current_actor`); `0011` (the helpers); PostgreSQL 17 «search_path»; [DEV-046](tasks/DEV-046-access-helpers-search-path.md) findings.
@@ -1801,3 +1802,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** the route files named above; `apps/app/tests/project-path-ids.test.ts` (the walk's root); [DEV-047](tasks/DEV-047-project-path-ids.md) findings.
 - **Depends on:** none.
 - **Deadline:** none recorded.
+
+<a id="bl-151"></a>
+### BL-151 — P2 — Definer function bodies name types unqualified, which a session's temporary schema can shadow
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-054's `gp-architect` design, 2026-09-24. `0100` qualified the three SQL helpers inlined into definers (BL-149), but many SECURITY DEFINER functions whose path is `''` or `public` name generic types without a schema in their own bodies — casts (`::text`, `::uuid`, `::jsonb`, `::timestamptz`) and plpgsql `declare` or `%rowtype`/`%type` references (for example `0006` `org_has_members` (`org::text` under `public`), `0007` `delete_expired_idempotency`, `0011` `accept_invitation`, `0060` (`v_member uuid`, `v_status text`), `0092` (`v_actor uuid`)); SQL keyword types (`boolean`, `integer`, `bigint`, `numeric`, `timestamp`, `interval`, `varchar`) parse as `pg_catalog.*` and are not exposed; a grep's 161 bare casts in 38 migration files is an upper bound, not all in definers. PostgreSQL searches the session's temporary schema first for type and relation names, so a session with arbitrary SQL on an application connection could shadow one — and since a PL/pgSQL domain-typed variable runs its CHECK when the block starts, a temporary domain `uuid` with a CHECK calling a `pg_temp` function would run that function with the definer owner's rights: `app.accept_invitation` (`0011`, path `public`, `new_membership uuid`, executable by the application role) is a concrete path (DEV-054's `gp-security` S1-01, reasoned, not run). The body read must also cover `%rowtype`/`%type` on unqualified relations, whether `record` declarations resolve through the path, and invoker helpers that definers call. The eleven `public, pg_temp` definers are not exposed (listing `pg_temp` puts it last). Three fixes: `alter function … set search_path = public, pg_temp` on the ten `public` definers and `pg_catalog, pg_temp` on the `''` ones — PostgreSQL's documented pattern, no body rewritten, recommended by `gp-security` (it amends the empty-path rule in `agents/COMMON.md`, the owner's call); revoke TEMP from PUBLIC (later defence in depth: hosted database ownership and the Supabase roles' TEMP needs are unverified, and a non-owner's revoke only warns); or qualify every body by hand.
+- **Evidence:** DEV-054's architect design; `supabase/migrations/` (the files named above); [DEV-054](tasks/DEV-054-inlined-helpers-qualified.md).
+- **Depends on:** a decision between the three fixes (`gp-architect`, `gp-security`; the owner for a rule change). Revoking TEMP from PUBLIC must also rewrite DEV-054's temporary-table case in `workspace-access-rls.test.ts`, which creates its object on the application connection (DEV-054 review R1-02).
+- **Deadline:** before the product runs any SQL it did not write on an application connection.
