@@ -89,9 +89,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-058](#bl-058) | P3 | open | Daylight landing residuals |
 | [BL-059](#bl-059) | P3 | open | Final-review minors: `apps/landing` |
 | [BL-060](#bl-060) | P3 | open | Final-review minors: documents and configuration |
-| [BL-061](#bl-061) | P2 | open | vitest 3.2.4 → 4 |
-| [BL-062](#bl-062) | P2 | open | Three TypeScript versions in one workspace |
-| [BL-063](#bl-063) | P2 | open | `scripts/validate_package.py` is orphaned |
+| [BL-061](#bl-061) | P2 | closed → DEV-069 | vitest 3.2.4 → 4 |
+| [BL-062](#bl-062) | P2 | closed → DEV-067 | Three TypeScript versions in one workspace |
+| [BL-063](#bl-063) | P2 | closed → DEV-066 | `scripts/validate_package.py` is orphaned |
 | [BL-064](#bl-064) | P2 | open | vertical-m1 steps 7 and 8 went red once and never again |
 | [BL-065](#bl-065) | P2 | open | A page render costs about three auth round trips and two self-fetch hops |
 | [BL-066](#bl-066) | P3 | open | `turbo-ignore` is deprecated |
@@ -111,7 +111,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | closed → DEV-031 | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
-| [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
+| [BL-083](#bl-083) | P2 | closed → DEV-068 | Nothing keeps a package reached through pnpm's private hoist at one version |
 | [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
 | [BL-085](#bl-085) | P1 | closed → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
@@ -183,9 +183,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-152](#bl-152) | P1 | closed → DEV-059 | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
-| [BL-155](#bl-155) | P2 | scheduled → DEV-060 | PUBLIC holds TEMP on the database |
+| [BL-155](#bl-155) | P2 | closed → DEV-060 | PUBLIC holds TEMP on the database |
 | [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 | [BL-157](#bl-157) | P3 | open | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
+| [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -886,7 +887,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-061"></a>
 ### BL-061 — P2 — vitest 3.2.4 → 4
 
-- **State:** open
+- **State:** closed → DEV-069
 - **Legacy cite:** `TODOS.md` «vitest 3.2.4 → 4.1.11»
 - **Why:** v4 removes `vitest.workspace.ts` for `projects`. The serialized run (`--concurrency=1`, `fileParallelism: false`, the 10 s hook budget) keeps the shared local Postgres from deadlocking, so a change must be proved on a full serialized run.
 - **Evidence:** every `package.json` that declares vitest pins `3.2.4`; `vitest.workspace.ts` exists. The target version is as of 2026-08-19; read the current docs first.
@@ -896,7 +897,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-062"></a>
 ### BL-062 — P2 — Three TypeScript versions in one workspace
 
-- **State:** open
+- **State:** closed → DEV-067
 - **Legacy cite:** `TODOS.md` «TypeScript → 7.0.2 (the Go port)»
 - **Why:** unify on one version before a 6.x or 7.x move; 5.9 → 6 is itself a config migration (`baseUrl`, `node10` resolution deprecations).
 - **Evidence:** root `typescript` `5.9.2`, `packages/ui` `^5.9.3`, `apps/mobile` `6.0.3`.
@@ -906,10 +907,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-063"></a>
 ### BL-063 — P2 — `scripts/validate_package.py` is orphaned
 
-- **State:** open
+- **State:** closed → DEV-066
 - **Legacy cite:** `TODOS.md` «`scripts/validate_package.py` is orphaned: its subject was deleted»
 - **Why:** about 2,400 lines that assert a deleted prototype; dead code that looks alive. Delete it and record what stopped being enforced, or retarget it at `apps/app` if its assertions still describe the product.
-- **Evidence:** tracked (`git ls-files scripts/validate_package.py`); invoked by nothing, only described in `Makefile` and `ci.yml` comments.
+- **Evidence:** *[2026-09-24, DEV-066: deleted in #136 (`648be7ad`).]* tracked (`git ls-files scripts/validate_package.py`); invoked by nothing, only described in `Makefile` and `ci.yml` comments.
 - **Depends on:** a delete-or-retarget decision.
 - **Deadline:** none recorded.
 
@@ -1095,7 +1096,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-083"></a>
 ### BL-083 — P2 — Nothing keeps a package reached through pnpm's private hoist at one version
 
-- **State:** open
+- **State:** closed → DEV-068
 - **Legacy cite:** none
 - **Why:** [DEV-008](tasks/DEV-008-types-react-dedupe.md) found that pnpm 9.12.0 privately hoists the copy of a package brought by whichever importer it lists first, and that order varies between runs. `next`, `lucide-react`, `framer-motion` and `@tanstack/*` import `@types/react` without declaring it, so when `apps/mobile` pinned a different `@types/react` the web programs sometimes loaded two copies and CI `typecheck` failed at random. DEV-008 aligned `@types/react`; nothing stops a hand pin, or an `expo install @types/react` that writes Expo's `~19.2.4` range, splitting it again. `react` and `react-dom` are already split (19.2.3 in `apps/mobile`, 19.2.8 in the web apps) and reach the same hoist. Two guards fit: root `pnpm.overrides` entries (and `pnpm-workspace.yaml` `overrides`, kept in sync as D-048 does for build scripts), or a check that fails when `pnpm-lock.yaml` holds more than one version of a package that web and mobile importers both reach, starting with `@types/react`, `@types/react-dom`, `react` and `react-dom`. Ranked by DEV-008.
 - **Evidence:** DEV-008 «Progress and decisions» rows 1–3; at `5a38091` `grep -oE "@types/react@19\.[0-9.]+" pnpm-lock.yaml | sort -u` prints one version.
@@ -1852,9 +1853,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-155"></a>
 ### BL-155 — P2 — PUBLIC holds TEMP on the database
 
-- **State:** scheduled → DEV-060
+- **State:** closed → DEV-060
 - **Legacy cite:** none
-- **Why:** *[2026-09-24, DEV-060: `0102` revokes TEMPORARY from PUBLIC and every `goproceed_*` role and grants it back directly to the other roles that held it; local and hosted `goproceed-staging` both have `postgres` as the database owner, so the revoke takes effect (asserted, not trusted); INV-116. DEV-055's and DEV-059's temporary-object cases now plant their shadow on the local superuser's connection and SET ROLE.]* DEV-059's `gp-architect` design, 2026-09-24. Every role — the application, service and purge logins included — may create temporary objects, which is what made BL-152 exploitable. After `0101` the definers list `pg_temp` last, so the temporary schema can no longer shadow a name `pg_catalog` defines — but it still supplies any name defined nowhere else, and nothing mechanical keeps every body qualified; revoking TEMP from the `goproceed_*` roles and their logins is the only change that closes the class (DEV-059's `gp-security` S1-01, P2). A revoke must be checked first: on the hosted project `postgres` may not own the database (a non-owner's revoke only warns), and which Supabase-managed roles need TEMP is unverified. It also breaks the temporary-object cases of DEV-055 and DEV-059.
+- **Why:** *[2026-09-24, DEV-060: `0102` revokes TEMPORARY from PUBLIC and every `goproceed_*` role and grants it back directly to the other roles that held it; local and hosted `goproceed-staging` both have `postgres` as the database owner, so the revoke takes effect (asserted, not trusted); INV-116. DEV-055's and DEV-059's temporary-object cases now plant their shadow on the local superuser's connection and SET ROLE. Merged in #133 (`9d050cca`) and pushed to `goproceed-staging` the same day.]* DEV-059's `gp-architect` design, 2026-09-24. Every role — the application, service and purge logins included — may create temporary objects, which is what made BL-152 exploitable. After `0101` the definers list `pg_temp` last, so the temporary schema can no longer shadow a name `pg_catalog` defines — but it still supplies any name defined nowhere else, and nothing mechanical keeps every body qualified; revoking TEMP from the `goproceed_*` roles and their logins is the only change that closes the class (DEV-059's `gp-security` S1-01, P2). A revoke must be checked first: on the hosted project `postgres` may not own the database (a non-owner's revoke only warns), and which Supabase-managed roles need TEMP is unverified. It also breaks the temporary-object cases of DEV-055 and DEV-059.
 - **Evidence:** `packages/testing/src/definer-search-path.test.ts` (created on the application and service logins); [DEV-059](tasks/DEV-059-temporary-schema-searched-last.md).
 - **Depends on:** a read-only check of database ownership and TEMP holders, locally and hosted; the tests rewritten to assert the refusal.
 - **Deadline:** none recorded.
@@ -1886,3 +1887,18 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql` (header); INV-116 «Not covered»; [DEV-060](tasks/DEV-060-no-product-temporary-schema.md).
 - **Depends on:** the catalog comparison against the hosted project (`docs/architecture/tenancy-and-security.md`). The cheapest step is a `database_acl` section in `scripts/snapshot-db-catalog.mjs` next to `roles`, plus T6's query, compared after every hosted push and restore.
 - **Deadline:** before any restore or clone of a hosted database.
+
+<a id="bl-158"></a>
+### BL-158 — P3 — app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** On 2026-09-24 CI's `app-qa` job failed in two of five runs: run 36000385535 (`claude/field-project-disclaimer`, `bfbc0f5d`) and run 36006179453 (`claude/mobile-loose-ends-closure`, `689a9488`, a docs-only change). Both failed with «daylight visual audit: audit crashed: TimeoutError: Waiting for selector `#otp-code` failed» at `apps/app/qa/field.mjs:3186` (line number before DEV-063). Runs 36006019978 (main, `599d337a`), 36005743691 and 36006175901 passed with the same harness. In both failures the artifact holds `login-code-1440.png` and lacks `login-code-390.png`. So the failed request is always the run's third code request for the same address: the sign-in audit's, then the daylight audit's at 1440 px, then at 390 px. The harness recorded neither what the page showed nor what GoTrue answered. Things ruled out:
+  - GoTrue's limits, going by GoTrue v2.195.0 and CLI 2.115.0 source. The CLI sets `GOTRUE_RATE_LIMIT_EMAIL_SENT=360000` unless `[auth.email.smtp]` is enabled, so config.toml's `email_sent = 2` never reaches the local stack. The per-IP `/otp` bucket allows a burst of 30. The per-user interval is `max_frequency = "1s"`. The requests are expected to be more than 1 s apart, but that was not measured. A 429 from that interval would have shown an alert, which the harness did not read.
+  - A hydration race in the browser. The same browser sequence against a production build, with GoTrue mocked, passed 30 of 30 attempts, also under 6x CPU throttling, and the input was hydrated at every click.
+  - The `supabase db reset` retry. Every run, green or red, logs it.
+
+  [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md) makes each failed attempt record the `POST /auth/v1/otp` status and body, the `role="alert"` text, the URL, the typed address, the submit button's state and a screenshot. Each record also says whether the request was sent at all, and lists the page's console warnings. The attempt is repeated once, and a pass that needed the repeat prints a `::warning::` line.
+- **Evidence:** the two failing runs' job logs (jobs 107635316713 and 107654794894) and their `app-qa-output` artifacts; `requestOtpCode` in `apps/app/qa/field.mjs`.
+- **Depends on:** the first `::warning::app-qa /login (code step)` annotation, or finding, on a run that includes DEV-063.
+- **Deadline:** none recorded. Close it by naming the cause and removing the repeat, or by recording the cause as outside the repository. If no annotation or finding appears by 2026-10-31, remove the repeat, keep the diagnostic and close it as not reproduced. That fallback is proposed and still needs the owner's agreement.

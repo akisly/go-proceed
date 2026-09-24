@@ -1349,6 +1349,109 @@ async function waitForAnimations(page, timeoutMs = 3_000) {
   ).catch(() => {});
 }
 
+/**
+ * Opens `loginUrl`, types `email`, presses «Надіслати код» and waits for the
+ * code step (`#otp-code`), up to `retries` more times after a failure.
+ * Resolves `{ ok, attempts }`, where `attempts` holds one single-line
+ * diagnostic per failed attempt. It never throws on a missing code step, so
+ * the caller decides whether that is a finding, a crash or a warning.
+ *
+ * WHY IT EXISTS (DEV-063, BL-158). On 2026-09-24 app-qa went red twice
+ * (runs 36000385535 and 36006179453) on the daylight audit's THIRD code
+ * request of the run, the 390px one, with only
+ * «Waiting for selector `#otp-code` failed» to go on. The same code passed on
+ * nearby runs. What the page showed, and what GoTrue answered, was never
+ * recorded. GoTrue v2.195.0's limits under CLI 2.115.0 do not obviously
+ * explain it: the CLI sets `GOTRUE_RATE_LIMIT_EMAIL_SENT=360000` unless a
+ * custom SMTP server is configured, and the per-IP `/otp` bucket has a burst
+ * of 30. The per-user interval is config.toml's `max_frequency = "1s"`; the
+ * requests are expected to be further apart than that, but nobody measured
+ * it. The same browser sequence with GoTrue mocked passed 30 of 30 attempts,
+ * also under 6x CPU throttling.
+ *
+ * So each failed attempt records the following, which between them separate
+ * a 429 (alert «Забагато спроб…» and `→ 429`), a mailer 5xx (`→ 5xx`), a
+ * request that never left the page (`sent no`), a network or CORS failure
+ * (`failed: …`) and a slow answer (`sent yes`, no answer, the button reading
+ * «Надсилаємо…»):
+ *   - whether `POST /auth/v1/otp` was sent, and its status and body or its
+ *     network failure;
+ *   - the `role="alert"` text;
+ *   - the URL, the typed address, and the submit button's state and label;
+ *   - the page's console warnings and errors during the attempt;
+ *   - a screenshot.
+ *
+ * The attempt is then repeated after 2s, which is longer than
+ * `max_frequency`. The daylight caller passes `retries: 1` and prints a
+ * `::warning::` line when a pass needed the repeat. Actions shows that line
+ * as an annotation, so the cause shows up without turning the run red.
+ * Remove the repeat once BL-158 names the cause.
+ */
+async function requestOtpCode(page, loginUrl, email, { retries = 0, timeoutMs = 15_000, failureShot } = {}) {
+  const oneLine = (text) => String(text).replace(/\s+/g, " ").trim();
+  const isOtpPost = (req) => req.url().includes("/auth/v1/otp") && req.method() === "POST";
+  const attempts = [];
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    if (attempt > 1) await new Promise((r) => setTimeout(r, 2_000));
+    await page.goto(loginUrl, { waitUntil: "networkidle0" });
+    await page.type("#otp-email", email);
+
+    const consoleLines = [];
+    const onConsole = (m) => { if (m.type() === "warn" || m.type() === "error") consoleLines.push(`${m.type()}: ${m.text()}`); };
+    let networkFailure = null;
+    const onFailed = (req) => { if (isOtpPost(req)) networkFailure = req.failure()?.errorText ?? "unknown"; };
+    page.on("console", onConsole);
+    page.on("requestfailed", onFailed);
+    const otpRequest = page.waitForRequest(isOtpPost, { timeout: timeoutMs }).catch(() => null);
+    const otpResponse = page.waitForResponse((r) => isOtpPost(r.request()), { timeout: timeoutMs }).catch(() => null);
+
+    await page.click('button[type="submit"]');
+    const outcome = await page.waitForFunction(
+      () => (document.querySelector("#otp-code") ? "code" : (document.querySelector('[role="alert"]')?.textContent ?? "").trim() || null),
+      { timeout: timeoutMs },
+    ).then((h) => h.jsonValue(), (err) => ({ err }));
+    if (outcome === "code") {
+      page.off("console", onConsole);
+      page.off("requestfailed", onFailed);
+      return { ok: true, attempts };
+    }
+
+    const [req, res] = await Promise.all([otpRequest, otpResponse]);
+    page.off("console", onConsole);
+    page.off("requestfailed", onFailed);
+    let otp = `POST /auth/v1/otp sent ${req ? "yes" : "no"}`;
+    if (res) {
+      const body = await res.text().catch((err) => `(body unreadable: ${err.message})`);
+      otp += `, answered ${res.status()} ${body.slice(0, 300)}`;
+    } else if (networkFailure) {
+      otp += `, failed: ${networkFailure}`;
+    } else if (req) {
+      otp += `, no answer within ${timeoutMs}ms`;
+    }
+    const state = await page.evaluate(() => ({
+      url: location.href,
+      typed: document.querySelector("#otp-email")?.value ?? null,
+      submitDisabled: document.querySelector('button[type="submit"]')?.disabled ?? null,
+      submitLabel: document.querySelector('button[type="submit"]')?.textContent?.trim() ?? null,
+    })).catch((err) => ({ unreadable: err.message }));
+    let shot = failureShot ? failureShot.replace(/\.png$/, `-attempt${attempt}.png`) : null;
+    if (shot) {
+      await page.screenshot({ path: shot, fullPage: true }).catch((err) => {
+        shot = `none (screenshot failed: ${err.message})`;
+      });
+    }
+    const waited = typeof outcome === "string"
+      ? `alert «${outcome}»`
+      : outcome.err?.name === "TimeoutError"
+        ? `no #otp-code and no alert within ${timeoutMs}ms`
+        : `the wait failed: ${outcome.err?.name}: ${outcome.err?.message}`;
+    attempts.push(oneLine(`attempt ${attempt}: ${waited}; ${otp}; page ${JSON.stringify(state)}`
+      + `; console ${consoleLines.length ? JSON.stringify(consoleLines.slice(0, 5)) : "none"}`
+      + (shot ? `; screenshot ${shot.startsWith("none") ? shot : path.basename(shot)}` : "")));
+  }
+  return { ok: false, attempts };
+}
+
 /** `null` when the two boxes do not overlap; a description when they do. */
 function overlapOf(a, b, aLabel, bLabel) {
   const horizontal = a.left < b.right && b.left < a.right;
@@ -3176,14 +3279,24 @@ async function main() {
         const page = await anonymous.newPage();
         await walkRoute(page, routes[0]);
         // The second step: type an address, request a code, capture the form
-        // that asks for it. The code itself is never entered here.
+        // that asks for it. The code itself is never entered here. One repeat
+        // and a diagnostic per failed attempt: see `requestOtpCode` (BL-158).
         for (const width of [1440, 390]) {
           const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
-          await page.goto(`${server.baseUrl}/login`, { waitUntil: "networkidle0" });
-          await page.type("#otp-email", email);
-          await page.click('button[type="submit"]');
-          await page.waitForSelector("#otp-code", { timeout: 15_000 });
+          const step = await requestOtpCode(page, `${server.baseUrl}/login`, email, {
+            retries: 1,
+            failureShot: path.join(daylightShots, `login-code-${width}-failed.png`),
+          });
+          if (!step.ok) {
+            ctx.findings.push(`/login (code step) @${width}: the code step never appeared — ${step.attempts.join(" | ")}`);
+            continue;
+          }
+          if (step.attempts.length > 0) {
+            // `%` is the only character left to escape: every attempt line is
+            // already a single line, and a workflow command ends at a newline.
+            console.log(`::warning::app-qa /login (code step) @${width} passed on a repeat (BL-158) — ${step.attempts.join(" | ").replace(/%/g, "%25")}`);
+          }
           await waitForAnimations(page);
           await inspect(page, "/login (code step)", width);
           await page.screenshot({ path: path.join(daylightShots, `login-code-${width}.png`), fullPage: true });

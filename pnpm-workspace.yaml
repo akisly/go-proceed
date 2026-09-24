@@ -9,3 +9,13 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - sharp
+
+# One @types/react and @types/react-dom for every importer (BL-083, DEV-068):
+# pnpm 9 privately hoists whichever copy it lists first, so a second version
+# splits the web programs' types at random (DEV-008). Read by pnpm >=10 here;
+# pnpm 9.x reads the same map from package.json "pnpm.overrides". Keep both in
+# sync. React itself is not overridden: Expo pins apps/mobile to its own pair;
+# scripts/check-lockfile-versions.mjs holds the rest.
+overrides:
+  '@types/react': 19.2.18
+  '@types/react-dom': 19.2.4

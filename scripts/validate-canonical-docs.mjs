@@ -230,8 +230,8 @@ const OLD_ROLE_RE = /\baktflow_(app_login|app|service_login|service|worker)\b|ak
  * than one exemption stated out loud.
  *
  * It is deliberately a single file and not a `scripts/` directory rule:
- * `set-local-app-password.mjs` and `validate_package.py` live there too and are
- * live code with no business naming a pre-rename role.
+ * `set-local-app-password.mjs` lives there too and is live code with no
+ * business naming a pre-rename role.
  */
 const ROLE_RULE_DEFINITION = "scripts/validate-canonical-docs.mjs";
 
@@ -629,7 +629,9 @@ function sameLineClosing(rest) {
  * body up to its own closing line, and that closing; each describe keeps its
  * closing and whether its body holds control flow, so `citedTestProblems` can
  * refuse anything but the one plain shape. vitest 3.2.4 has at least nine ways
- * to keep a test from running (DEV-013 record, Sources).
+ * to keep a test from running (DEV-013 record, Sources). Re-checked for vitest
+ * 5.0.1 (DEV-069): `aroundEach`/`aroundAll` throw when the callback is never
+ * called, and tags need options, `tagsFilter` or a flag, all already refused.
  */
 function vitestTests(rawSource) {
   const describeRe = /^(describe|suite)((?:\.\w+(?:\([^()]*\))?)*)\(\s*"((?:[^"\\]|\\.)*)"(.*)$/;
