@@ -186,6 +186,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-155](#bl-155) | P2 | closed → DEV-060 | PUBLIC holds TEMP on the database |
 | [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 | [BL-157](#bl-157) | P3 | open | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
+| [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1886,3 +1887,18 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql` (header); INV-116 «Not covered»; [DEV-060](tasks/DEV-060-no-product-temporary-schema.md).
 - **Depends on:** the catalog comparison against the hosted project (`docs/architecture/tenancy-and-security.md`). The cheapest step is a `database_acl` section in `scripts/snapshot-db-catalog.mjs` next to `roles`, plus T6's query, compared after every hosted push and restore.
 - **Deadline:** before any restore or clone of a hosted database.
+
+<a id="bl-158"></a>
+### BL-158 — P3 — app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** On 2026-09-24 CI's `app-qa` job failed in two of five runs: run 36000385535 (`claude/field-project-disclaimer`, `bfbc0f5d`) and run 36006179453 (`claude/mobile-loose-ends-closure`, `689a9488`, a docs-only change). Both failed with «daylight visual audit: audit crashed: TimeoutError: Waiting for selector `#otp-code` failed» at `apps/app/qa/field.mjs:3186` (line number before DEV-063). Runs 36006019978 (main, `599d337a`), 36005743691 and 36006175901 passed with the same harness. In both failures the artifact holds `login-code-1440.png` and lacks `login-code-390.png`. So the failed request is always the run's third code request for the same address: the sign-in audit's, then the daylight audit's at 1440 px, then at 390 px. The harness recorded neither what the page showed nor what GoTrue answered. Things ruled out:
+  - GoTrue's limits, going by GoTrue v2.195.0 and CLI 2.115.0 source. The CLI sets `GOTRUE_RATE_LIMIT_EMAIL_SENT=360000` unless `[auth.email.smtp]` is enabled, so config.toml's `email_sent = 2` never reaches the local stack. The per-IP `/otp` bucket allows a burst of 30. The per-user interval is `max_frequency = "1s"`. The requests are expected to be more than 1 s apart, but that was not measured. A 429 from that interval would have shown an alert, which the harness did not read.
+  - A hydration race in the browser. The same browser sequence against a production build, with GoTrue mocked, passed 30 of 30 attempts, also under 6x CPU throttling, and the input was hydrated at every click.
+  - The `supabase db reset` retry. Every run, green or red, logs it.
+
+  [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md) makes each failed attempt record the `POST /auth/v1/otp` status and body, the `role="alert"` text, the URL, the typed address, the submit button's state and a screenshot. Each record also says whether the request was sent at all, and lists the page's console warnings. The attempt is repeated once, and a pass that needed the repeat prints a `::warning::` line.
+- **Evidence:** the two failing runs' job logs (jobs 107635316713 and 107654794894) and their `app-qa-output` artifacts; `requestOtpCode` in `apps/app/qa/field.mjs`.
+- **Depends on:** the first `::warning::app-qa /login (code step)` annotation, or finding, on a run that includes DEV-063.
+- **Deadline:** none recorded. Close it by naming the cause and removing the repeat, or by recording the cause as outside the repository. If no annotation or finding appears by 2026-10-31, remove the repeat, keep the diagnostic and close it as not reproduced. That fallback is proposed and still needs the owner's agreement.
