@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import type { Client } from "pg";
-import { adminClient, asActor, dropWorkspaces } from "./pg";
+import { adminClient, asActor, bypassingGuards, dropWorkspaces } from "./pg";
 
 /**
  * READINESS GATE 11, MODULE workspace_access (DEV-014, BL-098).
@@ -266,8 +266,135 @@ describe("project_access_grants: the application role may revoke a grant and cha
         "select revoked_at is not null as revoked, version from public.project_access_grants where id = $1", [target]);
       expect(after.rows[0]).toEqual({ revoked: true, version: "2" });
     } finally {
-      await admin.query("delete from public.project_access_grants where id = any($1::uuid[])", [g.rows.map((row) => row.id)]);
+      // A grant is never deleted (0099); the fixture removes its own rows past the guard.
+      await bypassingGuards("delete from public.project_access_grants where id = any($1::uuid[])", [g.rows.map((row) => row.id)]);
     }
+  });
+});
+
+/**
+ * DEV-051 / BL-138 / INV-113 (migration 0099): a grant's `revoked_at` is written
+ * once. The only change a grant accepts is the revoke — `revoked_at` from null
+ * to the transaction's `now()`, `version` unchanged or up by one — and a revoked
+ * grant never changes again; a grant is never deleted. The guard fires for every
+ * role, the table owner and superusers included; replica mode is the bypass
+ * fixtures use.
+ *
+ * Before 0099 RLS could not compare the old row with the new one, so the
+ * application role could clear `revoked_at` on a project it administers, and a
+ * superuser could rewrite or delete any grant. Seeded and removed here, on
+ * MEMBER_A2, so the read tests above keep their counts.
+ */
+describe("project_access_grants: revoked_at is written once (DEV-051, BL-138)", () => {
+  let projectId: string;
+  let memberId: string;
+  const made: string[] = [];
+
+  beforeAll(async () => {
+    projectId = (await admin.query<{ id: string }>("select id from public.projects where workspace_id = $1", [WS_A])).rows[0]!.id;
+    memberId = (await admin.query<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS_A, MEMBER_A2])).rows[0]!.id;
+  });
+  afterAll(async () => {
+    await bypassingGuards("delete from public.project_access_grants where id = any($1::uuid[])", [made]);
+  });
+
+  async function grant(capability: string, revoked = false): Promise<string> {
+    const r = await admin.query<{ id: string }>(
+      `insert into public.project_access_grants (workspace_id, project_id, member_id, capability, granted_by, revoked_at)
+       values ($1, $2, $3, $4, $5, ${revoked ? "now()" : "null"}) returning id`,
+      [WS_A, projectId, memberId, capability, USER_A]);
+    made.push(r.rows[0]!.id);
+    return r.rows[0]!.id;
+  }
+  const refused = { code: "P0001", message: expect.stringMatching(/INV-113/) };
+
+  it("the owner of A revokes once; clearing or re-dating the revoke is refused to the application role", async () => {
+    const target = await grant("contracts.edit");
+    const revoke = await asActor(USER_A, WS_A, (c) => c.query(
+      "update public.project_access_grants set revoked_at = now(), version = version + 1 where id = $1 and revoked_at is null", [target]));
+    expect(revoke.rowCount).toBe(1);
+    await expect(asActor(USER_A, WS_A, (c) => c.query(
+      "update public.project_access_grants set revoked_at = null, version = version + 1 where id = $1", [target])))
+      .rejects.toMatchObject(refused);
+    await expect(asActor(USER_A, WS_A, (c) => c.query(
+      "update public.project_access_grants set revoked_at = now() + interval '1 day' where id = $1", [target])))
+      .rejects.toMatchObject(refused);
+    const after = await admin.query<{ revoked: boolean; version: string }>(
+      "select revoked_at is not null as revoked, version from public.project_access_grants where id = $1", [target]);
+    expect(after.rows[0]).toEqual({ revoked: true, version: "2" });
+  });
+
+  it("the application role cannot backdate a revoke, bump only the version, or skip versions", async () => {
+    const target = await grant("imports.manage");
+    for (const set of ["revoked_at = now() - interval '1 day'", "version = version + 1", "revoked_at = now(), version = version + 2"]) {
+      await expect(asActor(USER_A, WS_A, (c) => c.query(
+        `update public.project_access_grants set ${set} where id = $1`, [target])), set).rejects.toMatchObject(refused);
+    }
+    // The owner of B declaring A and a view-only member of A reach no row, so the guard never runs for them.
+    const clear = (c: Client) => c.query("update public.project_access_grants set revoked_at = null where id = $1", [target]);
+    expect((await asActor(USER_B, WS_A, clear)).rowCount).toBe(0);
+    expect((await asActor(MEMBER_A2, WS_A, clear)).rowCount).toBe(0);
+    // Unchanged version is accepted: the revoke without a bump.
+    expect((await asActor(USER_A, WS_A, (c) => c.query(
+      "update public.project_access_grants set revoked_at = now() where id = $1", [target]))).rowCount).toBe(1);
+  });
+
+  it("a superuser cannot un-revoke, rewrite or delete a grant; replica mode can", async () => {
+    const live = await grant("imports.publish");
+    const revoked = await grant("assignments.manage", true);
+    await expect(admin.query("update public.project_access_grants set revoked_at = null where id = $1", [revoked]))
+      .rejects.toMatchObject(refused);
+    const ownerA = (await admin.query<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS_A, USER_A])).rows[0]!.id;
+    // Each set changes a value; a revoke alongside it would otherwise be allowed.
+    for (const set of [
+      `member_id = '${ownerA}'`, "capability = 'progress.record'", "valid_from = now() - interval '1 day'",
+      "valid_until = now() + interval '1 day'", `granted_by = '${USER_B}'`, `workspace_id = '${WS_B}'`,
+    ]) {
+      await expect(admin.query(`update public.project_access_grants set ${set}, revoked_at = now() where id = $1`, [live]), set)
+        .rejects.toMatchObject(refused);
+    }
+    await expect(admin.query("update public.project_access_grants set valid_until = now() + interval '1 day' where id = $1", [live]))
+      .rejects.toMatchObject(refused);
+    await expect(admin.query("delete from public.project_access_grants where id = $1", [live])).rejects.toMatchObject(refused);
+    expect((await bypassingGuards("delete from public.project_access_grants where id = $1", [live])).rowCount).toBe(1);
+  });
+
+  it("the guard is a BEFORE UPDATE OR DELETE row trigger, not a definer, and no application role executes its function", async () => {
+    const t = await admin.query<{ enabled: string; type: number; fn: string }>(
+      `select t.tgenabled as enabled, t.tgtype as type, t.tgfoid::regprocedure::text as fn
+         from pg_trigger t where t.tgrelid = 'public.project_access_grants'::regclass and not t.tgisinternal`);
+    expect(t.rows).toEqual([{ enabled: "O", type: 1 | 2 | 8 | 16, fn: "app.guard_project_access_grant()" }]);
+    const f = await admin.query<{ definer: boolean; config: string[] | null }>(
+      "select prosecdef as definer, proconfig as config from pg_proc where oid = 'app.guard_project_access_grant()'::regprocedure");
+    expect(f.rows[0]).toEqual({ definer: false, config: ['search_path=""'] });
+    const x = await admin.query<{ role: string; can: boolean }>(
+      `select r as role, has_function_privilege(r, 'app.guard_project_access_grant()', 'EXECUTE') as can
+         from unnest(array['anon', 'authenticated', 'goproceed_app', 'goproceed_service', 'service_role']) as r`);
+    expect(x.rows.filter((row) => row.can)).toEqual([]);
+  });
+
+  // gp-security S1-01: the guard holds only while no product role can reach the
+  // owner's bypasses — replica mode, or owning (and so disabling or truncating) the table.
+  it("no product role can set session_replication_role or acts as the table's owner", async () => {
+    // On Supabase the replica-mode SET comes through supautils: a member of
+    // supabase_privileged_role may set the parameters it allows, which
+    // has_parameter_privilege does not see (gp-qa QA-01).
+    const r = await admin.query<{ role: string; can_set: boolean; owner: boolean }>(
+      `select r.rolname as role,
+              has_parameter_privilege(r.oid, 'session_replication_role', 'SET')
+                or (exists (select 1 from pg_roles p where p.rolname = 'supabase_privileged_role')
+                    and pg_has_role(r.oid, 'supabase_privileged_role', 'MEMBER')) as can_set,
+              pg_has_role(r.oid, c.relowner, 'MEMBER') as owner
+         from pg_roles r cross join pg_class c
+        where c.oid = 'public.project_access_grants'::regclass
+          and (r.rolname like 'goproceed%' or r.rolname in ('service_role', 'authenticated', 'anon', 'postgres'))
+        order by 1`);
+    expect(r.rows.map((row) => row.role)).toEqual(expect.arrayContaining(["goproceed_app", "goproceed_app_login", "goproceed_service", "service_role"]));
+    // The positive control: the table's owner is flagged by the same query.
+    expect(r.rows.find((row) => row.role === "postgres")).toMatchObject({ can_set: true, owner: true });
+    expect(r.rows.filter((row) => row.role !== "postgres" && (row.can_set || row.owner))).toEqual([]);
   });
 });
 

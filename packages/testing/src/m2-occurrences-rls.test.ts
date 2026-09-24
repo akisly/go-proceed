@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor } from "./pg";
+import { adminClient, asActor, bypassingGuards } from "./pg";
 import {
   dropRulesWorkspaces, seedRulesWorld, sqlstate, type RulesFixture,
 } from "./m1-rules-fixture";
@@ -72,7 +72,7 @@ async function withCapability<T>(
   try {
     return await fn();
   } finally {
-    await c.query(
+    await bypassingGuards(
       `delete from public.project_access_grants
         where workspace_id = $1 and project_id = $2 and member_id = $3 and capability = $4`,
       [f.workspaceId, f.projectId, memberId, capability]);
@@ -132,11 +132,11 @@ describe("work_stages — tenant isolation and the capability the command checks
     await c.query(
       `update public.project_access_grants set revoked_at = now()
         where workspace_id = $1 and member_id = $2
-          and capability in ('project.view','project.admin')`, [WS_A, a.memberId]);
+          and capability in ('project.view','project.admin') and revoked_at is null`, [WS_A, a.memberId]);
     try {
       expect(await visible(USER_A, WS_A, "work_stages", wa.stageId)).toBe(0);
     } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2
             and capability in ('project.view','project.admin')`, [WS_A, a.memberId]);
@@ -221,7 +221,7 @@ describe("requirement_occurrences — tenant isolation and the foreman's read", 
     try {
       expect(await visible(USER_M, WS_A, "requirement_occurrences", occurrenceA)).toBe(0);
     } finally {
-      await c.query(
+      await bypassingGuards(
         `delete from public.project_access_grants where workspace_id = $1 and project_id = $2`,
         [WS_A, other.rows[0]!.id]);
       await c.query(`delete from public.projects where id = $1`, [other.rows[0]!.id]);
@@ -232,11 +232,11 @@ describe("requirement_occurrences — tenant isolation and the foreman's read", 
     await c.query(
       `update public.project_access_grants set revoked_at = now()
         where workspace_id = $1 and member_id = $2
-          and capability in ('project.view','project.admin')`, [WS_A, a.memberId]);
+          and capability in ('project.view','project.admin') and revoked_at is null`, [WS_A, a.memberId]);
     try {
       expect(await visible(USER_A, WS_A, "requirement_occurrences", occurrenceA)).toBe(0);
     } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2
             and capability in ('project.view','project.admin')`, [WS_A, a.memberId]);

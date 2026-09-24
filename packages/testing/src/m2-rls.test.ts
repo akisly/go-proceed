@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor } from "./pg";
+import { adminClient, asActor, bypassingGuards } from "./pg";
 import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture , dropM2Workspaces } from "./m2-fixture";
 
 // 0016 must make the database a real second layer. Migration 0014 exists because
@@ -80,12 +80,12 @@ describe("0016 tenant isolation", () => {
   it("hides a project the member holds no grant on", async () => {
     await c.query(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2`, [a.workspaceId, a.memberId]);
+        where workspace_id = $1 and member_id = $2 and revoked_at is null`, [a.workspaceId, a.memberId]);
     try {
       expect(await countAs(USER_A, WS_A,
         `select id from public.work_assignments where id = $1`, [assignmentA])).toBe(0);
     } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2`, [a.workspaceId, a.memberId]);
     }
@@ -109,7 +109,7 @@ describe("0016 capability, not mere membership (the 0014 regression class)", () 
   it("denies a progress insert to a member holding only project.view", async () => {
     await c.query(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability <> 'project.view'`,
+        where workspace_id = $1 and member_id = $2 and capability <> 'project.view' and revoked_at is null`,
       [b.workspaceId, b.memberId]);
     let failed = false;
     try {
@@ -120,7 +120,7 @@ describe("0016 capability, not mere membership (the 0014 regression class)", () 
          values ($1,$2,$3,$4,'root',5,$5)`,
         [b.workspaceId, b.projectId, assignmentB, b.workItemId, b.memberId]));
     } catch { failed = true; } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2`, [b.workspaceId, b.memberId]);
     }

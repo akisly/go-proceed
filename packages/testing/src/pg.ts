@@ -161,6 +161,35 @@ export async function dropWorkspaces(
   }
 }
 
+/**
+ * Runs one fixture statement with user triggers suppressed, in a transaction of
+ * its own on a fresh superuser connection.
+ *
+ * DEV-051 / BL-138 (migration 0099): `project_access_grants` refuses every
+ * change but the revoke — no DELETE, no un-revoke, no re-dated window — and the
+ * guard fires for superusers too. Fixtures that stage a lapsed, re-granted or
+ * removed grant go through here; `session_replication_role = replica` is the
+ * documented bypass, as in dropWorkspaces. It also skips referential-integrity
+ * triggers, so it is for rewriting or removing existing rows, not for inserts.
+ */
+export async function bypassingGuards<T extends QueryResultRow = QueryResultRow>(
+  sql: string, params: unknown[] = [],
+): Promise<QueryResult<T>> {
+  const c = await adminClient();
+  try {
+    await c.query("begin");
+    await c.query("set local session_replication_role = replica");
+    const r = await c.query<T>(sql, params);
+    await c.query("commit");
+    return r;
+  } catch (e) {
+    await c.query("rollback").catch(() => undefined);
+    throw e;
+  } finally {
+    await c.end().catch(() => undefined);
+  }
+}
+
 export async function resetDb(): Promise<void> {
   // Use the installed supabase CLI directly: `pnpm dlx supabase` re-downloads
   // the CLI on every reset (CI runners tripped the 120s test timeout on that

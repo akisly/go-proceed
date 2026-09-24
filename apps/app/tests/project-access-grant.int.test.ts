@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
-import { ADMIN_URL, q } from "./helpers/fixtures";
+import { ADMIN_URL, q, qBypassingGuards } from "./helpers/fixtures";
 
 /**
  * DEV-048 / BL-140: `project_access.grant` keeps a member's `project.view`
@@ -237,12 +237,12 @@ describe("a dated administrator grant never displaces the undated one (DEV-050, 
     expect(res.status).toBe(201);
     expect(await adminRows(projectId, members.admin!)).toEqual([{ until: null, revoked: false }]);
     expect(await adminRows(projectId, members.member!)).toEqual([{ until: new Date(until), revoked: false }]);
-    // The member's dated grant has since lapsed: written by the fixture, as a lapse cannot be waited for.
+    // The member's dated grant has since lapsed: written by the fixture past 0099's guard, as a lapse cannot be waited for.
     const lapsed = await q<{ id: string }>(
       `select id from public.project_access_grants
         where workspace_id = $1 and project_id = $2 and member_id = $3 and capability = 'project.admin'`,
       [WS, projectId, members.member]);
-    await q(
+    await qBypassingGuards(
       `update public.project_access_grants set valid_from = now() - interval '2 days', valid_until = now() - interval '1 day'
         where id = $1`, [lapsed[0]!.id]);
     // The lapse took effect: the member, whose view still runs, can no longer grant.

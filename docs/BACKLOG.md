@@ -166,7 +166,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
 | [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
 | [BL-137](#bl-137) | P3 | open | A project whose only administrator has left cannot be recovered through the product, and a future suspend must not orphan one |
-| [BL-138](#bl-138) | P3 | open | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
+| [BL-138](#bl-138) | P3 | scheduled → DEV-051 | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
 | [BL-140](#bl-140) | P3 | scheduled → DEV-048 | A member's `project.view` can lapse before the action capabilities it was added for |
 | [BL-141](#bl-141) | P3 | scheduled → DEV-047 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
@@ -1673,7 +1673,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-138"></a>
 ### BL-138 — P3 — Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant
 
-- **State:** open
+- **State:** scheduled → DEV-051
 - **Legacy cite:** none
 - **Why:** DEV-043 narrowed `goproceed_app`'s `UPDATE` on `project_access_grants` to `revoked_at` and `version` (`0096`), and RLS cannot compare the old row with the new one, so a defect in the application can still set `revoked_at` back to null. A trigger that refuses clearing `revoked_at` (and any change of the other columns) would close it; it fires for superusers too, and at least ten fixture sites un-revoke, delete or re-date grants (`m2-rls.test.ts`, `m1-rules-rls.test.ts`, `m2-policy-gaps.test.ts`, `m3-closure-rls.test.ts`, `project-communications.int.test.ts`, `telegram-evidence.int.test.ts`), so it needs their rework. Ranked by DEV-043.
 - **Evidence:** DEV-043's `gp-architect` design, point f; `supabase/migrations/0096_the_grant_that_could_be_rewritten.sql` «What this does not change».

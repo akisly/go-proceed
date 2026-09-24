@@ -5,7 +5,7 @@ import { TelegramApiError } from "../src/lib/telegram/api";
 import { asService, dropWorkspaces } from "../../../packages/testing/src/pg";
 import { seedRulesWorld, type RulesFixture } from "../../../packages/testing/src/m1-rules-fixture";
 import { deleteOccurrence, insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
-import { ADMIN_URL, hasIsolatedDatabaseCredentials } from "./helpers/fixtures";
+import { ADMIN_URL, hasIsolatedDatabaseCredentials, qBypassingGuards } from "./helpers/fixtures";
 import { readDodatokN } from "./helpers/dodatok-n";
 import { enqueueTelegramMessage, deliverTelegramOutboxBatch } from "../src/lib/telegram/delivery";
 import { prepareTelegramEvidenceCandidate, selectTelegramOccurrence } from "../src/lib/telegram/evidence";
@@ -708,12 +708,15 @@ databaseDescribe("Telegram evidence bridge", () => {
   it("denies revoked, future, and expired evidence grants before choice or download", async () => {
     const card = await deliverCard();
     const cases = [
-      ["revoked", "update public.project_access_grants set revoked_at=now() where workspace_id=$1 and capability='evidence.record'"],
+      ["revoked", "update public.project_access_grants set revoked_at=now() where workspace_id=$1 and capability='evidence.record' and revoked_at is null"],
       ["future", "update public.project_access_grants set revoked_at=null,valid_from=now()+interval '1 day',valid_until=null where workspace_id=$1 and capability='evidence.record'"],
       ["expired", "update public.project_access_grants set revoked_at=null,valid_from=now()-interval '2 days',valid_until=now()-interval '1 day' where workspace_id=$1 and capability='evidence.record'"],
     ] as const;
     for (const [index, [name, sql]] of cases.entries()) {
-      await client.query(sql, [rules.workspaceId]); fakes.payloads.set(name, JPEG);
+      // The revoke is an ordinary write; un-revoking and re-dating go past 0099's guard (DEV-051).
+      if (name === "revoked") await client.query(sql, [rules.workspaceId]);
+      else await qBypassingGuards(sql, [rules.workspaceId]);
+      fakes.payloads.set(name, JPEG);
       await processTelegramUpdate(imageUpdate({ updateId: String(90 + index), messageId: String(7900 + index),
         fileId: name, replyTo: card.providerMessageId }));
     }

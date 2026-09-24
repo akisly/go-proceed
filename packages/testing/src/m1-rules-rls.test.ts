@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor } from "./pg";
+import { adminClient, asActor, bypassingGuards } from "./pg";
 import {
   dropRulesWorkspaces, seedRuleVersion, seedRulesWorld, sqlstate,
   type RulesFixture,
@@ -267,11 +267,11 @@ describe("contract_version_rule_bindings — project capability, not membership"
     await c.query(
       `update public.project_access_grants set revoked_at = now()
         where workspace_id = $1 and member_id = $2
-          and capability in ('project.view','project.admin')`, [WS_A, a.memberId]);
+          and capability in ('project.view','project.admin') and revoked_at is null`, [WS_A, a.memberId]);
     try {
       expect(await visible(USER_A, WS_A, "contract_version_rule_bindings", bindingA)).toBe(0);
     } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2
             and capability in ('project.view','project.admin')`, [WS_A, a.memberId]);
@@ -292,7 +292,7 @@ describe("contract_version_rule_bindings — project capability, not membership"
     // the invariant holds on one route and not the other.
     await c.query(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability = 'rule_bindings.manage'`,
+        where workspace_id = $1 and member_id = $2 and capability = 'rule_bindings.manage' and revoked_at is null`,
       [WS_A, a.memberId]);
     try {
       const rv = await seedRuleVersion(c, a, { stageKey: "stage-importer" });
@@ -300,7 +300,7 @@ describe("contract_version_rule_bindings — project capability, not membership"
         USER_A, WS_A, a, rv.ruleVersionId, rv.requirementRuleId, rv.stageKey, a.memberId)))
         .toBeNull();
     } finally {
-      await c.query(
+      await bypassingGuards(
         `update public.project_access_grants set revoked_at = null
           where workspace_id = $1 and member_id = $2 and capability = 'rule_bindings.manage'`,
         [WS_A, a.memberId]);
@@ -330,7 +330,7 @@ describe("contract_version_rule_bindings — project capability, not membership"
           where requirement_rule_version_id = $1`, [rv.ruleVersionId]);
       expect(none.rows[0].n).toBe(0);
     } finally {
-      await c.query(
+      await bypassingGuards(
         `delete from public.project_access_grants
           where workspace_id = $1 and project_id = $2 and member_id = $3`,
         [WS_A, a.projectId, memberIdM]);

@@ -191,7 +191,11 @@ grant can only exist beside an undated one (DEV-050). What can still orphan a
 project is outside the product today — grants rewritten by SQL, a future
 membership suspension (BL-014 must refuse it), or an only administrator who has
 left while their membership stays active (BL-137). The application role may
-update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
+update a grant's `revoked_at` and `version` and nothing else (`0096`), and since
+`0099` no role may do more than revoke a grant once, at the transaction's time,
+and no role may delete one (INV-113, DEV-051); only the table owner can bypass
+that — replica mode, which fixtures use to stage a lapsed or removed grant,
+`DISABLE TRIGGER` or `TRUNCATE`. A revoke
 does not end responsibilities (INV-021), work assignments, Telegram member
 links or external review links the member issued. A removal (a revoke naming
 `project.view`) reports what it leaves live instead (ADR-014 decision 5,

@@ -137,7 +137,8 @@ for:
   2026-09-24 — what the last-administrator rule already covers».]*
 - A trigger that makes `revoked_at` write-once or the other grant columns
   immutable; with the column grant, the product can still clear `revoked_at`
-  through a defect.
+  through a defect. *[Amended 2026-09-24 (DEV-051): authorised and built — see
+  «Amendment, 2026-09-24 — a grant's revoke is written once».]*
 - Membership lifecycle commands or re-admission (BL-014).
 
 ## Approval
@@ -236,3 +237,27 @@ BL-014.
 **Approval.** Approved by the owner on 2026-09-24, in conversation, on the
 option «Зафиксировать + BL-014» after the `gp-architect` design; the wording is
 the coordinator's, ratified by the owner's merge.
+
+## Amendment, 2026-09-24 — a grant's revoke is written once
+
+Recorded by the coordinator of [DEV-051](../tasks/DEV-051-grant-revoke-write-once.md)
+(BL-138) to transcribe the owner's ruling below. It adds a guard and changes no
+operation, contract or error code.
+
+**Decision 6.** Migration `0099` adds a BEFORE UPDATE OR DELETE row trigger on
+`project_access_grants` (INV-113). A grant is never deleted; the one change it
+accepts is its revoke — `revoked_at` from null to the transaction's `now()`, the
+rule `0097` sets for `ended_at`, with `version` unchanged or up by one — and a
+revoked grant never changes again. Every other column is frozen. The guard fires
+for every row-level UPDATE and DELETE by every role, superusers included, with
+the default enablement. Only the table owner can bypass it — replica mode,
+which fixtures use, `DISABLE TRIGGER`, or `TRUNCATE`, which only the owner holds
+since `0058`; no product role can set `session_replication_role` or owns the
+table. Both product
+writers — decision 1's revoke and the grant's replacement of `project.view`
+(DEV-048) — already write exactly the revoke. A defect that tried anything else
+answers 500; no error code is added, since only a defect reaches it.
+
+**Approval.** Approved by the owner on 2026-09-24, in conversation, on the
+option «Делать, version +0/+1» after the `gp-architect` design; the trigger's
+detail is the coordinator's and the architect's, ratified by the owner's merge.
