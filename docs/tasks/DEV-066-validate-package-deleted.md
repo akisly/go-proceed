@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the orphaned 2,403-line spec-package validator, which nothing has invoked since 2026-08-20 and which crashes on the deleted `prototype/`, leaves the tree. The comments that described it as kept are corrected. Nothing that runs changes.
-- State: implementing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): a change to code under `scripts/` and to CI and validator comments → implementation, `gp-reviewer`, `gp-qa`.
@@ -34,6 +34,7 @@
 | 1 | Coordinator | Measured before deleting, at `66c3dd68`: `python3 scripts/validate_package.py` crashes (`FileNotFoundError: prototype/src/App.jsx`). Run in a scratch copy with missing files read as empty, it reports 206 findings: 67 about `prototype/` (routes, contract markers, QA assertions, missing artifacts) and 139 about the legacy spec package — `openapi.yaml` operations added after the package froze lack its conventions (`x-release`, `x-flow-id`, `X-Organization-Id`, `X-Request-Id`, 429 and default problem responses); `ui-actions.csv`, `traceability.csv` and `test-catalog.csv` do not own the newer operations and tests; `data-access-surface.csv` and `data-retention-catalog.csv` list tables `technical/schema.sql` never had. Since `docs/README.md` declares those files legacy, the drift is expected and gets no backlog entry | scratchpad `vp/` | Owner decision |
 | 2 | Owner | Delete | Session | Implement |
 | 3 | Coordinator | Deleted; four comments corrected; `pnpm validate:canonical-docs` OK; `node --check scripts/validate-canonical-docs.mjs` OK; `ci.yml` parses | working tree | gp-reviewer |
+| 4 | gp-qa | gp-qa on `2d45e0b4`: every criterion PASS, every Fixed finding in place; `validate:lockfile`, `validate:canonical-docs`, `validate:agents`, typecheck 10/10 (`--force`) and every DB-free test set green locally; mutations reported as expected (lockfile pairing, second `@types/react`, `packages/ui` react split; `packages/domain` without `types: ["node"]` fails typecheck; the landing abort test fails without the timeout signal); collected test files equal git's in all eight packages (266); database suites and builds rest on CI run 36019198599 (`ef4bee57`), later commits are records only; `git status` empty | Subagent report (session) | Owner merges |
 
 ## Findings and rework
 
@@ -64,8 +65,8 @@ None beyond the repository.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
+- Review independence: independent — `gp-reviewer`, `gp-qa` (all subagents).
 - Verified scope: static.
 - Remaining risks / blocked requirements: none.
-- Next bounded action and owner: `gp-reviewer`, `gp-qa`; then the owner merges.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner reviews and merges PR #136; then the coordinator records `done`.
+- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.

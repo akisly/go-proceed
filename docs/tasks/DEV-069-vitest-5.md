@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: every package tests on Vitest `5.0.1` with an explicit Vite `8.0.13`; `vitest.workspace.ts` becomes `test.projects` in a root `vitest.config.ts`; each package still runs its own files, serialized where it was. Nothing a user sees changes.
-- State: implementing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): build and dependency configuration (`package.json`, `pnpm-lock.yaml`, tool configs) → `gp-researcher` for current docs, implementation, `gp-reviewer`, `gp-qa`; the full serialized database run is CI's (the local database is shared and not reset).
@@ -36,6 +36,7 @@
 | 2 | Owner | «Сразу 5.0.1» | Session | Implement |
 | 3 | Coordinator | `vitest list --filesOnly` in each of the eight packages: 265 files, identical to `main`'s 266 except `packages/testing/src/temporary-privilege.test.ts`, which #133 added to `main` after this branch was cut (base drift, not Vitest). DB-free runs on 5.0.1: `apps/mobile` 199/22, `apps/landing` 272/23, `packages/contracts` 153/11, `packages/domain` 102/10, `discovery` 73/6, `apps/app` 650 in 67 files (all non-`.int` files except `src/lib/evidence/evidence-service.test.ts`, which connects), `packages/testing`'s 13 DB-free files 202. One regression: `apps/landing/tests/pilot-form.test.tsx` «aborts a stalled request» threw `The "event" argument must be an instance of Event` — under Vitest 5's jsdom environment the form's `AbortSignal.timeout` signal and the test's `new Event` come from different realms; the test now replaces `AbortSignal.timeout` with a controller it aborts (the same listener path). Vitest 5 also stopped pulling Node's types in, which DEV-067 step 2 fixes | session | Review, CI |
 | 4 | CI | Run 36019198599 on `ef4bee57` (PR #136), job `verify`: `pnpm turbo run test --concurrency=1` green on vitest 5.0.1 with the database suites on CI's disposable stack — `apps/app` 133 files / 1,499 tests, `packages/testing` 57 / 871, `apps/landing` 23 / 272, `apps/mobile` 22 / 199, `packages/contracts` 11 / 153, `packages/domain` 10 / 102, `discovery` 6 / 73, `packages/database` 4 / 32; no file skipped; `app-qa` green too. The earlier head `f9ce8a82` (run 36017823047) was green as well | `gh run view 36019198599`; job 107699454490 log | gp-qa |
+| 5 | gp-qa | gp-qa on `2d45e0b4`: every criterion PASS, every Fixed finding in place; `validate:lockfile`, `validate:canonical-docs`, `validate:agents`, typecheck 10/10 (`--force`) and every DB-free test set green locally; mutations reported as expected (lockfile pairing, second `@types/react`, `packages/ui` react split; `packages/domain` without `types: ["node"]` fails typecheck; the landing abort test fails without the timeout signal); collected test files equal git's in all eight packages (266); database suites and builds rest on CI run 36019198599 (`ef4bee57`), later commits are records only; `git status` empty | Subagent report (session) | Owner merges |
 
 ## Findings and rework
 
@@ -76,8 +77,8 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
+- Review independence: independent — `gp-researcher`, `gp-reviewer`, `gp-qa` (all subagents).
 - Verified scope: local typecheck, builds and every DB-free test set.
 - Remaining risks / blocked requirements: the full serialized run is CI's.
-- Next bounded action and owner: `gp-reviewer`, `gp-qa`, CI; then the owner merges.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner reviews and merges PR #136; then the coordinator records `done`.
+- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.

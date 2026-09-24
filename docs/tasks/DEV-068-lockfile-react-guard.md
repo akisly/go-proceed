@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the type packages the web and mobile importers share resolve to one version each (`pnpm.overrides`, mirrored in `pnpm-workspace.yaml`), `apps/mobile` declares `react-dom` `19.2.3` to match its `react`, and CI fails when the lockfile splits either again. Nothing a user sees changes.
-- State: implementing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): build and dependency configuration (`package.json`, `pnpm-lock.yaml`, tool configs) → `gp-researcher` for current docs, implementation, `gp-reviewer`, `gp-qa`; the full serialized database run is CI's (the local database is shared and not reset).
@@ -35,6 +35,7 @@
 | 1 | gp-researcher | pnpm 9.12.0 reads overrides from root `package.json` only (pnpm ≥10 from `pnpm-workspace.yaml`); forcing `react` breaks either Expo (exact 19.2.3) or `vinext`/`react-server-dom-webpack` (≥19.2.8); found `react-dom@19.2.8` paired with `react@19.2.3` in `apps/mobile` | Subagent report (session) | Owner |
 | 2 | Owner | Lockfile check; pin `apps/mobile` `react-dom` 19.2.3 | Session | Implement |
 | 3 | Coordinator | The check on the lockfile before the fix: exit 1, `react-dom@19.2.8(react@19.2.3) is paired with react 19.2.3`. After: `lockfile versions: OK`; the lockfile carries the `overrides:` block. Peer warnings after install: `react-server-dom-webpack@19.2.8` (Expo's web/RSC path under `apps/mobile`) wants `react`/`react-dom` ^19.2.8 and gets 19.2.3 — its `react` half was already unmet on `main`; `@react-native/metro-config` 0.86.2 vs 0.86.3 is on `main` too. `CI=1 npx expo install --check` flags only `expo`, `expo-build-properties`, `expo-glass-effect`, `expo-image-picker`, `expo-linking`, `expo-router` patch versions (pre-existing), nothing this task pins | session | Review |
+| 4 | gp-qa | gp-qa on `2d45e0b4`: every criterion PASS, every Fixed finding in place; `validate:lockfile`, `validate:canonical-docs`, `validate:agents`, typecheck 10/10 (`--force`) and every DB-free test set green locally; mutations reported as expected (lockfile pairing, second `@types/react`, `packages/ui` react split; `packages/domain` without `types: ["node"]` fails typecheck; the landing abort test fails without the timeout signal); collected test files equal git's in all eight packages (266); database suites and builds rest on CI run 36019198599 (`ef4bee57`), later commits are records only; `git status` empty | Subagent report (session) | Owner merges |
 
 ## Findings and rework
 
@@ -74,8 +75,8 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
+- Review independence: independent — `gp-researcher`, `gp-reviewer`, `gp-qa` (all subagents).
 - Verified scope: local typecheck, builds and every DB-free test set.
 - Remaining risks / blocked requirements: the full serialized run is CI's.
-- Next bounded action and owner: `gp-reviewer`, `gp-qa`, CI; then the owner merges.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner reviews and merges PR #136; then the coordinator records `done`.
+- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.
