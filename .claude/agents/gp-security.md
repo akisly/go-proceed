@@ -86,7 +86,7 @@ No service key, database password, HMAC key or worker credential may enter clien
 A `SECURITY DEFINER` function must:
 
 - live in a non-exposed schema;
-- use an empty `search_path` with schema-qualified names;
+- pin `search_path` with `pg_temp` listed once and last — `pg_catalog, pg_temp`; a trusted schema before `pg_temp` only where it is one in which no role but the function's owner holds CREATE (`public` is not shown to qualify, BL-146) — and schema-qualify every relation, type and function outside `pg_catalog`. An empty path is not enough: PostgreSQL still searches the session's temporary schema first for relation and type names, and it still supplies any name defined nowhere else. A function a definer calls or fires that has its own SET clause follows the same pin; an inlinable invoker helper has no SET clause and names `pg_catalog` types (INV-114);
 - validate the caller and the tenant chain internally;
 - revoke `EXECUTE` from `public`, `anon` and `authenticated` explicitly.
 

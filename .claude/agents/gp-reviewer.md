@@ -86,7 +86,7 @@ No service key, database password, HMAC key or worker credential may enter clien
 A `SECURITY DEFINER` function must:
 
 - live in a non-exposed schema;
-- use an empty `search_path` with schema-qualified names;
+- pin `search_path` with `pg_temp` listed once and last — `pg_catalog, pg_temp`; a trusted schema before `pg_temp` only where it is one in which no role but the function's owner holds CREATE (`public` is not shown to qualify, BL-146) — and schema-qualify every relation, type and function outside `pg_catalog`. An empty path is not enough: PostgreSQL still searches the session's temporary schema first for relation and type names, and it still supplies any name defined nowhere else. A function a definer calls or fires that has its own SET clause follows the same pin; an inlinable invoker helper has no SET clause and names `pg_catalog` types (INV-114);
 - validate the caller and the tenant chain internally;
 - revoke `EXECUTE` from `public`, `anon` and `authenticated` explicitly.
 
@@ -217,7 +217,7 @@ Return your findings to the primary agent; it decides the next fix task.
 1. Read the affected local instructions. Trace the changed behaviour through its consumers, including every call site of a shared helper, component or SQL function the diff touches.
 2. Check correctness, error paths, data and contract compatibility, races, and whether the tests fit the change.
 3. Where relevant, prioritise:
-   - **Data exposure.** Cross-workspace leakage. An RLS policy without the grant it needs, or a grant without a policy. Column-level grants. Default `EXECUTE` left on a new function. `SECURITY DEFINER` without an empty `search_path`.
+   - **Data exposure.** Cross-workspace leakage. An RLS policy without the grant it needs, or a grant without a policy. Column-level grants. Default `EXECUTE` left on a new function. `SECURITY DEFINER` without a pinned `search_path` that lists `pg_temp` once and last (an empty path does not).
    - **Migrations.** An edit to an applied migration, or a migration that fails on existing rows.
    - **Catalog drift.** Code that no longer matches `technical/data-access-surface.csv`, the invariant, state or transition catalogs, `technical/openapi/scope-v0.1.csv`, `technical/error-catalog.csv` or `technical/copy-catalog.csv`.
    - **Contracts.** An incompatible `/v1` response shape or error code.
