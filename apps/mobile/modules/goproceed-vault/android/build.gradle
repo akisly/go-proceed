@@ -45,11 +45,12 @@ android {
   }
 }
 
-// Builds the sha256-pinned libsodium for each ABI, one after another (the script
+// Builds the sha256-pinned, minisign-verified libsodium for each ABI, one after another (the script
 // shares one extracted source tree), with the NDK and API level Gradle resolved.
 tasks.register('prepareSodium') {
   inputs.file("${vaultRoot}/scripts/sodium-pin.json")
   inputs.file("${vaultRoot}/scripts/prepare-sodium.mjs")
+  inputs.file("${vaultRoot}/scripts/minisign.mjs")
   inputs.property('abis', vaultAbis().join(','))
   outputs.upToDateWhen { false } // the script itself skips work that is already built
   doLast {

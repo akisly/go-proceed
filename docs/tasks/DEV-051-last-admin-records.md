@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour changes. The records stop claiming that a project can lose its last administrator through the product: INV-110, ADR-014 (a dated amendment), the tenancy paragraph and BL-137 say that the product keeps an active member with a live, undated `project.admin` on every project, and name what can still orphan one — SQL outside the product, a future suspend or end command (BL-014, which now carries the refusal as an acceptance criterion), and an only administrator who has left. BL-137 drops to P3. Two guard tests pin the grant's half.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** an invariant-catalog and ADR correction with guard tests: `gp-architect` → owner ruling → tests and records → `gp-reviewer` → `gp-qa`.
@@ -76,4 +76,4 @@ Rework count and hypothesis changes: none (first review HOLD on R1-01; fixes lim
 - Verified scope: criteria 1–2.
 - Remaining risks / blocked requirements: «What is not true after this task»; the lapse test's SQL re-dating is reworked by DEV-052.
 - Next bounded action and owner: the cluster's final run (DEV-053); push and merge are the owner's.
-- Final state and reason: verifying until the cluster's final run.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** `project_access.grant` with a `validUntil` that is not in the future, and `project_responsibilities.assign` with a `validUntil` not later than its `validFrom` (or than now, without one), answer 422 `VALIDATION_FAILED` on `validUntil` and write nothing. Before, both reached the tables' CHECK `valid_until > valid_from` (`0010`) and answered 500 `INTERNAL_ERROR` — except a grant that would write nothing (a held view or a duplicate action), which answered 201 and is now 422 too. The schema compares `validUntil` with `validFrom` when both are sent; an end not after now is checked by the route inside `withIdempotency` against the transaction's `now()`, so an idempotent replay after the end has passed still returns the stored response.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a validation defect on two existing `/v1` commands, found by DEV-051's `gp-architect`: failing test → contract → `gp-reviewer` → `gp-qa`. The request shape and the error code are unchanged, so `gp-architect` is not re-run.
@@ -79,4 +79,4 @@ Rework count and hypothesis changes: one rework after R1 (the clock check moved 
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task».
 - Next bounded action and owner: the cluster's final run (DEV-053); push and merge are the owner's.
-- Final state and reason: verifying until the cluster's final run.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

@@ -15,7 +15,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // The vault module's build scripts are plain Node too (minisign.mjs).
+    include: ["src/**/*.test.ts", "modules/goproceed-vault/scripts/*.test.mjs"],
     env: {
       EXPO_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH",

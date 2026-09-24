@@ -1,4 +1,5 @@
 {
   "version": "1.0.22",
-  "digest": "adbdd8f16149e81ac6078a03aca6fc03b592b89ef7b5ed83841c086191be3349"
+  "digest": "adbdd8f16149e81ac6078a03aca6fc03b592b89ef7b5ed83841c086191be3349",
+  "minisig": "untrusted comment: signature from minisign secret key\nRUQf6LRCGA9i5wo9HfNnazrIs0NImEukX60BIekT/3jXngTz10KIA0QNHhbHH8sobMtntYu/Y2j+3BP3lzI/elViHDtShDBTEAI=\ntrusted comment: timestamp:1775774745\tfile:libsodium-1.0.22.tar.gz\thashed\nxq+smflKzg6XXuK7wqArJvpfGCxFQ15TmhsnNRab0P9PcokZ/X4wGVSv7GGgi9s3duNWgXLpjjO747+uHvrXDA==\n"
 }

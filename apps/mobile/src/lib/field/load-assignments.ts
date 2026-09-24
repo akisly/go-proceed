@@ -15,7 +15,8 @@
 
 import type { ProjectAssignments } from "./assignments";
 
-// Inlined from @goproceed/contracts (not a mobile app dependency) — same
+// Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
+// importing the types is a backlog entry) — same
 // shapes `./assignments.ts` inlines, kept in sync with it by hand.
 interface ProjectListRow {
   projectId: string;

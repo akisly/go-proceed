@@ -1,6 +1,7 @@
-// PORT of apps/app/src/lib/norm-ref-labels.ts — byte-identical labels.
-// Transitional duplication under ADR-009: the PWA original retires when the
-// Expo client passes the parity gate; until then fix bugs in BOTH files.
+// Deliberate duplicate of apps/app/src/lib/norm-ref-labels.ts, which the
+// project money overview's blocked-reasons list and the Telegram cards use: the
+// labels stay byte-identical, and
+// norm-ref-labels.test.ts compares them with the app's file.
 
 /**
  * `normRef.verification` → the Ukrainian tag a citation carries beside its
@@ -8,8 +9,8 @@
  * or not at all — never render the text without both").
  *
  * Kept in sync BY HAND with `packages/contracts/src/requirement-library.ts`'s
- * `verificationTag` — this app has no dependency on `@goproceed/contracts` to
- * import it from (see `obligations.ts`'s header), so the union is restated
+ * `verificationTag` — inlined here rather than imported from
+ * `@goproceed/contracts` (a backlog entry), so the union is restated
  * here the way `NormativeCitation.verification` restates it in
  * `assignment.tsx` and `obligations.ts`.
  *
