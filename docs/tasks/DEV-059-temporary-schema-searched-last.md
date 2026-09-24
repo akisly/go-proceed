@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour a user sees changes. Every SECURITY DEFINER function in `app`, `public` and `api`, and every function there that pins its own `search_path`, lists `pg_temp` last (`pg_catalog, pg_temp`; BL-146's eleven keep `public, pg_temp`). A session with arbitrary SQL on an application, service or purge connection can no longer make a definer resolve a type or relation through its temporary schema and so run code with the definer owner's rights. The definer rule in `agents/COMMON.md`, `agents/roles/gp-reviewer.md` and `docs/architecture/tenancy-and-security.md` changes from «an empty `search_path`» to «`pg_temp` listed last».
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** SECURITY DEFINER functions in a migration and an agent-instruction change: `gp-architect` → owner ruling → failing tests → migration, rule and catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -102,8 +102,8 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` as independent native subagents, before the commit.
 - Verified scope: criteria 1–5.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-155 is a separate cluster (owner).
-- Next bounded action and owner: merging PR #131 is the owner's; `0101` is on staging since 2026-09-24 13:49 UTC.
-- Final state and reason: verifying until the owner's merge.
+- Next bounded action and owner: none; BL-155 (PUBLIC's TEMP) is the separate cluster DEV-060.
+- Final state and reason: done — merged in #131 (`5d027a21`, 2026-09-24 13:50 UTC); `0101` on staging since 13:49 UTC.
 
 ## Appendix — the 77 functions `0101` moved from `search_path=""`
 

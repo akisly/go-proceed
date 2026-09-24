@@ -138,7 +138,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
-| [BL-110](#bl-110) | P3 | scheduled → DEV-059 | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
+| [BL-110](#bl-110) | P3 | closed → DEV-059 | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
 | [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
@@ -180,7 +180,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-149](#bl-149) | P3 | closed → DEV-054 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
 | [BL-150](#bl-150) | P2 | closed → DEV-055 | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
 | [BL-151](#bl-151) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
-| [BL-152](#bl-152) | P1 | scheduled → DEV-059 | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
+| [BL-152](#bl-152) | P1 | closed → DEV-059 | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 | [BL-155](#bl-155) | P2 | open | PUBLIC holds TEMP on the database |
@@ -1371,7 +1371,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-110"></a>
 ### BL-110 — P3 — `app.delete_expired_idempotency` has a `public` search path, not an empty one
 
-- **State:** scheduled → DEV-059
+- **State:** closed → DEV-059
 - **Legacy cite:** none
 - **Why:** *[2026-09-24, DEV-059: `0101` pins `pg_catalog, pg_temp`, not an empty path — an empty path still searches the temporary schema first.]* DEV-020's `gp-security` review (S1-05). `app.delete_expired_idempotency` (`supabase/migrations/0007_idempotency_expiry.sql:6-22`) is `SECURITY DEFINER` with `set search_path = public`, where `agents/COMMON.md` asks a definer for an empty search path and schema-qualified references; it fences by actor only. It is not a probe for a former member — its only caller is `withIdempotency`, after `authorize` and after a lookup `0089` has filtered, and it deletes only the caller's own expired rows — so this is hardening, the same class as BL-106. The fix is a later migration that pins `search_path to ''` and qualifies the references. Ranked by DEV-020.
 - **Evidence:** observed 2026-09-18 at `ae675a2` from the migration text; local database at `0089`.
@@ -1821,7 +1821,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-152"></a>
 ### BL-152 — P1 — Definer function bodies name types unqualified, which a session's temporary schema can shadow
 
-- **State:** scheduled → DEV-059
+- **State:** closed → DEV-059
 - **Legacy cite:** none
 - **Why:** *[2026-09-24, DEV-059: raised to P1 by the owner after DEV-059's red run showed the probe run as `postgres` through four definers on the application and service planes; the owner chose «pg_catalog, pg_temp везде» — `0101` and the amended rule in `agents/COMMON.md`.]* DEV-055's `gp-architect` design, 2026-09-24. `0100` qualified the three SQL helpers inlined into definers (BL-150), but many SECURITY DEFINER functions whose path is `''` or `public` name generic types without a schema in their own bodies — casts (`::text`, `::uuid`, `::jsonb`, `::timestamptz`) and plpgsql `declare` or `%rowtype`/`%type` references (for example `0006` `org_has_members` (`org::text` under `public`), `0007` `delete_expired_idempotency`, `0011` `accept_invitation`, `0060` (`v_member uuid`, `v_status text`), `0092` (`v_actor uuid`)); SQL keyword types (`boolean`, `integer`, `bigint`, `numeric`, `timestamp`, `interval`, `varchar`) parse as `pg_catalog.*` and are not exposed; a grep's 161 bare casts in 38 migration files is an upper bound, not all in definers. PostgreSQL searches the session's temporary schema first for type and relation names, so a session with arbitrary SQL on an application connection could shadow one — and since a PL/pgSQL domain-typed variable runs its CHECK when the block starts, a temporary domain `uuid` with a CHECK calling a `pg_temp` function would run that function with the definer owner's rights: `app.accept_invitation` (`0011`, path `public`, `new_membership uuid`, executable by the application role) is a concrete path (DEV-055's `gp-security` S1-01, reasoned, not run). The body read must also cover `%rowtype`/`%type` on unqualified relations, whether `record` declarations resolve through the path, and invoker helpers that definers call. The eleven `public, pg_temp` definers are not exposed (listing `pg_temp` puts it last). Three fixes: `alter function … set search_path = public, pg_temp` on the ten `public` definers and `pg_catalog, pg_temp` on the `''` ones — PostgreSQL's documented pattern, no body rewritten, recommended by `gp-security` (it amends the empty-path rule in `agents/COMMON.md`, the owner's call); revoke TEMP from PUBLIC (later defence in depth: hosted database ownership and the Supabase roles' TEMP needs are unverified, and a non-owner's revoke only warns); or qualify every body by hand.
 - **Evidence:** DEV-055's architect design; `supabase/migrations/` (the files named above); [DEV-055](tasks/DEV-055-inlined-helpers-qualified.md).
