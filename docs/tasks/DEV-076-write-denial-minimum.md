@@ -11,7 +11,7 @@
     - the 65 gaps it opens, filed as BL-164 … BL-173 by module;
     - the wording of the minimum wherever it is stated.
   - Later stages close the gaps module by module.
-- State: reviewing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the task changes a machine catalog under `technical/` that tests and the validator read, the tenant-isolation test gate, and executed code under `packages/testing` and `scripts/`, so the route is `gp-architect` → owner decisions → failing test → implementation → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -82,6 +82,7 @@
 | 6 | gp-security | PASS WITH FINDINGS: S1 and S2 major, S3–S5 minor, S6 nit (below). It confirmed the four PostgreSQL statements from knowledge, without re-fetching the pages. It found that ON CONFLICT, MERGE, RETURNING and COPY FROM add no write path beyond the verbs, and that the extracted helper behaves as before | Subagent report (session) | Fixes |
 | 7 | Coordinator | Read-only on `goproceed-staging`: no principal holds TRUNCATE, TRIGGER, REFERENCES (table or column) or MAINTAIN on any in-scope relation. Fixes applied as stated below; the validator and its self-tests pass. Three mutations, each killed by the new self-tests: dropping the within-baseline check, dropping the every-key-is-a-gap check, and dropping the refusal of the read row's own test. `typecheck` 10/10; fixture cases 11 passed | Connector result; session output | Re-check, gp-qa |
 | 8 | gp-security (re-check) | S1–S6 PASS at `1082304a`. New: N1 minor (a failing no-`WHERE` statement passes as a denial), N2 minor (a write gap on a read-gap pair skipped the baseline) — both fixed as stated below | Subagent report (session) | gp-qa |
+| 9 | gp-qa | At `83bcb322`: AC-1 (static and fixture half), AC-4, AC-5 and AC-6 PASS. AC-1 (DB half), AC-2, AC-3 and AC-7 NOT RUN: no local database; CI settles them. Mutations killed: 5 in `compareWriteCoverage`, 9 validator rules and 3 data mutations. Every stated fix is in place. Q1 (nit): the acceptance table was empty; filled here | Subagent report (session) | Pull request, CI |
 
 ## Findings and rework
 
@@ -112,6 +113,14 @@ Rework count and hypothesis changes: none. Every change after the first review i
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 registry and comparison (static and fixture half) | Yes | `83bcb322` | fixture cases 11 passed; CSV cross-check (65 rows, modules, baseline equal); 5 comparison mutations killed (row 9) | PASS | |
+| AC-1 database comparison, both ways | Yes | — | «the write-holding covered pairs equal the write registry, both ways» | NOT RUN | environmental: no local Postgres in this container; settled by CI's `pnpm turbo run test --concurrency=1` on the pull request. Staging comparison (row 4) is coordinator evidence |
+| AC-2 column-UPDATE probe | Yes | — | the `evidence_objects` `UPDATE(original_filename)` probe | NOT RUN | not-provable-locally: CI's database run |
+| AC-3 no table-wide privilege; per-privilege probe | Yes | — | `TABLE_WIDE_PRIVILEGES_SQL` case and its probe | NOT RUN | not-provable-locally: CI's database run; staging holds none (row 7) |
+| AC-4 validator refusals and self-tests | Yes | `83bcb322` | `pnpm validate:canonical-docs` OK; 9 rule mutations and 3 data mutations killed (rows 7, 9) | PASS | |
+| AC-5 BL-164 … BL-173 | Yes | `83bcb322` | the ten P1 open entries match the CSV per module; BL-099 scheduled → DEV-076 | PASS | |
+| AC-6 the minimum restated; gate 11 not reopened | Yes | `83bcb322` | dated annotations in the six places listed | PASS | |
+| AC-7 full CI on the pull request | Yes | — | pending | NOT RUN | environmental: no pull request yet |
 
 ## Sources
 
@@ -128,8 +137,8 @@ Rework count and hypothesis changes: none. Every change after the first review i
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` (with a re-check) as native subagents; `gp-qa` pending.
-- Verified scope: rows 1–7.
+- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` (with a re-check) as native subagents; `gp-qa` (native subagents).
+- Verified scope: rows 1–9.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the final revision; then CI on the pull request.
-- Final state and reason: reviewing.
+- Next bounded action and owner: CI on the pull request (AC-1 DB half, AC-2, AC-3, AC-7); then the owner's merge.
+- Final state and reason: verifying — static criteria PASS (gp-qa row 9); the database cases and AC-7 wait on CI.
