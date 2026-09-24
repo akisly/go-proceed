@@ -177,6 +177,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-146](#bl-146) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 | [BL-147](#bl-147) | P3 | open | `external_access_grants` has no row in `technical/data-access-surface.csv` |
 | [BL-148](#bl-148) | P3 | scheduled → DEV-053 | A grant or assignment whose `validUntil` does not come after its start answers 500, not 422 |
+| [BL-149](#bl-149) | P2 | open | `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers |
+| [BL-150](#bl-150) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1745,7 +1747,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-046 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; `public, pg_temp` is the pattern PostgreSQL's own documentation shows, so those eleven are the lower risk. Ranked by DEV-046.
+- **Why:** DEV-046 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; those eleven are the lower risk because `pg_temp` is searched last there (PostgreSQL's documentation shows a trusted schema before `pg_temp`; whether `public` is trusted depends on who holds CREATE on it — `0009` revokes it from PUBLIC only, and Supabase's direct grants to `anon`, `authenticated` and `service_role` are unchecked). `public.drain_outbox` (`0005`, `search_path = public`) is outside the query's `app` scope; only a superuser executes it since `0036`. Ranked by DEV-046.
 - **Evidence:** on the local database at `0098`, 2026-09-24: `select p.oid::regprocedure, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.prosecdef and p.proconfig is distinct from array['search_path=""']`. [DEV-046](tasks/DEV-046-access-helpers-search-path.md) row 5.
 - **Depends on:** a body read per function (`gp-architect`, `gp-security`); BL-106 and BL-110 are the same class.
 - **Deadline:** none recorded.
@@ -1777,5 +1779,25 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** DEV-050's `gp-architect`. `project_access.grant` and `project_responsibilities.assign` accepted any datetime as `validUntil`; the insert then hit the tables' CHECK `valid_until > valid_from` (a grant starts at `now()`, an assignment at `validFrom` or `now()`), raised 23514, which no route maps, and answered 500 `INTERNAL_ERROR`. Observed on the local database by DEV-053's failing test (three 500s); a grant that would write nothing answered 201 instead. Ranked by DEV-050.
 - **Evidence:** `supabase/migrations/0010_workspace_access_module.sql` (the two CHECKs); `packages/contracts/src/project-access.ts` (the two request schemas); [DEV-053](tasks/DEV-053-window-ends-after-start.md) row 1.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-149"></a>
+### BL-149 — P2 — `app.current_actor()` casts to an unqualified `uuid`, which a session's temporary schema can shadow inside the definer helpers
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-046's late `gp-reviewer` (R1-01) and `gp-security` (S1-03) reviews, 2026-09-24. `app.current_actor()` (`0003`) is `nullif(current_setting(…), '')::uuid` with no `SET` clause, so it is inlined and parsed under its caller's path. Inside the three workspace-access definers that path is empty since `0098` (it was `public` before), and PostgreSQL still searches the session's temporary schema first for type names. A session with arbitrary SQL as `goproceed_app` (PUBLIC holds TEMP on the database; no migration revokes it) can create `pg_temp.uuid` — a table, which makes the helpers fail closed, or a domain whose CHECK calls a `pg_temp` function, which the reviewer reads as running with the helper owner's rights. Pre-existing; `0098` neither causes nor fixes it. `app.current_actor()::text` (`0007`) is the same class.
+- **Evidence:** `supabase/migrations/0003_roles_and_grants.sql` (`app.current_actor`); `0011` (the helpers); PostgreSQL 17 «search_path»; [DEV-046](tasks/DEV-046-access-helpers-search-path.md) findings.
+- **Depends on:** a migration that rewrites `app.current_actor()` with `::pg_catalog.uuid` (keeping it inlinable), and a decision on revoking TEMP from PUBLIC (`gp-architect`, `gp-security`).
+- **Deadline:** before the product runs any SQL it did not write on the application connection.
+
+<a id="bl-150"></a>
+### BL-150 — P3 — Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-047's late `gp-reviewer` (R1-02), 2026-09-24. DEV-047 checks the path ids of the project tree in `commandRoute` and `queryRoute`; routes under `workspaces/[workspaceId]`, `grants/[grantId]`, `parties/[partyId]`, `contracts/[contractId]`, `import-batches/[batchId]`, `assignments/[assignmentId]`, `stages/[stageId]` and `statutory-act-versions/[actVersionId]` only check `if (!id)` and pass the value to a `uuid` comparison, so PostgreSQL's 22P02 becomes 500 `INTERNAL_ERROR`; only `invitations/[invitationId]/revoke` checks the form. Not every param is a UUID (`contracts/[contractId]/versions/[versionNo]`), so each route should declare its ids through `pathIds`, and the walk should cover all of `app/v1`. Separately, the dry-run compares the version's `project_id` with the path's as strings, so an upper-case project id is 404 there. Ranked by DEV-047.
+- **Evidence:** the route files named above; `apps/app/tests/project-path-ids.test.ts` (the walk's root); [DEV-047](tasks/DEV-047-project-path-ids.md) findings.
 - **Depends on:** none.
 - **Deadline:** none recorded.

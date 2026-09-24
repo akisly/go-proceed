@@ -520,4 +520,14 @@ describe("the workspace-access helpers pin an empty search_path (DEV-046)", () =
       [["app.active_member_id(uuid)", "app.has_project_capability(uuid,uuid,text[])", "app.project_has_grants(uuid,uuid)"]]);
     expect(r.rows.every((row) => !row.anon && !row.authenticated)).toBe(true);
   });
+
+  // DEV-046 late review, gp-security S1-02: the roles whose policies call them keep EXECUTE.
+  it("goproceed_app and goproceed_service can execute them", async () => {
+    const r = await admin.query<{ fn: string; app: boolean; service: boolean }>(
+      `select f as fn, has_function_privilege('goproceed_app', f, 'EXECUTE') as app,
+              has_function_privilege('goproceed_service', f, 'EXECUTE') as service
+         from unnest($1::text[]) as f order by 1`,
+      [["app.active_member_id(uuid)", "app.has_project_capability(uuid,uuid,text[])", "app.project_has_grants(uuid,uuid)"]]);
+    expect(r.rows.every((row) => row.app && row.service)).toBe(true);
+  });
 });

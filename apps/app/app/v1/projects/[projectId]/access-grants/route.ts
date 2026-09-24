@@ -60,13 +60,10 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
           where workspace_id=$1 and project_id=$2 and member_id=$3 and capability <> 'project.view'
             and revoked_at is null and (valid_until is null or valid_until > now())`,
         [workspaceId, projectId, a.body.memberId]);
-      const heldActions = new Set(actions.rows.map((r) => r.capability));
-      const actionEnds = [
-        ...actions.rows.map((r) => r.until),
-        ...[...caps].filter((c) => c !== "project.view" && !heldActions.has(c)).map(() => requestedUntil),
-      ];
       const later = (x: Date | null, y: Date | null) => (x === null || y === null ? null : x > y ? x : y);
-      const required: Date | null | undefined = actionEnds.length === 0 ? undefined : actionEnds.reduce(later);
+      const endOf = (xs: (Date | null)[]): Date | null | undefined => (xs.length === 0 ? undefined : xs.reduce(later));
+      // The held actions' window; the ones this call inserts join it below.
+      const required = endOf(actions.rows.map((r) => r.until));
       const ends = (until: Date | null, need: Date | null) => until === null || (need !== null && until >= need);
 
       // A project.view grant alone may not end before the actions it guards.
@@ -79,14 +76,16 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
           }));
       }
 
-      const granted: { capability: string; grantId: string }[] = [];
-      const insert = async (cap: string, until: Date | null) => {
+      const granted: GrantProjectAccessResponse["granted"] = [];
+      // Review R1-03: the request's own string is written for an action, not a
+      // millisecond Date, so an action keeps the precision it was sent with.
+      const insert = async (cap: string, until: Date | string | null) => {
         const r = await tx.query(
           `insert into public.project_access_grants
              (workspace_id, project_id, member_id, capability, granted_by, valid_until)
            values ($1,$2,$3,$4,$5,$6) returning id`,
           [workspaceId, projectId, a.body.memberId, cap, a.userId, until]);
-        granted.push({ capability: cap, grantId: r.rows[0].id });
+        granted.push({ capability: cap, grantId: r.rows[0].id, validUntil: until instanceof Date ? until.toISOString() : until });
       };
       for (const cap of caps) {
         if (cap === "project.view") continue;
@@ -96,24 +95,35 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
               and revoked_at is null`,
           [workspaceId, projectId, a.body.memberId, cap]);
         if (dup.rows.length > 0) continue; // idempotent per-capability (unique index guards races)
-        await insert(cap, requestedUntil);
+        await insert(cap, a.body.validUntil ?? null);
       }
+      // gp-security S1-02: only the actions actually inserted widen the view. A
+      // requested action skipped as a held duplicate (BL-146) does not.
+      const insertedActions = granted.length > 0;
 
-      // project.view: kept when a live one already ends no earlier than both the
-      // request and the actions; otherwise the unrevoked one (lapsed, not yet
-      // valid, or too short) is revoked and a covering one inserted. Never
+      // project.view: needed when the member holds or is now granted an
+      // unexpired action, or a view is asked for. Kept when a live one already
+      // ends no earlier than that need; otherwise the unrevoked one (lapsed, not
+      // yet valid, or too short) is revoked and a covering one inserted. Never
       // shortened. The revoke is the same column write project_access.revoke
       // makes (0096), under the same member lock.
-      const need = required === undefined ? requestedUntil : later(requestedUntil, required);
-      const view = await tx.query<{ id: string; live: boolean; until: Date | null }>(
-        `select id, valid_from <= now() and (valid_until is null or valid_until > now()) as live, valid_until as until
+      const viewRequested = a.body.capabilities.includes("project.view");
+      const need = endOf([
+        ...(required === undefined ? [] : [required]),
+        ...(viewRequested || insertedActions ? [requestedUntil] : []),
+      ]);
+      const view = await tx.query<{ id: string; live: boolean; starts: Date; until: Date | null }>(
+        `select id, valid_from <= now() and (valid_until is null or valid_until > now()) as live,
+                valid_from as starts, valid_until as until
            from public.project_access_grants
           where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='project.view' and revoked_at is null
             for update`,
         [workspaceId, projectId, a.body.memberId]);
       const current = view.rows[0];
       const replacedGrantIds: string[] = [];
-      if (!current || !current.live || !ends(current.until, need)) {
+      let replaced: { starts: Date; until: Date | null } | undefined;
+      // Nothing to cover and no view asked for: the view is left as it is.
+      if (need !== undefined && (!current || !current.live || !ends(current.until, need))) {
         if (current) {
           const r = await tx.query(
             `update public.project_access_grants set revoked_at = now(), version = version + 1
@@ -126,15 +136,33 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
               }));
           }
           replacedGrantIds.push(current.id);
+          replaced = { starts: current.starts, until: current.until };
         }
         // A longer current view keeps the longer end: `need` never shortens it.
-        await insert("project.view", current?.live ? later(current.until, need) : need);
+        // Review R1-01: a view not yet valid — one a concurrent grant committed
+        // after this transaction's now() — counts too; for a lapsed one `need`
+        // (null or after now()) is always the later.
+        const viewUntil = current ? later(current.until, need) : need;
+        // Review R2-01: when the end is the request's own, write the request's
+        // string, as the action was written, so the view never ends a fraction
+        // of a millisecond before it.
+        await insert("project.view", viewUntil !== null && viewUntil === requestedUntil ? a.body.validUntil! : viewUntil);
       }
       await recordAudit(tx, ctx, {
         action: "project_access.granted", object_type: "project",
         object_id: projectId, details: {
           memberId: a.body.memberId, capabilities: [...caps],
-          ...(replacedGrantIds.length > 0 ? { replacedGrantIds } : {}),
+          // gp-security S1-03: what was written, the window asked for, and a replaced view's ends.
+          grantIds: granted.map((g) => g.grantId), validUntil: a.body.validUntil ?? null,
+          ...(replacedGrantIds.length > 0 ? {
+            replacedGrantIds,
+            view: {
+              grantId: granted.find((g) => g.capability === "project.view")!.grantId,
+              // gp-security S2-02: a view that had not started yet is visible here.
+              replacedValidFrom: replaced!.starts.toISOString(),
+              replacedValidUntil: replaced!.until?.toISOString() ?? null,
+            },
+          } : {}),
         },
       }, { organizationId: workspaceId });
       return { status: 201, body: { granted } };

@@ -148,7 +148,7 @@ problem codes, HTTP status, retryability, user action, and log policy. Its
 case may send the other value, and the response's own `retryable` is what a
 client acts on for that response. A scan of `apps/app` on 2026-09-24 (DEV-047,
 BL-141) found five codes sent against their default: `VERSION_CONFLICT` as
-`false` from 16 route files, among them the revoke and end commands, where
+`false` from 16 files (14 route files and two shared evidence modules, counted at `31eaf36`; DEV-048 added a fifteenth route), among them the revoke and end commands, where
 repeating the identical request cannot succeed (DEV-021, DEV-043, DEV-044);
 `ASSIGNMENT_CONFLICT`, `IMPORT_JOB_CONFLICT` and `UPLOAD_GRANT_EXPIRED` as
 `false` from one file each; and `UPLOAD_INTENT_CONFLICT` as `true` from the upload

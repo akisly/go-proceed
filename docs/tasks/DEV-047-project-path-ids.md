@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** every route under `/v1/projects/{projectId}` answers a malformed project id — and the two nested routes a malformed message or contract-version id — with 404 `RESOURCE_NOT_FOUND`, before the Idempotency-Key, the body and any database call; before, nine answered 500 `INTERNAL_ERROR` and ten 422 (the body was parsed first). `docs/README.md` says what the error catalog's `retryable` means when a route sends the other value.
-- **State:** implementing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a bounded bug with an understood cause, widened by the owner to every project route: failing test → change in the shared route wrappers → `gp-reviewer` → `gp-qa`. `gp-architect` sized it in the cluster design.
@@ -43,16 +43,25 @@
 | 3 | coordinator | The check lives in the wrappers, keyed by parameter name: `projectId` always, nested ids by the route's `pathIds` option. A malformed `messageId` was already 404 at the baseline only because an unknown project answers first | `apps/app/src/lib/command.ts` | green |
 | 4 | coordinator | Green: `project-path-ids.test.ts`, `command.test.ts`, `request-hash.test.ts` — 40 passed; `tsc --noEmit -p apps/app` exit 0 | `scratchpad/dev047-green.txt` | retryable |
 | 5 | coordinator | Scan of 226 `problem(… retryable …)` emits in `apps/app`: five codes against their catalog default (`VERSION_CONFLICT` false in 16 files; `ASSIGNMENT_CONFLICT`, `IMPORT_JOB_CONFLICT`, `UPLOAD_GRANT_EXPIRED` false; `UPLOAD_INTENT_CONFLICT` true). The first draft's «stricter, never looser» was false for `UPLOAD_INTENT_CONFLICT`, so the sentence states the default rule and lists them. `INTERNAL_ERROR` is off-catalog by design (`apps/app/src/lib/http.ts`) | `scratchpad/dev047-retryable-scan.txt` | review |
+| 6 | coordinator | The commit (`31eaf36`) was made before its review stage ran; `gp-reviewer` ran late on `git show 31eaf363`, 2026-09-24 | `scratchpad/dev047.diff` | review |
+| 7 | gp-reviewer | R1 PASS: R1-01 minor (the walk's `messageId` case passed on the handler's project lookup, not the wrapper), R1-02 minor (routes outside the tree still 500), R1-03 nit (the count in `docs/README.md`) | reviewer report, 2026-09-24 | fixes |
+| 8 | coordinator | Fixes: the walk mocks the transaction helpers to throw and asserts each param's own detail, and fails on an unregistered segment (23 passed; with the retry route's `pathIds` removed, the `messageId` case fails with 500); BL-150 filed; the README count. A non-canonical id spelling PostgreSQL accepts (32 hex digits, braces) that used to resolve is now 404; those spellings were already separate idempotency targets. The cited `scratchpad/dev047-*.txt` files are not in this session's scratchpad (the earlier session's folder is empty), so the baseline red run cannot be re-inspected; the green half is re-evidenced by the cluster's final run at a later revision; the 226-emit scan file is lost with them | `scratchpad/dev047-r1-mutation.txt` | gp-qa |
+| 9 | gp-qa | Late-review rework verified; the lost evidence rebuilt on read-only copies of old commits: the walk against `58a592e` 21 failed, 2 passed (500 and 422); the retryable scan at `31eaf36` reproduced (226 emits, the same five codes; `scratchpad/qa-retry-scan.cjs`) | QA report, 2026-09-24 | commit |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1-01 | minor | `project-path-ids.test.ts` | the `messageId` case passed through the handler's database lookup, so a missing `pathIds` would stay green in CI | coordinator | fixed: transaction helpers mocked to throw; per-param detail asserted; unknown segments fail; mutation red (`dev047-r1-mutation.txt`) |
+| R1-02 | minor | routes outside the project tree | a malformed id is still 500 there, and nothing tracked it | coordinator | filed BL-150 (with the dry-run's string comparison of `project_id`) |
+| R1-03 | nit | `docs/README.md` | «16 route files» | coordinator | fixed: 16 files, 14 routes and two shared modules at `31eaf36` |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: none (first review, made late; fixes limited to the stated ones).
 
 ## What is not true after this task
 
+- A malformed id on a route outside `/v1/projects/{projectId}` still answers 500 (BL-150).
+- The retryable scan saved as criterion 5's evidence is lost with the earlier session's scratchpad; `docs/README.md` keeps its result.
 - Routes outside the project tree with `*Id` path parameters were not swept; any of them may still answer a malformed id with 500.
 - No test enforces the catalog's `retryable` against the routes; the scan is a dated observation.
 - `apps/app` typechecks only the tests `src` or `app` imports (BL-069), so `tests/project-path-ids.test.ts` is compiled by vitest, not by `tsc`.
@@ -61,6 +70,11 @@ Rework count and hypothesis changes: none yet.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1 | yes | `506ce05` + the late-review rework | `project-path-ids.test.ts`: 23 passed; red rebuilt by `gp-qa` at `58a592e`: 21 failed | PASS (`gp-qa`) | — |
+| 2 | yes | same | `command.test.ts`: 16 passed | PASS | — |
+| 3 | yes | same | `request-hash.test.ts`: 5 passed | PASS | — |
+| 4 | yes | same | the cluster's final run and 24 further route suites run by `gp-qa` | PASS | CI blocked |
+| 5 | yes | same | `docs/README.md`; the scan reproduced by `gp-qa` | PASS | the original scan file is lost |
 
 ## Sources
 
@@ -68,9 +82,9 @@ Rework count and hypothesis changes: none yet.
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: `command.ts`, `request-hash.ts`, the two nested routes, the walk and `command.test.ts`, `docs/README.md`, BL-141, BL-150, this record.
+- Review independence: `gp-reviewer` and `gp-qa` ran late, as independent native subagents, after the commit; rows 6–9.
+- Verified scope: criteria 1–5.
+- Remaining risks / blocked requirements: «What is not true after this task» (BL-150).
+- Next bounded action and owner: merging is the owner's.
+- Final state and reason: verifying until the owner's merge.

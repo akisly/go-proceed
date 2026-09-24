@@ -17,7 +17,9 @@
 -- the session's temporary schema still comes first for relation and type names
 -- (never for functions or operators; PostgreSQL 17, «search_path»), which is why
 -- the bodies' qualified table names — not the path — are what keep a temporary
--- table from masking `public.memberships` or `public.project_access_grants`. It copies no body, so it keeps each function's owner, its EXECUTE
+-- table from masking `public.memberships` or `public.project_access_grants`. A type name is
+-- the exception: the inlined `app.current_actor()` casts to an unqualified
+-- `uuid`, which a session's temporary schema can shadow (pre-existing; BL-149). It copies no body, so it keeps each function's owner, its EXECUTE
 -- grants and its volatility; a definer function with a SET clause was never
 -- inlined, so plans do not change. The assertion below fails the migration if
 -- any of the three is not a definer with exactly the empty path afterwards, or
@@ -36,7 +38,7 @@ alter function app.active_member_id(uuid) set search_path = '';
 alter function app.has_project_capability(uuid, uuid, text[]) set search_path = '';
 alter function app.project_has_grants(uuid, uuid) set search_path = '';
 
--- 0009 already strips EXECUTE from public; restated for the two Supabase roles.
+-- 0011 already revokes EXECUTE from public for these three; restated for the two Supabase roles.
 revoke execute on function app.active_member_id(uuid) from anon, authenticated;
 revoke execute on function app.has_project_capability(uuid, uuid, text[]) from anon, authenticated;
 revoke execute on function app.project_has_grants(uuid, uuid) from anon, authenticated;

@@ -15,13 +15,31 @@ import { join, relative, sep } from "node:path";
  * and any database call, so this file needs no database once it passes, and a
  * route added under the tree later is swept here without being listed.
  *
- * THIS FILE WRITES NOTHING. Before the fix the routes reached the database
- * with the malformed id and failed there.
+ * THIS FILE WRITES NOTHING AND REACHES NO DATABASE: the transaction helpers are
+ * mocked to throw, so a case passes only on the wrapper's own 404 and its
+ * param's detail (review R1-01). Before the fix the routes reached the
+ * database with the malformed id and failed there.
  */
 
 vi.mock("../src/lib/auth", () => ({
   requireUser: async () => ({ userId: "de470000-0000-4000-8000-0000000000a1" }),
 }));
+
+// DEV-047 review R1-01: a case must not pass because a handler reached the
+// database and found nothing there. Every transaction helper throws, so only
+// the wrapper's check can answer, and each param has its own detail.
+vi.mock("@goproceed/database", async (importOriginal) => {
+  const real = await importOriginal<Record<string, unknown>>();
+  const refuse = () => { throw new Error("a malformed path id reached the database"); };
+  return { ...real, withTenantTx: refuse, withServiceTx: refuse, withExternalTx: refuse };
+});
+
+/** The detail each declared path id answers with; a new dynamic segment must be registered here. */
+const DETAIL: Record<string, string> = {
+  projectId: "Проєкт не знайдено.",
+  versionId: "Версію договору не знайдено.",
+  messageId: "Повідомлення не знайдено.",
+};
 
 const ROOT = join(__dirname, "..", "app", "v1", "projects", "[projectId]");
 const VALID = "de470000-0000-4000-8000-000000000001";
@@ -56,6 +74,11 @@ describe("every /v1/projects/{projectId} route refuses a malformed path id with 
     expect(files.length).toBeGreaterThanOrEqual(17);
   });
 
+  it("every dynamic segment in the tree has an expected detail", () => {
+    const unknown = [...new Set(files.flatMap(paramNames))].filter((n) => !(n in DETAIL));
+    expect(unknown).toEqual([]);
+  });
+
   for (const file of files) {
     const rel = relative(ROOT, file);
     const names = paramNames(file);
@@ -67,8 +90,9 @@ describe("every /v1/projects/{projectId} route refuses a malformed path id with 
             const params = Object.fromEntries(names.map((n) => [n, n === target ? bad : VALID]));
             const res = await call(file, method, params);
             const body = await res.json();
-            expect(`${res.status} ${body.code}`, `${method} ${rel} with ${target}=${JSON.stringify(bad)}`)
-              .toBe("404 RESOURCE_NOT_FOUND");
+            const where = `${method} ${rel} with ${target}=${JSON.stringify(bad)}`;
+            expect(`${res.status} ${body.code}`, where).toBe("404 RESOURCE_NOT_FOUND");
+            expect(body.detail, where).toBe(DETAIL[target]);
             expect(body.retryable).toBe(false);
           }
         }, 30_000);

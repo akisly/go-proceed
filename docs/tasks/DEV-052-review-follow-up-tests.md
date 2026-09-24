@@ -45,6 +45,7 @@
 | 6 | coordinator | The cluster's final run on `6fae61c0` + this task, one suite at a time, none skipped: `packages/contracts` 153; `packages/testing` workspace-access-rls 26, rls-coverage 22, m2-rls 18, m2-policy-gaps 4, m1-rules-rls 17, m3-closure-rls 28, m2-occurrences-rls 13, m2-binding-hardening 36; `apps/app` command 16, project-path-ids 22, project-access-grant 10, project-access-revoke 20, project-access-dates 6, responsibility-end 8, idempotency-authorization 13, telegram-evidence 22, project-communications 9, telegram-delivery 10, upload-intents-create 23, upload-intents-get 9, upload-intents-finalize 36, evidence-purge 24, vertical-m2a 10, m6-blocked-value 23. `pnpm turbo run typecheck` 10/10; `validate:canonical-docs` OK | `scratchpad/cluster-final-run.txt` | gp-qa |
 | 7 | gp-qa | Criteria 1–3 PASS (responsibility-end 8 twice, contract 10, the four SQL checks with negative controls); criterion 4 passes on QA's reruns once `request-hash.test.ts` (DEV-047 criterion 3) is in the run; it was added, 5 passed | QA report, 2026-09-24; `scratchpad/cluster-final-run.txt` | commit |
 | 8 | coordinator | The late reviews of DEV-046, DEV-047 and DEV-048 (committed without them) found fixes to make; the cluster's final run is repeated after them, so criterion 4 is re-evidenced there | this record | final run after the review fixes |
+| 9 | gp-qa | Criterion 4 PASS on the repeated final run | QA report, 2026-09-24 | commit |
 
 ## Findings and rework
 
@@ -67,7 +68,7 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 | 1 | yes | `6fae61c0` + this task | `npx vitest run tests/responsibility-end.int.test.ts` in `apps/app`: 8 passed; red with `toLowerCase` removed | PASS (`gp-qa`'s run) | the red run is the coordinator's |
 | 2 | yes | same | `npx vitest run src/project-access.test.ts` in `packages/contracts`: 10 passed; red with `.max` removed | PASS (`gp-qa`'s run) | the red run is the coordinator's |
 | 3 | yes | same | the four SQL checks on the local database at `0099` | PASS (`gp-qa`'s run); `m1-schema.test.ts` NOT RUN | the file resets the database; its run is owed to CI |
-| 4 | yes | pending | the cluster's final run after the late reviews' fixes | pending | see row 8 |
+| 4 | yes | `506ce05` + the late-review rework | `scratchpad/cluster-final-run-2.txt`: every suite named in DEV-046..DEV-053's criteria, one at a time, none skipped; `pnpm turbo run typecheck` 10/10; `validate:canonical-docs` OK | PASS (`gp-qa` checked coverage and re-ran four) | CI blocked; `m1-schema` NOT RUN (criterion 3) |
 
 ## Sources
 
@@ -75,9 +76,9 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: the three test files, BL-144, this record; the cluster's final run.
+- Review independence: `gp-reviewer` and `gp-qa` as independent native subagents.
+- Verified scope: criteria 1–4; `m1-schema.test.ts` NOT RUN.
+- Remaining risks / blocked requirements: `m1-schema.test.ts`'s run is owed to the first CI run.
+- Next bounded action and owner: merging is the owner's.
+- Final state and reason: verifying until the owner's merge.

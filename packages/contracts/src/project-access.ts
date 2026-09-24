@@ -78,8 +78,11 @@ export const grantProjectAccessRequest = z.object({
 });
 export type GrantProjectAccessRequest = z.infer<typeof grantProjectAccessRequest>;
 
+// DEV-048 late review (gp-security S1-01, owner 2026-09-24 «Раскрывать»): each
+// granted row names the end it was written with (null: none), so an
+// administrator sees when a covering project.view came out longer than asked.
 export interface GrantProjectAccessResponse {
-  granted: { capability: string; grantId: string }[];
+  granted: { capability: string; grantId: string; validUntil: string | null }[];
 }
 
 // BL-021 / DEV-043 / ADR-014 decision 1: `project_access.revoke` is addressed

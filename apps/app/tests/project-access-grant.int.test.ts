@@ -145,7 +145,12 @@ describe("project_access.grant keeps project.view covering the member's action c
     const audit = await q<{ details: Record<string, unknown> }>(
       "select details from public.audit_events where organization_id = $1 and object_id = $2 and action = 'project_access.granted'",
       [WS, projectId]);
-    expect(audit[0]!.details).toMatchObject({ replacedGrantIds: [old] });
+    // gp-security S1-03: the event says what was written and what the view ended at before.
+    const viewId = granted.find((g) => g.capability === "project.view")!.grantId;
+    expect(audit[0]!.details).toMatchObject({
+      replacedGrantIds: [old], grantIds: expect.arrayContaining(granted.map((g) => g.grantId)), validUntil: null,
+      view: { grantId: viewId, replacedValidUntil: expect.stringMatching(/Z$/) },
+    });
   });
 
   it("a view that ends tomorrow is extended to a dated action's end", async () => {
@@ -193,9 +198,11 @@ describe("project_access.grant keeps project.view covering the member's action c
   it("a lapsed action does not hold the view open: a short view alone is granted", async () => {
     const projectId = await project();
     await give(projectId, members.member!, "contracts.edit", "now() - interval '1 day'", "now() - interval '2 days'");
-    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["project.view"], validUntil: inDays(1) });
+    const until = inDays(1);
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["project.view"], validUntil: until });
     expect(res.status).toBe(201);
-    expect(await liveView(projectId)).toHaveLength(1);
+    // Review R1-02: the view is the one asked for, not widened by the lapsed action.
+    expect((await liveView(projectId)).map((r) => r.until?.toISOString())).toEqual([until]);
   });
 
   it("a view that already covers is never shortened by a shorter request", async () => {
@@ -205,6 +212,78 @@ describe("project_access.grant keeps project.view covering the member's action c
     expect(res.status).toBe(201);
     expect((await res.json()).granted).toEqual([]);
     expect((await liveView(projectId)).map((r) => [r.id, r.until])).toEqual([[view, null]]);
+  });
+});
+
+describe("the late review of DEV-048 (2026-09-24)", () => {
+  it("R1-01: a view not yet valid — as one a concurrent grant commits — is replaced by a live one, never a shorter one", async () => {
+    const projectId = await project();
+    const future = await give(projectId, members.member!, "project.view", "null", "now() + interval '1 minute'");
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["contracts.edit"], validUntil: inDays(1) });
+    expect(res.status).toBe(201);
+    // Review R2-02: the future view was replaced, and its replacement is live and undated.
+    expect((await rows(projectId, "project.view")).find((r) => r.id === future)).toMatchObject({ revoked: true });
+    const live = await q<{ id: string; until: Date | null }>(
+      `select id, valid_until as until from public.project_access_grants
+        where project_id = $1 and member_id = $2 and capability = 'project.view' and revoked_at is null and valid_from <= now()`,
+      [projectId, members.member]);
+    expect(live).toHaveLength(1);
+    expect(live[0]).toMatchObject({ until: null });
+    const audit = await q<{ details: Record<string, unknown> }>(
+      "select details from public.audit_events where organization_id = $1 and object_id = $2 and action = 'project_access.granted' order by occurred_at desc limit 1",
+      [WS, projectId]);
+    // gp-security S2-02: a view that had not started is visible in the event.
+    expect(audit[0]!.details).toMatchObject({ view: { replacedValidFrom: expect.stringMatching(/Z$/), replacedValidUntil: null } });
+  });
+
+  it("gp-security S1-02: a requested action skipped as a lapsed duplicate does not widen the view", async () => {
+    const projectId = await project();
+    await give(projectId, members.member!, "contracts.edit", "now() - interval '1 day'", "now() - interval '2 days'");
+    const view = await give(projectId, members.member!, "project.view", "now() + interval '1 day'");
+    const before = await liveView(projectId);
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["contracts.edit"] });
+    expect(res.status).toBe(201);
+    expect((await res.json()).granted).toEqual([]);
+    expect((await liveView(projectId)).map((r) => [r.id, r.until?.getTime()])).toEqual([[view, before[0]!.until?.getTime()]]);
+  });
+
+  it("review R2-03: a held live action with a lapsed view gets a covering view from the next grant, even one that inserts nothing", async () => {
+    const projectId = await project();
+    await give(projectId, members.member!, "contracts.edit");
+    const lapsed = await give(projectId, members.member!, "project.view", "now() - interval '1 day'", "now() - interval '2 days'");
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["contracts.edit"] });
+    expect(res.status).toBe(201);
+    expect((await res.json()).granted.map((g: { capability: string }) => g.capability)).toEqual(["project.view"]);
+    expect(await liveView(projectId)).toEqual([expect.objectContaining({ until: null })]);
+    expect((await rows(projectId, "project.view")).find((r) => r.id === lapsed)).toMatchObject({ revoked: true });
+  });
+
+  it("review R2-01: a sub-millisecond end is written to the view as sent, so the view never ends before the action", async () => {
+    const projectId = await project();
+    const until = new Date(Date.now() + 86_400_000).toISOString().replace(/\.(\d{3})Z$/, ".$1500Z");
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["contracts.edit"], validUntil: until });
+    expect(res.status).toBe(201);
+    const covered = await q<{ ok: boolean }>(
+      `select v.valid_until >= a.valid_until as ok
+         from public.project_access_grants v join public.project_access_grants a
+           on a.project_id = v.project_id and a.member_id = v.member_id
+        where v.project_id = $1 and v.member_id = $2 and v.capability = 'project.view' and v.revoked_at is null
+          and a.capability = 'contracts.edit' and a.revoked_at is null`,
+      [projectId, members.member]);
+    expect(covered).toEqual([{ ok: true }]);
+  });
+
+  it("gp-security S1-01 (owner 2026-09-24 «Раскрывать»): each granted row names the end it was written with", async () => {
+    const projectId = await project();
+    await give(projectId, members.member!, "contracts.edit");
+    await give(projectId, members.member!, "project.view", "now() + interval '1 day'");
+    const until = inDays(1);
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["evidence.record"], validUntil: until });
+    expect(res.status).toBe(201);
+    const granted = (await res.json()).granted as { capability: string; validUntil: string | null }[];
+    expect(granted.find((g) => g.capability === "evidence.record")).toMatchObject({ validUntil: until });
+    // The view came out undated because of the held undated action — and the response says so.
+    expect(granted.find((g) => g.capability === "project.view")).toMatchObject({ validUntil: null });
   });
 });
 
