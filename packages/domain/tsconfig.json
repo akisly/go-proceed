@@ -1,1 +1,7 @@
-{ "extends": "../../tsconfig.base.json", "include": ["src"] }
+{
+  "extends": "../../tsconfig.base.json",
+  // Domain code uses node:crypto and Buffer (invitations.ts, import/xlsx.ts).
+  // TypeScript 6 includes no @types by default (DEV-067).
+  "compilerOptions": { "types": ["node"] },
+  "include": ["src"]
+}

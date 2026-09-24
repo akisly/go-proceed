@@ -98,14 +98,25 @@ describe("PilotForm", () => {
         signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
       }));
     vi.stubGlobal("fetch", fetchMock);
+    // The form's 15 s `AbortSignal.timeout` is replaced by a controller the test
+    // aborts: under Vitest 5's jsdom environment the signal and a hand-made
+    // `new Event("abort")` come from different realms, and dispatching one on
+    // the other throws (DEV-069). `abort()` fires the same listener.
+    const timeout = new AbortController();
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockReturnValue(timeout.signal);
     const user = userEvent.setup();
     render(<PilotForm />);
     await fill(user);
     await user.click(screen.getByRole("button", { name: f.submit }));
 
-    const init = fetchMock.mock.calls[0]![1] as RequestInit;
-    expect(init.signal).toBeInstanceOf(AbortSignal);
-    (init.signal as AbortSignal).dispatchEvent(new Event("abort"));
+    try {
+      const init = fetchMock.mock.calls[0]![1] as RequestInit;
+      expect(timeoutSpy).toHaveBeenCalledWith(15_000);
+      expect(init.signal).toBe(timeout.signal);
+      timeout.abort();
+    } finally {
+      timeoutSpy.mockRestore();
+    }
 
     await waitFor(() => expect(screen.getByRole("form")).toHaveAttribute("data-form-state", "failed"));
     expect(writeText).toHaveBeenCalled();

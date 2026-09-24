@@ -52,6 +52,7 @@
 | 7 | `gp-qa` | Criteria 1, 2, 3 and 5 PASS on the mocked build; the coordinator's scenario output was reproduced. Every R1 fix is in place. Criterion 4 FAIL on D1 (backlog number taken on main). | agent report; `scratchpad/qa-run/scenarios.txt` | rebase, renumber |
 | 8 | coordinator | Rebased onto `9d050cca`; BL-157 renumbered to BL-158 in `field.mjs`, the backlog, the index and this record; `pnpm validate:canonical-docs` OK; `node --check` OK. | this record | `gp-qa` re-check of criteria 4 and 5 |
 | 9 | `gp-qa` round 2 | Criteria 1–5 PASS on `9d050cca` plus the staged change. `field.mjs` differs from the round-1 revision only by the BL number. No new defects. The CI-only items stay NOT RUN and do not block. | agent report, 2026-09-24 | commit, PR; record the first CI run |
+| 10 | coordinator | origin/main `648be7ad` (#134, #136) merged into the branch. The only conflict was the `docs/tasks/README.md` index. main's rows were kept and DEV-063 was placed after DEV-060. `field.mjs` was untouched on main, and BL-158 is still free there. `pnpm validate:canonical-docs` OK, `node --check` OK. | merge commit | owner merges #137 |
 
 ## Findings and rework
 
