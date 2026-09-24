@@ -143,7 +143,17 @@ authority.
 
 One catalog is a named exception, so that this rule and precedence level 3 do
 not contradict each other: `technical/error-catalog.csv` is v0.1 authority for
-problem codes, HTTP status, retryability, user action, and log policy. It earns
+problem codes, HTTP status, retryability, user action, and log policy. Its
+`retryable` is the code's default; a route that knows more about one failure
+case may send the other value, and the response's own `retryable` is what a
+client acts on for that response. A scan of `apps/app` on 2026-09-24 (DEV-048,
+BL-141) found five codes sent against their default: `VERSION_CONFLICT` as
+`false` from 16 files (14 route files and two shared evidence modules, counted at `31eaf36`; DEV-049 added a fifteenth route), among them the revoke and end commands, where
+repeating the identical request cannot succeed (DEV-021, DEV-043, DEV-044);
+`ASSIGNMENT_CONFLICT`, `IMPORT_JOB_CONFLICT` and `UPLOAD_GRANT_EXPIRED` as
+`false` from one file each; and `UPLOAD_INTENT_CONFLICT` as `true` from the upload
+finalizer while the bytes have not arrived
+(`apps/app/src/lib/evidence/finalize-upload-intent.ts`). It earns
 the exception by being enforced against running code rather than by being
 detailed — `packages/testing/src/error-catalog-fidelity.test.ts:28-33` reads it
 and fails the build on any emitted code it does not define. The exception is

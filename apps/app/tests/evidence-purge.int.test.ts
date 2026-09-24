@@ -104,7 +104,7 @@ describe("purge worker", () => {
     const intent = await stagedIntent();
     await q(
       `update public.project_access_grants set revoked_at = now()
-        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
+        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record' and revoked_at is null`,
       [fx.workspaceId, fx.memberId]);
     await finalize(intent.uploadIntentId);
     expect((await statusOf(intent.uploadIntentId)).status).toBe("orphaned_for_purge");

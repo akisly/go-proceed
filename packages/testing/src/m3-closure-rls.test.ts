@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor, asService } from "./pg";
+import { adminClient, asActor, asService, bypassingGuards } from "./pg";
 import {
   dropRulesWorkspaces, seedRulesWorld, sqlstate, type RulesFixture,
 } from "./m1-rules-fixture";
@@ -114,7 +114,7 @@ async function withCapabilities<T>(
   try {
     return await fn();
   } finally {
-    await c.query(
+    await bypassingGuards(
       `delete from public.project_access_grants
         where workspace_id = $1 and project_id = $2 and member_id = $3
           and capability = any($4::text[])`,
@@ -127,12 +127,12 @@ async function withoutRead<T>(f: RulesFixture, fn: () => Promise<T>): Promise<T>
   await c.query(
     `update public.project_access_grants set revoked_at = now()
       where workspace_id = $1 and member_id = $2
-        and capability in ('project.view','project.admin','readiness.view')`,
+        and capability in ('project.view','project.admin','readiness.view') and revoked_at is null`,
     [f.workspaceId, f.memberId]);
   try {
     return await fn();
   } finally {
-    await c.query(
+    await bypassingGuards(
       `update public.project_access_grants set revoked_at = null
         where workspace_id = $1 and member_id = $2
           and capability in ('project.view','project.admin','readiness.view')`,

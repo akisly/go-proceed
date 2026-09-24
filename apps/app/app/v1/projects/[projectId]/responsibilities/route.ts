@@ -4,6 +4,7 @@ import { requireActiveMembership, requireProjectCapability } from "../../../../.
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { assignResponsibilityRequest, type AssignResponsibilityResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
+import { refuseEndNotAfterNow } from "../../../../../src/lib/grant-window";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,9 @@ export const POST = commandRoute(assignResponsibilityRequest, async (a) => {
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       },
     }, async () => {
+      // DEV-054 / BL-149: without validFrom the assignment starts at now(); with
+      // it, the schema has already compared the two.
+      if (a.body.validFrom === undefined) await refuseEndNotAfterNow(tx, a.requestId, a.body.validUntil);
       const target = await tx.query(
         `select 1 from public.memberships where organization_id = $1 and id = $2 and status = 'active'`,
         [workspaceId, a.body.memberId]);

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor } from "./pg";
+import { adminClient, asActor, bypassingGuards } from "./pg";
 import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture , dropM2Workspaces } from "./m2-fixture";
 
 // Coverage gaps the engineering review found in 0016's policies. Both are about
@@ -38,10 +38,10 @@ afterAll(async () => {
 async function withOnly<T>(keep: readonly string[], fn: () => Promise<T>): Promise<T> {
   await c.query(
     `update public.project_access_grants set revoked_at = now()
-      where workspace_id = $1 and member_id = $2 and capability <> all($3::text[])`,
+      where workspace_id = $1 and member_id = $2 and capability <> all($3::text[]) and revoked_at is null`,
     [WS, f.memberId, keep]);
   try { return await fn(); } finally {
-    await c.query(
+    await bypassingGuards(
       `update public.project_access_grants set revoked_at = null
         where workspace_id = $1 and member_id = $2`, [WS, f.memberId]);
   }

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
-import { ADMIN_URL, q } from "./helpers/fixtures";
+import { ADMIN_URL, q, qBypassingGuards } from "./helpers/fixtures";
 
 /**
  * DEV-020 / BL-103: a repeated Idempotency-Key replays its stored response
@@ -106,9 +106,12 @@ async function call(
 const createProject = (ws: string, raw: string, key: string) =>
   call("workspaces/[workspaceId]/projects", "POST", { workspaceId: ws }, raw, key);
 
-/** Every live grant of `capabilities` held by U on the project lapses: its validity window moves into the past. */
+/**
+ * Every live grant of `capabilities` held by U on the project lapses: its validity window moves into the past.
+ * A grant's window is frozen by 0099 (DEV-052), so the fixture rewrites it past the guard.
+ */
 async function expireGrants(ws: string, projectId: string, capabilities: string[]): Promise<void> {
-  await q(
+  await qBypassingGuards(
     `update public.project_access_grants
         set valid_from = now() - interval '2 hours', valid_until = now() - interval '1 hour'
       where project_id = $1 and capability = any($4::text[]) and revoked_at is null
@@ -217,7 +220,7 @@ describe("a replay is refused to a caller who lost the authority the command nee
     await q(
       `update public.project_access_grants set revoked_at = now()
         where project_id = $1 and capability = 'project.admin'
-          and member_id = (select id from public.memberships where organization_id = $2 and user_id = $3)`,
+          and member_id = (select id from public.memberships where organization_id = $2 and user_id = $3) and revoked_at is null`,
       [projectId, WS.accessGrant, U]);
     const again = await call("projects/[projectId]/access-grants", "POST", { projectId }, raw, key);
     expect(again.status).toBe(403);

@@ -210,4 +210,4 @@ export const POST = commandRoute(requirementOccurrenceDryRunRequest, async (a) =
     });
   });
   return { status: out.status, body: out.body, expiresAt: out.expiresAt };
-});
+}, { pathIds: { versionId: "Версію договору не знайдено." } });

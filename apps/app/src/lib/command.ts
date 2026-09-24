@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { requireUser } from "./auth";
 import { idempotencyKeyFrom } from "./request-context";
 import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "./http";
-import { commandRequestHash } from "./request-hash";
+import { commandRequestHash, UUID } from "./request-hash";
 import { problem } from "@goproceed/contracts";
 
 export interface CommandArgs<T> {
@@ -43,6 +43,32 @@ export interface HandlerResult {
 type RouteCtx = { params: Promise<Record<string, string>> };
 
 /**
+ * Path parameters that must be UUIDs, each with the 404 detail it answers when
+ * it is not one. `projectId` is always among them; a route adds its own nested
+ * ids (`{ versionId: "Версію договору не знайдено." }`).
+ */
+export interface RouteOptions { pathIds?: Readonly<Record<string, string>> }
+const PROJECT_PATH_ID = { projectId: "Проєкт не знайдено." } as const;
+
+/**
+ * DEV-048 / BL-141: a malformed path id is 404 RESOURCE_NOT_FOUND, answered
+ * before the Idempotency-Key, the body and any database call. Unchecked, the id
+ * reached a `uuid` comparison and PostgreSQL's cast error (22P02) became 500
+ * INTERNAL_ERROR; checked after the body, a malformed id with a bad body was 422.
+ * A malformed id names no resource the caller could see, so it answers exactly as
+ * an unknown one does.
+ */
+function refuseMalformedPathIds(params: Record<string, string>, opts: RouteOptions | undefined, requestId: string): void {
+  for (const [name, detail] of Object.entries({ ...PROJECT_PATH_ID, ...opts?.pathIds })) {
+    const value = params[name];
+    if (value !== undefined && !UUID.test(value)) {
+      throw new HttpProblem(404, problem("RESOURCE_NOT_FOUND", detail,
+        { requestId, retryable: false, userAction: "return_to_list" }));
+    }
+  }
+}
+
+/**
  * Shared command-route wrapper: requestId validation, auth, Idempotency-Key
  * requirement, the idempotency request hash — the path parameters and the raw
  * body together (./request-hash.ts, DEV-022) — JSON + zod
@@ -60,12 +86,15 @@ export function commandRoute<T>(
   // still optional.
   schema: z.ZodType<T, unknown>,
   run: (a: CommandArgs<T>) => Promise<HandlerResult>,
+  opts?: RouteOptions,
 ): (req: Request, ctx: RouteCtx) => Promise<Response> {
   return async (req, ctx) => {
     let requestId = crypto.randomUUID();
     try {
       requestId = requestIdFrom(req);
       const { userId } = await requireUser(requestId, req);
+      const params = ctx?.params ? await ctx.params : {};
+      refuseMalformedPathIds(params, opts, requestId);
       const idempotencyKey = idempotencyKeyFrom(req);
       if (!idempotencyKey) {
         throw new HttpProblem(422, problem("VALIDATION_FAILED",
@@ -75,7 +104,6 @@ export function commandRoute<T>(
           }));
       }
       const raw = await req.text();
-      const params = ctx?.params ? await ctx.params : {};
       const requestHash = commandRequestHash(params, raw);
       let json: unknown;
       try { json = raw === "" ? {} : JSON.parse(raw); }
@@ -105,6 +133,7 @@ export interface QueryArgs {
 }
 export function queryRoute(
   run: (a: QueryArgs) => Promise<HandlerResult>,
+  opts?: RouteOptions,
 ): (req: Request, ctx: RouteCtx) => Promise<Response> {
   return async (req, ctx) => {
     let requestId = crypto.randomUUID();
@@ -112,6 +141,7 @@ export function queryRoute(
       requestId = requestIdFrom(req);
       const { userId } = await requireUser(requestId, req);
       const params = ctx?.params ? await ctx.params : {};
+      refuseMalformedPathIds(params, opts, requestId);
       const out = await run({ req, requestId, userId, params });
       return ok(out.status, out.body, requestId, out.headers ?? {});
     } catch (err) {
