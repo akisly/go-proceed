@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** `project_access.grant` never leaves a member holding an unexpired action capability on a project whose `project.view` ends sooner or has already lapsed. Under the per-member lock it keeps one unrevoked, live `project.view` that ends no earlier than the member's unexpired action capabilities there (including the ones it grants): a lapsed, not-yet-valid or shorter view is revoked and a covering one inserted. It refuses a `project.view` grant on its own that would end before them (422 on `validUntil`), and it never shortens a view. As a side effect, re-granting a lapsed `project.view` works again; before, it was skipped as a duplicate.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** an access rule on an existing `/v1` command, designed by `gp-architect` → failing test → route and invariant → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -102,4 +102,4 @@ Rework count and hypothesis changes: none (first review, made late; fixes limite
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task».
 - Next bounded action and owner: merging is the owner's.
-- Final state and reason: verifying until the owner's merge.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.

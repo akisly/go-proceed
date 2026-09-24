@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour a user sees changes. `app.current_actor()`, `app.current_external_session()` and `app.service_workspace()` — invoker SQL helpers that PostgreSQL inlines into the workspace-access definers, the external-session scope and the service-plane policies — name `pg_catalog.uuid` and `pg_catalog.current_setting`. A temporary object named `uuid` in a session can no longer change what they resolve to under a caller's path.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** functions every policy rests on, in a migration: `gp-architect` → owner ruling → failing test → migration and catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -47,6 +47,7 @@
 | 8 | gp-security | S1 PASS: S1-01 medium, pre-existing (code with the owner's rights through a definer body, e.g. `accept_invitation`, still possible — BL-152), S1-02..S1-04 low, S1-05..S1-07 info | security report, 2026-09-24, same diff | fixes, owner (BL-152) |
 | 9 | coordinator | Fixes: BL-152 and BL-146 wording; the test's TEMP coupling noted in BL-152 and the test; the regression case asserts only A's workspace; attributes captured after (owner `postgres`, parallel unsafe, not strict, cost 100, `service_workspace`'s comment kept); cast-target checks in either spelling; a service-plane case — red with `service_workspace`'s 0062 body restored in the database, green after re-applying `0100`'s body. workspace-access-rls 31 passed | `scratchpad/dev054-after.txt`, `dev054-s104-red.txt` | gp-qa |
 | 10 | gp-qa | PASS on criteria 1–4 (workspace-access-rls 31; m5-external-schema 42, telegram-rls 15, m2-service-principal 11, m5-external 27, project-access-revoke 20); live bodies byte-equal to the file, OIDs, ACLs and attributes kept; `0100`'s DO block passes and, with the old body in a rolled-back transaction, raises. Gaps fixed: the service case renamed to what it pins, INV-114 lists it, S1-07 recorded | QA report, 2026-09-24, on `scratchpad/dev054-r2.diff` | commit |
+| 11 | Owner; coordinator (hosted push) | On the owner's word «запушь миграции 0098–0100 на hosted» (2026-09-24), before PR #123's merge: from a `git archive` copy of `supabase/` at `fa1d79fd`, `supabase link --project-ref asrvzhjaueyvrfozxpzo`, `supabase db push --linked --dry-run` (exactly `0098`, `0099`, `0100`; no seeds, no roles), then the push, 12:02:57–12:03:02 UTC, exit 0, Supabase CLI 2.114.0, login role through the access token. Preflight (read-only, connector): the six functions owned by `postgres`, the pushing role; no trigger on `project_access_grants`. After: versions `0096`–`0100`; the three inlined helpers invoker, no SET clause, STABLE, bodies naming `pg_catalog.uuid`, ACLs as before. Production runs `main`, whose only grant writes are inserts and the revoke `0099` allows | `scratchpad/push-0098-0100-dryrun.txt`, `push-0098-0100.txt` | — |
 
 ## Findings and rework
 
@@ -70,7 +71,6 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 
 - Definer bodies still name some types unqualified, and through one a session with arbitrary SQL on an application connection can still run code with the definer owner's rights — `accept_invitation` is a concrete path (BL-152, gp-security S1-01, reasoned, not run).
 - PUBLIC still holds TEMP on the database.
-- `0100` is applied to the local database only; the hosted project needs the owner's push (after `0098` and `0099`).
 
 ## Acceptance evidence
 
@@ -92,5 +92,5 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents before the commit.
 - Verified scope: criteria 1–4.
 - Remaining risks / blocked requirements: «What is not true after this task»; BL-152 (the owner's choice of fix).
-- Next bounded action and owner: pushing `0098`–`0100` to the hosted project, and merging, are the owner's.
-- Final state and reason: verifying until the owner's merge.
+- Next bounded action and owner: none; merged in #123; `0098`–`0100` are on staging since 2026-09-24.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.
