@@ -268,7 +268,9 @@ artifact the first time it is pasted into a bug report.
   parent id refused by the policy or the composite foreign key; an `UPDATE`
   and a `DELETE` that read no column (no `WHERE`, a constant `SET`, no
   `RETURNING` — a `WHERE` would be answered by the read policy alone), rolled
-  back, with the other workspace's rows read back unchanged as admin; and,
+  back, succeeding with a row count equal to the own-workspace rows it may
+  change (at least one: a statement that fails proves nothing), with the other
+  workspace's rows read back unchanged as admin; and,
   where the principal can update the tenant key or a parent column, its own
   row refused when moved into the other workspace. A trigger's refusal does
   not count (`DISABLE TRIGGER USER` for the assertion, or the unused grant
@@ -278,7 +280,8 @@ artifact the first time it is pasted into a bug report.
   every pinned key to still be a gap row, so a write granted later — a new
   pair, or a new verb or column on an old one — arrives covered, and a key a
   stage covers leaves the baseline. A read-gap pair's writes are registered as
-  gaps on the same backlog entry. No principal may hold `TRUNCATE`, `TRIGGER`,
+  gaps on the same backlog entry, and only within the baseline too, so a pair
+  first filed as a read gap after DEV-076 must cover its writes. No principal may hold `TRUNCATE`, `TRIGGER`,
   `REFERENCES` or `MAINTAIN` on an in-scope relation. Every other
   row of the `tenancy-and-security.md` test list, `SECURITY DEFINER` functions,
   storage paths, sequences and other schemas stay proved by review.

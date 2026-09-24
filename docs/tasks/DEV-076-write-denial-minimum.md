@@ -81,6 +81,7 @@
 | 5 | gp-reviewer | PASS WITH FINDINGS: R1 major (the ratchet pins keys, not writes), R2–R4 minor, R5–R6 nit (below). It verified the extracted helper, the SQL, the probes, the counts (65 rows; UPDATE 35, DELETE 5, one column-only), the catalogs and the docs | Subagent report (session) | Fixes |
 | 6 | gp-security | PASS WITH FINDINGS: S1 and S2 major, S3–S5 minor, S6 nit (below). It confirmed the four PostgreSQL statements from knowledge, without re-fetching the pages. It found that ON CONFLICT, MERGE, RETURNING and COPY FROM add no write path beyond the verbs, and that the extracted helper behaves as before | Subagent report (session) | Fixes |
 | 7 | Coordinator | Read-only on `goproceed-staging`: no principal holds TRUNCATE, TRIGGER, REFERENCES (table or column) or MAINTAIN on any in-scope relation. Fixes applied as stated below; the validator and its self-tests pass. Three mutations, each killed by the new self-tests: dropping the within-baseline check, dropping the every-key-is-a-gap check, and dropping the refusal of the read row's own test. `typecheck` 10/10; fixture cases 11 passed | Connector result; session output | Re-check, gp-qa |
+| 8 | gp-security (re-check) | S1–S6 PASS at `1082304a`. New: N1 minor (a failing no-`WHERE` statement passes as a denial), N2 minor (a write gap on a read-gap pair skipped the baseline) — both fixed as stated below | Subagent report (session) | gp-qa |
 
 ## Findings and rework
 
@@ -95,6 +96,8 @@
 | R3 | minor | gp-reviewer; the TRUNCATE probe | The probe exercised only one branch of the query | Coordinator | Fixed by S4's per-privilege probe |
 | R5 | nit | gp-reviewer; `WRITE_PRIVILEGES_SQL` | The DELETE guard relied on evaluation order | Coordinator | Fixed: `case when v.verb = 'DELETE' then null else … end` |
 | R6 | nit | gp-reviewer; the test file and Sources | `writes()` shadowed `covered()`, and a Sources sentence was garbled | Coordinator | Fixed: the local is `read`, and the sentence is rewritten |
+| N1 | minor | gp-security re-check; the UPDATE/DELETE probe | A no-`WHERE` statement that fails on the principal's own rows (a unique key, a WITH CHECK, a restricting FK) rolls back and leaves the other workspace unchanged, passing without testing the policy | Coordinator | Fixed in the wording: the statement must succeed, with a row count equal to the own-workspace rows it may change (at least one) |
+| N2 | minor | gp-security re-check; `rlsWriteCoverageErrors` | A write gap on a read-gap pair returned before the baseline check, so a new grant on an old relation could arrive as a read gap and a write gap | Coordinator | Fixed: a write gap on a read-gap pair must also be within the baseline (none today); self-tests for both sides, and test-strategy §4 says so |
 
 Rework count and hypothesis changes: none. Every change after the first review is a stated fix; no QA FAIL so far.
 
@@ -125,8 +128,8 @@ Rework count and hypothesis changes: none. Every change after the first review i
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
+- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` (with a re-check) as native subagents; `gp-qa` pending.
 - Verified scope: rows 1–7.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: gp-security re-checks S1 and S2; then `gp-qa`.
+- Next bounded action and owner: `gp-qa` on the final revision; then CI on the pull request.
 - Final state and reason: reviewing.

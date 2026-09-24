@@ -993,7 +993,6 @@ export function rlsWriteCoverageErrors({ csvText, readCsvText, sources, backlogI
       if (!r.reason) errors.push(`${at} (${key}): gap needs a reason`);
       if (r.negative_test) errors.push(`${at} (${key}): a gap cites no test; classify it covered`);
       gapKeys.add(key);
-      if (read?.classification === "gap") return;
       if (!allowedGaps.has(key)) errors.push(`${at}: ${key} is not on the DEV-076 write-gap baseline and cannot arrive as a gap; cite its write-denial test`);
       else if (r.privileges && !rlsWritesWithin(r.privileges, allowedGaps.get(key))) {
         errors.push(`${at}: ${key} holds ${r.privileges}, beyond the baseline's ${allowedGaps.get(key)}; a write granted after DEV-076 arrives covered`);
@@ -2788,8 +2787,10 @@ function selfTest() {
     if (!says(wcov([]), "is on the DEV-076 write-gap baseline but is not a gap row")) t.push("rls write coverage (baseline key with no row)");
     if (!says(wcov([wcovered(N)], { baseline: {} }), "cites the read row's own test")) t.push("rls write coverage (citing the read negative)");
     if (!says(wcov([wcovered(P)], { baseline: {} }), "cites the read row's own test")) t.push("rls write coverage (citing the read positive)");
-    const wgapRead = "public,work_items,goproceed_app,execution,INSERT,gap,,BL-001,no read, no write";
-    if (wcov([wgap, wgapRead.replace("no read, no write", "x")]).length !== 0) t.push(`rls write coverage (write gap on a read gap: ${wcov([wgap, wgapRead.replace("no read, no write", "x")]).join(" | ")})`);
+    const wgapRead = "public,work_items,goproceed_app,execution,INSERT,gap,,BL-001,x";
+    const withReadGapKey = { baseline: { ...wbase.baseline, "public.work_items goproceed_app": "INSERT" } };
+    if (wcov([wgap, wgapRead], withReadGapKey).length !== 0) t.push(`rls write coverage (write gap on a read gap: ${wcov([wgap, wgapRead], withReadGapKey).join(" | ")})`);
+    if (!says(wcov([wgap, wgapRead]), "public.work_items goproceed_app is not on the DEV-076 write-gap baseline")) t.push("rls write coverage (write gap on a read gap outside the baseline)");
     if (!says(wcov([wgap, `public,work_items,goproceed_app,execution,INSERT,covered,${W},,`]), "so its write row is a gap on the same backlog id")) t.push("rls write coverage (covered write on a read gap)");
     if (!says(wcov([wgap.replace(",projects,", ",ghost,")]), "not a covered or gap row of")) t.push("rls write coverage (key with no read row)");
     if (!says(wcov([wgap.replace(",execution,", ",operational,")]), "differs from")) t.push("rls write coverage (module differs)");
