@@ -581,7 +581,13 @@ that the next worker migration must not undo:
   path is not enough: unless `pg_temp` is listed, the session's temporary schema
   is searched first for relation and type names, so a temporary domain named
   like a built-in type could run code with the owner's rights (BL-152, `0101`,
-  INV-115);
+  INV-115). Since `0102` no product role can create a temporary schema at all
+  (INV-116), so the rule now guards the sessions that still can: a superuser or
+  the owner that switches into a product role, and the Supabase-managed roles
+  that keep TEMP (`anon`, `authenticated`, `service_role`, …), which only the
+  `EXECUTE` revokes keep away from the definers;
+- never create a temporary object: it would land in the caller's temporary
+  schema, where the caller could still use it (INV-116);
 - validate the calling subject/service and complete tenant chain internally;
 - expose one bounded command, not arbitrary SQL;
 - revoke `EXECUTE` from `PUBLIC`, `anon`, `authenticated`, and unrelated
@@ -610,6 +616,7 @@ Rules, with their delivery state:
 | 5 | Grant object/operation-specific privileges in the same migration that adds its RLS policies | Practice since `0011`/`0013`/`0016`; `0039` exists because `0003` granted UPDATE in a migration that added no policy |
 | 6 | Fail CI if a new exposed object lacks an owner, grant decision, RLS decision, and security test | Target |
 | 7 | Never grant a table-wide UPDATE ahead of the policy and capability that scope it | Delivered as doctrine by `0039:20-25`: a settings command adds a column-scoped grant, an owner/admin policy, and its capability in one migration — never the policy alone |
+| 8 | Revoke `TEMPORARY` on the database from `PUBLIC`; no `goproceed_*` role, nor anything it can become or inherit, holds it | Delivered (`0102`, DEV-060, INV-116). The Supabase-managed roles that held it through `PUBLIC` hold it by direct grant. Product roles are named `goproceed_*`: `0102`, INV-116's tests and its assertions find them by that name. A new product role never gets TEMP; a new non-product role that needs it gets an explicit grant in a migration. The roles that keep TEMP must never get `EXECUTE` on a definer in `app`, `public` or `api` — `service_role` included, whose Supabase default privileges grant it on new `public` functions; INV-116's T6 fails when one does. The ACL is outside the schema, so a restore without `--create` re-opens it (BL-157) |
 
 Conceptual default:
 

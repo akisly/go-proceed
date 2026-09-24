@@ -183,8 +183,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-152](#bl-152) | P1 | scheduled → DEV-059 | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
-| [BL-155](#bl-155) | P2 | open | PUBLIC holds TEMP on the database |
+| [BL-155](#bl-155) | P2 | scheduled → DEV-060 | PUBLIC holds TEMP on the database |
 | [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
+| [BL-157](#bl-157) | P3 | open | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1851,9 +1852,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-155"></a>
 ### BL-155 — P2 — PUBLIC holds TEMP on the database
 
-- **State:** open
+- **State:** scheduled → DEV-060
 - **Legacy cite:** none
-- **Why:** DEV-059's `gp-architect` design, 2026-09-24. Every role — the application, service and purge logins included — may create temporary objects, which is what made BL-152 exploitable. After `0101` the definers list `pg_temp` last, so the temporary schema can no longer shadow a name `pg_catalog` defines — but it still supplies any name defined nowhere else, and nothing mechanical keeps every body qualified; revoking TEMP from the `goproceed_*` roles and their logins is the only change that closes the class (DEV-059's `gp-security` S1-01, P2). A revoke must be checked first: on the hosted project `postgres` may not own the database (a non-owner's revoke only warns), and which Supabase-managed roles need TEMP is unverified. It also breaks the temporary-object cases of DEV-055 and DEV-059.
+- **Why:** *[2026-09-24, DEV-060: `0102` revokes TEMPORARY from PUBLIC and every `goproceed_*` role and grants it back directly to the other roles that held it; local and hosted `goproceed-staging` both have `postgres` as the database owner, so the revoke takes effect (asserted, not trusted); INV-116. DEV-055's and DEV-059's temporary-object cases now plant their shadow on the local superuser's connection and SET ROLE.]* DEV-059's `gp-architect` design, 2026-09-24. Every role — the application, service and purge logins included — may create temporary objects, which is what made BL-152 exploitable. After `0101` the definers list `pg_temp` last, so the temporary schema can no longer shadow a name `pg_catalog` defines — but it still supplies any name defined nowhere else, and nothing mechanical keeps every body qualified; revoking TEMP from the `goproceed_*` roles and their logins is the only change that closes the class (DEV-059's `gp-security` S1-01, P2). A revoke must be checked first: on the hosted project `postgres` may not own the database (a non-owner's revoke only warns), and which Supabase-managed roles need TEMP is unverified. It also breaks the temporary-object cases of DEV-055 and DEV-059.
 - **Evidence:** `packages/testing/src/definer-search-path.test.ts` (created on the application and service logins); [DEV-059](tasks/DEV-059-temporary-schema-searched-last.md).
 - **Depends on:** a read-only check of database ownership and TEMP holders, locally and hosted; the tests rewritten to assert the refusal.
 - **Deadline:** none recorded.
@@ -1875,3 +1876,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/app/src/lib/telegram/cards.ts` (`renderRequirements`, `MAX_TELEGRAM_MESSAGE_CHARACTERS`); `apps/app/src/components/projects/blocked-reasons-list.tsx` (the `normRef` paragraph); `grep -rn DOVIDKOVYI_DISCLAIMER_TEXT apps/app/src` finds only `statutory-act-form.ts`; `hidden-works-content-rules.md` §"Required disclaimers".
 - **Depends on:** a reading of the content rules for each surface, owner or `gp-architect`. Telegram needs a budget decision: one sentence per card, the disclaimers only when the list carries such items, or a link. A change needs `gp-ui-reviewer`, and a byte-for-byte guard against the content rules like `apps/app/tests/act-content-fidelity.test.ts`.
 - **Deadline:** before a pilot workspace connects a Telegram group or opens the money overview with published requirements.
+
+<a id="bl-157"></a>
+### BL-157 — P3 — The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-060's `gp-architect` design, 2026-09-24. `0102` changes the database's own ACL (PUBLIC loses TEMPORARY; INV-116). That ACL is not part of any schema: pg_dump carries database access privileges only with `--create` (PostgreSQL 17, «pg_dump»), so a restore or clone into a new project would bring PUBLIC's TEMP back while `schema_migrations` still records `0102` — silently. Roles created after `0102` (a future Supabase-managed role, a new `goproceed_*` login) also sit outside what `0102` enumerated. `packages/testing/src/temporary-privilege.test.ts` checks the local stack only — including T6, the only check that the roles keeping TEMP reach no definer. And each direct grant `0102` made records a dependency on that platform role, so a platform-side `DROP ROLE` (a retired `pgbouncer`, say) would fail on «privileges for database postgres» until a revoke runs first (DEV-060 review R1-04).
+- **Evidence:** `supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql` (header); INV-116 «Not covered»; [DEV-060](tasks/DEV-060-no-product-temporary-schema.md).
+- **Depends on:** the catalog comparison against the hosted project (`docs/architecture/tenancy-and-security.md`). The cheapest step is a `database_acl` section in `scripts/snapshot-db-catalog.mjs` next to `roles`, plus T6's query, compared after every hosted push and restore.
+- **Deadline:** before any restore or clone of a hosted database.
