@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: on iOS, sending a photo no longer kills the app. The vault's upload body is a bound stream pair fed by a producer thread, instead of an `InputStream` subclass that CFNetwork cannot drive.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session (2026-09-24).
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires.
 - Selected route and why: native client vault and uploads. So `gp-mobile` before design, then `gp-reviewer`, `gp-security` (uploads, evidence storage) and `gp-qa`. There is no UI change, so no `gp-ui-reviewer`.
@@ -43,6 +43,7 @@
 | 8 | Coordinator | Third revision, iOS 18.1 simulator against staging, installed with `simctl install` and relaunched (one data container):<br>• **A, normal send:** capture `284c4581…` (2,148,290 bytes, 33 chunks) → intent `efbe8096…` `available`, finalized.<br>• **B, corrupt ciphertext:** `lldb` breakpoint on the second `gp_reader_open` (after `gp_verify_file`) ran a host script that flipped the byte at offset 1,500,000 of capture `a94a0e31…`'s `.vault`. The item ended `failed`; intent `97c6a8cf…` stayed `intent_authorized`, not finalized, and Storage holds no object at its staging key. No crash.<br>• **C, cancel mid-transfer:** a breakpoint on `gp_reader_read` limited to thread `goproceed-vault-body` slept 0.4 s per read. After 19 producer reads `cancelUpload` (`cancel(false)`) was called; the producer made 2 more reads (the chunk it had already read ahead) and stopped. Intent `3103c485…` stayed `intent_authorized`, no object stored. The runtime then marked the item `failed` (existing JS behaviour).<br>• **`authenticate` mid-transfer:** retrying the same item under the same breakpoint, `authenticate` was called part-way through; the transfer stopped before completing and the intent stayed unfinalized. This shows no regression but does not isolate S-2's fix: a producer stalled inside a read stops on the generation bump alone. S-2's own case (the producer has already written its last chunk while CFNetwork is still sending) is verified by code inspection only (row 9).<br>• **Read counts:** `dev070-lldb-c.log` has 43 producer reads and no per-transfer markers. The first cancel's split (19 reads before `cancel(false)`, 2 after) is exact; later counts missed the reads between the pull and the first sample. A complete transfer of this capture is 34 reads.<br>• **Recovery:** with `lldb` detached, a plain retry uploaded the cancelled item into the same intent `3103c485…`, now `available`.<br>The app process stayed up throughout. | `lldb` logs, debugger `list`, staging SQL (read-only) | QA |
 | 9 | `gp-security` (re-check) | S-1, S-2, S-3 PASS. S-2 is correct by inspection: `authenticate` takes the task under `cancellation` with the generation bump and cancels after unlocking; lock order stays `work` → `cancellation`; no reentrancy. The R2 change hands the output from producer to `stop()` cleanly (only after `exited`, only once). New: N-1 (minor, record) the `authenticate` run cannot tell the fix from the old code; N-2 (nit) the log's read counts did not add up. Both fixed in row 8's wording. | gp-security handoff | QA |
 | 10 | `gp-qa` | No FAIL. Every stated fix confirmed in the code (S-2, R1, R2, R5; R4/R6/S-1 notes). The lldb target was the final revision: `GoProceed.debug.dylib` was built after the last Swift edit, from this worktree, contains `goproceed-vault-body` and no `VaultInputStream`. Checks: `pnpm validate:canonical-docs` OK; `pnpm --filter @goproceed/mobile test` 22 files, 199 tests passed (no database); `pnpm --filter @goproceed/mobile typecheck` exit 0 — none exercises Swift. Swift build NOT RUN by QA (coordinator's build, row 8). Record nits (Plan section, row 8 A citation, S-2 wording, read counts, the poll comment) applied afterwards; the poll comment edit is comment-only. | gp-qa handoff | PR |
+| 11 | Owner; Coordinator | Merged in [#138](https://github.com/akisly/go-proceed/pull/138) as `1a14266b` on 2026-09-24. CI on its last revision: `verify` passed; `app-qa` failed before any test ran, in «Ensure puppeteer's pinned Chrome is installed» («All providers failed for chrome 152.0.7977.42»), a download failure outside this change (which touches only Swift and docs); `app-qa` passed on #135's run the same hour. DEV-061's signed-in pass (its row 13) ran on a merge of both and sent photos through the UI on iOS. | GitHub PR #138, run 36026179274 | Done |
 
 ## Findings and rework
 
@@ -91,4 +92,8 @@ Rework count and hypothesis changes: 1 (the second revision after gp-mobile, row
 
 ## Completion / handoff
 
-Filled at closure.
+- Changed files: `apps/mobile/modules/goproceed-vault/ios/NativeVault.swift`, this record, `docs/tasks/README.md`.
+- Review independence: independent — `gp-mobile`, `gp-reviewer`, `gp-security` (two rounds), `gp-qa`. All subagents.
+- Verified scope: simulator builds; sends, a corrupt ciphertext and mid-transfer cancels against staging with `lldb` fault injection (row 8); the DEV-061 signed-in pass on a merge of both.
+- Remaining risks / blocked requirements: see What is not true; no physical iPhone (BL-002); `Content-Length` versus chunked transfer (gp-mobile's open question) was left as `Content-Length`.
+- Next bounded action and owner: none.
