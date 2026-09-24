@@ -1,5 +1,6 @@
 /**
- * Emits the tailwind-merge class-group override, derived from the token source.
+ * Emits the tailwind-merge class-group extension, derived from the token source
+ * (an `override` until 2026-09-24; ADR-015 keeps stock Tailwind whole).
  *
  * WHY THIS IS A GENERATOR AND NOT A HAND-WRITTEN CONFIG
  * ----------------------------------------------------
@@ -50,7 +51,9 @@ const out = [
   "/** Every semantic colour name, so a colour utility is recognised as one. */",
   `export const COLOUR_NAMES = [${list(colours)}] as const;`,
   "",
-  "export const TW_MERGE_OVERRIDE = {",
+  "// EXTENDS stock tailwind-merge (owner, 2026-09-24): stock Tailwind stays whole,",
+  "// so `text-sm` must stay a size; the roles are added to each stock group.",
+  "export const TW_MERGE_EXTEND = {",
   "  classGroups: {",
   `    "font-size": [{ text: [${list(names("text"))}, isArbitraryValue, isArbitraryVariable] }],`,
   `    "font-family": [{ font: [${list(names("font").filter((n) => n !== "features"))}] }],`,
@@ -65,6 +68,7 @@ const out = [
   "    // tailwind-merge only recognises `duration-<number>`.",
   `    duration: [{ duration: [${list(names("duration"))}, isArbitraryValue, isArbitraryVariable] }],`,
   `    blur: [{ blur: [${list(names("blur"), ["", "none"])}, isArbitraryValue, isArbitraryVariable] }],`,
+  `    "max-w": [{ "max-w": [${list(names("container"))}] }],`,
   "  },",
   "} as const;",
   "",

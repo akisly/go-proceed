@@ -21,12 +21,8 @@ import { ReadinessBlock, type ReadinessView } from "./project-readiness";
  * in terms rather than the neutral "nothing found" wording a generic empty
  * state would reach for.
  *
- * `max-w-112`, NOT `max-w-md` — same substitution `no-assignments-empty-
- * state.tsx` already made and verified against the rebuilt dash chunk (that
- * file's own header carries the full account): `packages/ui/src/theme.
- * generated.css`'s `--container-*: initial` clears the default scale
- * entirely, and `max-w-112` is the SPACING scale's 28rem, which the dash
- * chunk does emit.
+ * `max-w-md`: stock Tailwind's 28rem, back since the theme stopped clearing
+ * stock namespaces (2026-09-24, DEV-073, BL-047).
  */
 export function NoBlockedValueEmptyState({
   projectId, projectName, readiness,
@@ -38,7 +34,7 @@ export function NoBlockedValueEmptyState({
   return (
     <ProjectPage projectId={projectId} projectName={projectName} tab="overview">
       <EmptyState
-        className="mx-auto max-w-112 py-16"
+        className="mx-auto max-w-md py-16"
         title="Нічого не заблоковано"
         description="Жодна вимога на цьому проєкті не тримає гроші заблокованими: усе або підтверджено, або ще не має ціни, за якою можна щось заблокувати."
       />

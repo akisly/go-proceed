@@ -21,10 +21,12 @@ Regenerate: `node packages/tokens/scripts/generate-docs.mjs`.
 ## How to read this
 
 Three layers. **A component names a role, never a ramp step.** `bg-canvas`,
-`text-ink-muted`, `border-line` — not `neutral-25`. Tailwind enforces half of
-that (no ramp step is in the `--color-*` namespace, so `bg-neutral-200` does
-not compile) and `packages/testing/src/primitive-leak.test.ts` enforces the
-other half (a raw `var(--gp-neutral-200)` fails the build).
+`text-ink-muted`, `border-line` — not `neutral-25`. No step of this system's
+ramps is in the `--color-*` namespace, but since 2026-09-24 stock Tailwind
+stays whole (ADR-015), so `bg-neutral-200` compiles — to Tailwind's cool
+neutral of the same name, not this ramp. Preferring the role is a review
+rule; `packages/testing/src/primitive-leak.test.ts` still fails a raw
+`var(--gp-neutral-200)`.
 
 Every colour is **derived, not picked**: each is the sRGB result of an OKLCH
 triple, with chroma clamped to the gamut boundary.
@@ -466,6 +468,7 @@ Only what is not derivable from a role.
 | `control-height-touch` | `44px` | v1, kept. WCAG 2.5.5's 44px is a floor, not a preference, and the phone audience is gloved and outdoors. Applies below md and, now, under the pointer-coarse variant — Tailwind v4.1 gives a real capability query for the thing the breakpoint was standing in for. |
 | `control-height-desk` | `36px` | v1, kept. Default control at the desk. |
 | `control-height-desk-sm` | `32px` | v1, kept. Small control at the desk. Folio's measured button height is 32px at 14px/500. |
+| `control-target-desk` | `24px` | The desk hit area of a control whose paint is smaller than it (Checkbox's 16px box): WCAG 2.2 2.5.8's 24px minimum. Under the pointer-coarse variant the touch floor applies instead (owner, 2026-09-24, BL-048). |
 | `header-height-app` | `56px` | v1, kept. The mobile bar exists only below md, because that is the only width where the rail is hidden. There is no desktop top bar: a second 76px band repeating the brand is 76px not spent on rows. |
 | `header-height-marketing` | `58px` | The prototype's header bar. |
 | `register-row-padding-y` | `10px` | v1, kept (py-2.5). Measured against real content at 1440x900: 14 rows in the fold on /app/work. |

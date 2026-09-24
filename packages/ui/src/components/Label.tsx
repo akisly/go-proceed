@@ -28,8 +28,8 @@ import { cx } from "./cn";
  * for>` does not always reach it). Both are behaviours we would otherwise
  * write by hand and get wrong once.
  *
- * `text-meta`, not `text-sm` — the stock size namespace is cleared
- * (`theme.generated.css` §1), so `text-sm` compiles to nothing at all. This is
+ * `text-meta`, not `text-sm` — a role, not a stock size (stock sizes compile
+ * again since 2026-09-24, but a component names the role). This is
  * the same metric `Field.tsx`'s own label uses, so a form built either way
  * reads identically.
  */

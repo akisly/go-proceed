@@ -28,7 +28,7 @@
 export function ProjectMoneyNotFound() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-canvas p-6">
-      <h1 className="max-w-112 text-center text-data font-medium text-ink-muted">
+      <h1 className="max-w-md text-center text-data font-medium text-ink-muted">
         Проєкт не знайдено.
       </h1>
     </div>

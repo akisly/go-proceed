@@ -164,39 +164,8 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
         {/* `role="status"` so the sentence and the link are announced when they
             appear — this block replaces the form the reader just submitted, and
             a screen-reader user would otherwise be told nothing at all. */}
-        {/* `max-w-measure`, AND IT IS A ROLE THIS THEME ACTUALLY DEFINES —
-         * checked in `packages/ui/src/theme.generated.css`, not assumed. That
-         * file clears the stock container scale outright (`--container-*:
-         * initial`, line 21) and then defines exactly three: `measure` 680px,
-         * `content` 1240px, `nav` 880px, so `max-w-measure` is the one that
-         * means «a column a person can read». A sentence and a URL stretched
-         * across a 1920px panel are the reason it is here.
-         *
-         * CORRECTED — WHAT `max-w-md`/`max-w-sm` ACTUALLY DO HERE. This
-         * comment used to say they «compile to `max-width: var(--container-md)`
-         * with nothing behind the variable — an invalid declaration». That is
-         * wrong, and it was wrong in the more damaging direction: it sold an
-         * INFERENCE as a verified fact («checked … not assumed») when only the
-         * theme file had been read and the compile behaviour was guessed from
-         * it. `max-w-md` reads the `--container-*` namespace to exist at all;
-         * with the namespace cleared there is no `md` key, so Tailwind does not
-         * recognise the class and emits NO RULE — not an unresolvable one. The
-         * element keeps whatever width it would have had, with no declaration
-         * anywhere to find. The distinction matters to the next reader: an
-         * invalid declaration is visible in devtools as a struck-through line,
-         * a missing rule is visible nowhere at all.
-         *
-         * The corrected mechanism is the one the three sibling call sites in
-         * this app already state and verified the only way it can be verified —
-         * by grepping the built stylesheet rather than by reasoning about the
-         * theme: `dash-shell/sign-out-dialog.tsx` («emits NO rule in the dash
-         * stylesheet — verified by grepping the built chunk»),
-         * `assignments/no-assignments-empty-state.tsx` and
-         * `evidence/no-evidence-empty-state.tsx` (both: the route's own
-         * dash-owned chunk «contains no `.max-w-md` rule and no
-         * `--container-md` property at all»). Until this correction two files
-         * in one slice gave opposite mechanisms for the same fact, and the
-         * wrong one read as the more authoritative. */}
+        {/* `max-w-measure` (680px), the role for «a column a person can read»:
+         * a sentence and a URL stretched across a 1920px panel are why it is here. */}
         <div role="status" className="flex max-w-measure flex-col gap-2">
           <p className="text-data font-medium text-ink">{ONE_TIME_LINK_NOTICE}</p>
           <p className="break-all font-mono text-meta text-ink">{state.link.url}</p>
@@ -223,10 +192,7 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
 
   return (
     <section className="flex flex-col gap-3 border-t border-line pt-4">
-      {/* See the issued branch above for why `max-w-measure` and not
-       * `max-w-md`: this theme clears the stock container scale and defines
-       * three roles of its own, so `max-w-md` is not a class this build emits
-       * a rule for. A 1200px-wide email field is not a form. */}
+      {/* `max-w-measure`, as in the issued branch: a 1200px-wide email field is not a form. */}
       <div className="flex max-w-measure flex-col gap-1">
         <h3 className="text-h3 font-semibold text-ink">Відправити на перевірку</h3>
         <p className="text-meta text-ink-muted">

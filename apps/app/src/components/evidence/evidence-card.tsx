@@ -100,7 +100,8 @@ export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
        * `aspect-square`/`aspect-[4/3]` "compile to nothing" because
        * `packages/ui/src/theme.generated.css` clears `--aspect-*: initial`,
        * was WRONG and is retracted, not merely replaced. `--aspect-*:
-       * initial` is real, but the inference from it was not: `aspect-square`
+       * initial` was real then (the theme cleared it until 2026-09-24,
+       * ADR-015), but the inference from it was not: `aspect-square`
        * is a STATIC utility (`aspect-ratio: 1`, no theme lookup) and
        * `aspect-[4/3]` is an ARBITRARY VALUE (the ratio comes from the
        * bracket, not a theme variable) — neither reads the cleared
@@ -174,7 +175,7 @@ export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
           {/* `break-all`, WITH `font-mono` (unlike the field client's own
            * `capture.tsx:355-360` [deleted 2026-09-23, DEV-035], which explicitly refuses `font-mono`
            * because `globals.css` clears `--font-*` there). The dash theme
-           * does not: `packages/ui/src/theme.generated.css:46` re-adds
+           * does not: `packages/ui/src/theme.generated.css` re-adds
            * `--font-mono`, so it resolves under `/` — verified against
            * that file, not assumed from the field client's comment about a
            * different stylesheet. */}

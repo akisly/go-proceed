@@ -173,6 +173,12 @@ describe("control size comes from tokens, never from a literal", () => {
       expect(code(f), `${f} does not reach the touch floor`)
         .toContain("touch:h-(--gp-control-height-touch)");
     }
+    // A control smaller than its target (BL-048): the hit area is the button,
+    // 24px at the desk and the 44px floor on touch; the 16px box is paint.
+    expect(code("Checkbox.tsx"), "Checkbox does not reach the touch floor")
+      .toContain("touch:size-(--gp-control-height-touch)");
+    expect(code("Checkbox.tsx"), "Checkbox has no desk target")
+      .toContain("size-(--gp-control-target-desk)");
   });
 
   it("gives the pointer to everything that behaves like a button, once, in the base layer", () => {

@@ -19,33 +19,52 @@ import { cx } from "./cn";
  * roles below already carry the theme), and `transition-shadow` (there is no
  * shadow; the colour change on check is what moves).
  *
- * ⚠️ THIS CONTROL DOES NOT MEET THE 44px TOUCH FLOOR. `size-4` is shadcn's
- * metric. Enlarging the box is the wrong fix at desk density; the fix is a hit
- * area larger than the paint, and its shape is a design decision no brief in
- * this slice makes. `TODOS.md` carries it, and `qa/field.mjs`'s touch-target
- * pass will refuse the first dash screen that uses this component.
+ * THE HIT AREA IS LARGER THAN THE PAINT (owner, 2026-09-24, BL-048). The
+ * Radix root — the `<button>` a pointer hits and the harness measures — is
+ * 24px at the desk (`--gp-control-target-desk`, WCAG 2.2 2.5.8) and the 44px
+ * floor under `touch:`; the 16px box is an inner span, so desk density does
+ * not change. The root is transparent; state reaches the box through a NAMED
+ * group (`group/checkbox`), so an ancestor `.group` carrying its own
+ * `data-state` cannot paint it, and `peer` stays on the root for a sibling
+ * label. A negative START margin (`-ms-1`, `touch:-ms-3.5`) cancels the hit
+ * area's inset on the column side, so the painted box sits on the column edge
+ * like the inputs above it. The END side keeps its inset: cancelling it would
+ * pull the label under the focus ring's 2px + 2px offset (gp-ui-reviewer U6),
+ * so the label starts the inset plus the parent's gap after the box (desk
+ * 4px more, touch 14px more than a bare 16px box would give). Vertical placement is the parent's: `Field`'s
+ * horizontal orientation centres the control on its content. A caller's
+ * `className` styles the hit area, not the box.
  */
 export function Checkbox({ className, ...rest }: ComponentProps<typeof CheckboxPrimitive.Root>) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cx(
-        "peer size-4 shrink-0 rounded-control border border-line-strong",
-        "transition-colors duration-fast ease-out",
+        "group/checkbox peer inline-grid shrink-0 place-items-center rounded-control",
+        "size-(--gp-control-target-desk) touch:size-(--gp-control-height-touch)",
+        "-ms-1 touch:-ms-3.5",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        "aria-invalid:border-status-blocked-fg",
-        "data-[state=checked]:border-action data-[state=checked]:bg-action",
-        "data-[state=checked]:text-action-fg",
         className,
       )}
       {...rest}
     >
-      <CheckboxPrimitive.Indicator
-        data-slot="checkbox-indicator"
-        className="grid place-content-center text-current transition-none"
+      <span
+        aria-hidden="true"
+        className={cx(
+          "grid size-4 place-content-center rounded-control border border-line-strong",
+          "transition-colors duration-fast ease-out",
+          "group-aria-invalid/checkbox:border-status-blocked-fg",
+          "group-data-[state=checked]/checkbox:border-action group-data-[state=checked]/checkbox:bg-action",
+          "group-data-[state=checked]/checkbox:text-action-fg",
+        )}
       >
-        <Check aria-hidden="true" strokeWidth={2} className="size-3.5" />
-      </CheckboxPrimitive.Indicator>
+        <CheckboxPrimitive.Indicator
+          data-slot="checkbox-indicator"
+          className="grid place-content-center text-current transition-none"
+        >
+          <Check aria-hidden="true" strokeWidth={2} className="size-3.5" />
+        </CheckboxPrimitive.Indicator>
+      </span>
     </CheckboxPrimitive.Root>
   );
 }

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extendTailwindMerge, twMerge } from "tailwind-merge";
-import { TW_MERGE_OVERRIDE } from "../../ui/src/tw-merge.generated";
+import { TW_MERGE_EXTEND } from "../../ui/src/tw-merge.generated";
 
 /**
  * v1 recorded this trap in prose: "tailwind-merge has to be taught this theme.
@@ -13,14 +13,17 @@ import { TW_MERGE_OVERRIDE } from "../../ui/src/tw-merge.generated";
  * directions: that stock tailwind-merge really still breaks these pairs (so the
  * config is not cargo cult), and that the taught instance does not.
  */
-const cn = extendTailwindMerge({ override: TW_MERGE_OVERRIDE });
+// The real `cn` from `cn.ts`, not a copy built here: a copy would stay green if
+// `cn.ts` itself went back to `override` (gp-qa Q1, DEV-073).
+import { cn } from "../../ui/src/components/cn";
+const built = extendTailwindMerge({ extend: TW_MERGE_EXTEND });
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
 describe("tailwind-merge is taught this theme", () => {
   it("stock tailwind-merge still eats the font size — the trap is real", () => {
     // If this ever starts passing, tailwind-merge learned to handle custom
-    // theme namespaces and the override may be reconsidered. Until then it is
+    // theme namespaces and the extension may be reconsidered. Until then it is
     // load-bearing.
     expect(twMerge("text-data text-ink")).toBe("text-ink");
   });
@@ -42,6 +45,19 @@ describe("tailwind-merge is taught this theme", () => {
     expect(cn("font-display font-sans")).toBe("font-sans");
   });
 
+  it("keeps stock Tailwind working beside the roles (owner, 2026-09-24)", () => {
+    // Stock sizes are sizes, not colours, so they survive a colour role…
+    expect(cn("text-sm text-ink")).toBe("text-sm text-ink");
+    // …and collapse against a role from the same namespace, last wins.
+    expect(cn("text-sm text-data")).toBe("text-data");
+    expect(cn("text-data text-sm")).toBe("text-sm");
+    expect(cn("rounded-md rounded-panel")).toBe("rounded-panel");
+    expect(cn("shadow-md shadow-raised")).toBe("shadow-raised");
+    expect(cn("font-light font-medium")).toBe("font-medium");
+    expect(cn("max-w-md max-w-content")).toBe("max-w-content");
+    expect(cn("bg-red-500 bg-canvas")).toBe("bg-canvas");
+  });
+
   it("lets a caller override a component's own class", () => {
     // The whole reason components take `className`.
     expect(cn("bg-surface text-ink", "bg-canvas")).toBe("text-ink bg-canvas");
@@ -56,6 +72,12 @@ describe("tailwind-merge is taught this theme", () => {
     expect(cn("text-data text-[13px]")).toBe("text-[13px]");
     expect(cn("h-(--gp-control-height-desk) h-(--gp-control-height-touch)"))
       .toBe("h-(--gp-control-height-touch)");
+  });
+
+  it("cn.ts extends the generated config exactly as this file does", () => {
+    for (const pair of ["text-sm text-ink", "text-sm text-data", "max-w-md max-w-content", "rounded-md rounded-panel"]) {
+      expect(cn(pair), pair).toBe(built(pair));
+    }
   });
 
   it("the config is generated, not hand-listed", () => {

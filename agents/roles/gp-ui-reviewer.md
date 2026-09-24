@@ -33,6 +33,7 @@ This role does not redesign for taste. Find where the implementation is generic 
    - what repeats daily and what is rare but high-risk.
 2. **Build-failure rules in the diff:**
    - role tokens only, never ramp steps, raw variables or hex values;
+   - stock Tailwind utilities compile since 2026-09-24 (ADR-015), stock colours included (owner: «Полностью свободно»). Where a role exists — colour, type size, weight, radius, shadow, easing, breakpoint — prefer the role, and say so as a finding; a stock utility is expected for a dimension no role names (container widths, spacing). `bg-neutral-*`, `bg-green-*`, `bg-amber-*`, `bg-violet-*` are Tailwind's palettes, not this system's ramps of the same names;
    - no edits to GENERATED files;
    - animation only through `@goproceed/ui/motion`;
    - no template-literal Tailwind classes;

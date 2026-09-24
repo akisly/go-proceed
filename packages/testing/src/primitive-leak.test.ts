@@ -11,8 +11,10 @@ import { join, relative } from "node:path";
  * ends up as a border on one screen and as body text on another, and how a
  * theme becomes unswitchable.
  *
- * Tailwind's side of this is structural: theme.generated.css puts no ramp step
- * in the `--color-*` namespace, so `bg-neutral-200` simply does not compile.
+ * Tailwind's side: theme.generated.css puts no step of THIS ramp in the
+ * `--color-*` namespace. Since 2026-09-24 (DEV-073) stock Tailwind's own
+ * palette is available again, so `bg-neutral-200` compiles — to Tailwind's
+ * neutral, not this system's; a component still names a role.
  * What that does NOT stop is a raw `var(--gp-neutral-200)` in a stylesheet or
  * a style attribute, which works perfectly and silently. This test is the
  * other half.

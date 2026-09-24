@@ -7,8 +7,9 @@
 // components come from shadcn and are never hand-rolled.
 //
 // `orientation="responsive"` is NOT ported. shadcn builds it on `@md/field-group`
-// container queries; `theme.generated.css:21` clears `--container-*`, so the
-// variant would compile to nothing — the silent-failure class §8 warns about.
+// container queries. Until 2026-09-24 the theme cleared `--container-*` and the
+// variant compiled to nothing; stock container sizes are back (ADR-015), so
+// porting it is now possible — a decision for the first form that needs it.
 import { useMemo, type ComponentProps } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 

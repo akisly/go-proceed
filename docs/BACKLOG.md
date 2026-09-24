@@ -75,8 +75,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-044](#bl-044) | P3 | open | The field client's routes load the shared Button's motion chunk |
 | [BL-045](#bl-045) | P1 | deferred (owner) | Plan D slice D4: members and access |
 | [BL-046](#bl-046) | P3 | deferred (owner) | No dashboard screen authors project-sourced requirements |
-| [BL-047](#bl-047) | P2 | open | No container role means «a dialog», so `Dialog`'s default width is dead |
-| [BL-048](#bl-048) | P2 | open | `Checkbox` is below the 44px touch floor |
+| [BL-047](#bl-047) | P2 | scheduled → DEV-073 | No container role means «a dialog», so `Dialog`'s default width is dead |
+| [BL-048](#bl-048) | P2 | scheduled → DEV-074 | `Checkbox` is below the 44px touch floor |
 | [BL-049](#bl-049) | P3 | open | `next=/dash` is hard-coded in the dashboard's session-expired redirects *(now `next=/`, DEV-035)* |
 | [BL-050](#bl-050) | P3 | open | The dashboard browser pass has an unexplained menu-reopen race |
 | [BL-051](#bl-051) | P3 | open | `DialogClose` hand-rolls its ghost and icon styling |
@@ -694,7 +694,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-047"></a>
 ### BL-047 — P2 — No container role means «a dialog», so `Dialog`'s default width is dead
 
-- **State:** open
+- **State:** scheduled → DEV-073
 - **Legacy cite:** `TODOS.md` «no container role means»
 - **Why:** the theme clears the default container namespace, so `max-w-md` emits no CSS and every dialog is full width unless its caller overrides it. A trap for the next dialog; a missing role belongs in `tokens.json`.
 - **Evidence:** `packages/tokens/src/tokens.json` container roles are `measure`, `content`, `nav`, `marketing`; `packages/ui/src/components/Dialog.tsx:49` `max-w-md`; `shell-error.tsx:10`, `no-projects-empty-state.tsx:11`, `no-workspace-empty-state.tsx:12` carry dead `max-w-*`.
@@ -704,7 +704,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-048"></a>
 ### BL-048 — P2 — `Checkbox` is below the 44px touch floor
 
-- **State:** open
+- **State:** scheduled → DEV-074
 - **Legacy cite:** `TODOS.md` «`Checkbox` does not meet the 44px touch floor»
 - **Why:** the harness refuses any dash screen that uses it at 390 or 360. The fix is a hit area larger than the paint, a design decision the first screen that reaches for it owes.
 - **Evidence:** `packages/ui/src/components/Checkbox.tsx:33` `size-4` and its own comment at `:22`; no non-test use in `apps/app` yet.

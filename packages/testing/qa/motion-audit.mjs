@@ -167,6 +167,12 @@ export function auditMotion(repoRoot) {
         }
       }
 
+      // 4b — stock Tailwind's own infinite loops compile since ADR-015
+      // (DEV-073); as utility classes they never show an `infinite` in source.
+      for (const m of text.matchAll(/(?<![\w-])animate-(spin|ping|pulse|bounce)(?![\w-])/g)) {
+        findings.push(`${at(m.index)}: \`${m[0]}\` — a stock Tailwind loop, perpetual and outside the named loops`);
+      }
+
       // 5 — Motion for React stays inside the vocabulary
       if (!rel.startsWith(MOTION_HOME)) {
         for (const m of text.matchAll(/from\s+["'](motion\/react|framer-motion)["']/g)) {

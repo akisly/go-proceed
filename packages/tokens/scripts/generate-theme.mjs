@@ -5,13 +5,14 @@
  *
  * THREE BLOCKS, AND WHY EACH IS THE SHAPE IT IS
  * ---------------------------------------------
- * 1. `@theme { --ns-*: initial }` clears every stock namespace. There is no
- *    `text-sm`, no `lg:`, no `shadow-md`, no `bg-blue-500`. If a utility
- *    resolves to nothing, that is the system working: this product defines one
- *    type scale and two breakpoints, and a utility that resolves to anything
- *    else is drift, not flexibility. `--spacing` is the one thing deliberately
- *    NOT cleared — its 0.25rem base IS the 4px grid, so the dynamic p- and gap-
- *    scales are already correct.
+ * 1. Stock Tailwind stays whole (owner, 2026-09-24, DEV-073): nothing it
+ *    ships is cleared, and the roles below ride on top of it — a role with a
+ *    stock name (`md` breakpoint, `font-medium`, `leading-tight`, `ease-out`)
+ *    overrides the stock value, and every other role is added beside the
+ *    stock scale. Until that day this block cleared eighteen namespaces with
+ *    `--ns-*: initial`, so `max-w-md` compiled to nothing and every `Dialog`
+ *    ran full width (BL-047). Roles are still what components name; stock
+ *    utilities are available, not preferred.
  *
  * 2. `@theme static { … literals }` for the three namespaces that cannot take a
  *    `var()`: breakpoints and container sizes end up inside media and container
@@ -41,29 +42,45 @@ import {
 const src = readSource();
 const outDir = process.env.TOKENS_OUT_DIR ?? join(repoRoot, "packages/ui/src");
 
-/** Stock namespaces cleared. `--spacing` is absent on purpose — see the header. */
-const CLEARED = [
-  "color", "font", "text", "font-weight", "leading", "tracking", "radius",
-  "shadow", "inset-shadow", "drop-shadow", "text-shadow", "breakpoint",
-  "container", "ease", "animate", "blur", "perspective", "aspect",
-];
+/**
+ * Stock Tailwind 4.3.3's breakpoints and container sizes, restated in PX.
+ * Tailwind orders breakpoints by UNIT before value (`px` before `rem`), so
+ * with stock `sm`/`lg` in rem beside the roles' px `md`/`wide`, every `sm:`,
+ * `lg:`, `xl:` rule would be emitted AFTER `md:`/`wide:` and win at every
+ * desk width. One unit keeps the cascade in width order. The values are the
+ * stock rem × 16; `stock-tailwind.test.ts` checks them against the installed
+ * `tailwindcss/theme.css`. A role of the same name (`md`) replaces the stock
+ * one below.
+ */
+const STOCK_IN_PX = {
+  breakpoint: { sm: "640px", md: "768px", lg: "1024px", xl: "1280px", "2xl": "1536px" },
+  container: {
+    "3xs": "256px", "2xs": "288px", xs: "320px", sm: "384px", md: "448px", lg: "512px",
+    xl: "576px", "2xl": "672px", "3xl": "768px", "4xl": "896px", "5xl": "1024px",
+    "6xl": "1152px", "7xl": "1280px",
+  },
+};
+const withStock = (ns, roles) => {
+  const merged = { ...STOCK_IN_PX[ns] };
+  for (const [n, v] of roles) merged[n] = v;
+  return Object.entries(merged);
+};
+
 
 const L = [
   ...BANNER("generate-theme.mjs", "this file"),
   "",
   '@import "./tokens.generated.css";',
   "",
-  "/* 1 — clear the stock namespace. Nothing Tailwind ships is reachable. */",
-  "@theme {",
-  ...CLEARED.map((ns) => `  --${ns}-*: initial;`),
-  "}",
+  "/* 1 — stock Tailwind stays whole; the roles below add to it or override",
+  "   a stock name they share (owner, 2026-09-24). */",
   "",
   "/* 2 — literals. Breakpoints and container sizes land inside media and",
   "   container queries, which cannot read a custom property. */",
   "@theme static {",
   `  --spacing: ${src.primitive.space.base.value};`,
-  ...scale(src.primitive.breakpoint).map(([n, v]) => `  --breakpoint-${n}: ${v};`),
-  ...scale(src.primitive.container).map(([n, v]) => `  --container-${n}: ${v};`),
+  ...withStock("breakpoint", scale(src.primitive.breakpoint)).map(([n, v]) => `  --breakpoint-${n}: ${v};`),
+  ...withStock("container", scale(src.primitive.container)).map(([n, v]) => `  --container-${n}: ${v};`),
   "}",
   "",
   "/* 3 — roles. `inline` so the utility carries the role variable itself and",
@@ -92,8 +109,9 @@ for (const [n] of shadowTokens(src.shadow)) L.push(`  --shadow-${n}: var(--gp-sh
 L.push("  /* motion */");
 for (const [n] of scale(src.primitive.ease)) L.push(`  --ease-${n}: var(--gp-ease-${n});`);
 
-L.push("  /* colour — SEMANTIC ROLES ONLY. No ramp step is reachable as a utility:",
-       "     `bg-neutral-200` does not exist and must not. */");
+L.push("  /* colour — the semantic roles. This system's ramps are not utilities; since",
+       "     2026-09-24 stock Tailwind's palette is (ADR-015), so `bg-neutral-200` is",
+       "     Tailwind's cool neutral, not this system's warm one. */");
 for (const [, t] of Object.entries(src.semantic.color)) {
   if (!t.tw) continue;
   L.push(`  --color-${t.tw}: var(--gp-${roleOf(src, t)});`);

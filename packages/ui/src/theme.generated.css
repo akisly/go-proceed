@@ -4,34 +4,32 @@
 
 @import "./tokens.generated.css";
 
-/* 1 — clear the stock namespace. Nothing Tailwind ships is reachable. */
-@theme {
-  --color-*: initial;
-  --font-*: initial;
-  --text-*: initial;
-  --font-weight-*: initial;
-  --leading-*: initial;
-  --tracking-*: initial;
-  --radius-*: initial;
-  --shadow-*: initial;
-  --inset-shadow-*: initial;
-  --drop-shadow-*: initial;
-  --text-shadow-*: initial;
-  --breakpoint-*: initial;
-  --container-*: initial;
-  --ease-*: initial;
-  --animate-*: initial;
-  --blur-*: initial;
-  --perspective-*: initial;
-  --aspect-*: initial;
-}
+/* 1 — stock Tailwind stays whole; the roles below add to it or override
+   a stock name they share (owner, 2026-09-24). */
 
 /* 2 — literals. Breakpoints and container sizes land inside media and
    container queries, which cannot read a custom property. */
 @theme static {
   --spacing: 0.25rem;
+  --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
   --breakpoint-wide: 1240px;
+  --container-3xs: 256px;
+  --container-2xs: 288px;
+  --container-xs: 320px;
+  --container-sm: 384px;
+  --container-md: 448px;
+  --container-lg: 512px;
+  --container-xl: 576px;
+  --container-2xl: 672px;
+  --container-3xl: 768px;
+  --container-4xl: 896px;
+  --container-5xl: 1024px;
+  --container-6xl: 1152px;
+  --container-7xl: 1280px;
   --container-measure: 680px;
   --container-content: 1240px;
   --container-nav: 880px;
@@ -99,8 +97,9 @@
   --ease-emphatic: var(--gp-ease-emphatic);
   --ease-soft: var(--gp-ease-soft);
   --ease-overshoot: var(--gp-ease-overshoot);
-  /* colour — SEMANTIC ROLES ONLY. No ramp step is reachable as a utility:
-     `bg-neutral-200` does not exist and must not. */
+  /* colour — the semantic roles. This system's ramps are not utilities; since
+     2026-09-24 stock Tailwind's palette is (ADR-015), so `bg-neutral-200` is
+     Tailwind's cool neutral, not this system's warm one. */
   --color-canvas: var(--gp-bg-canvas);
   --color-surface: var(--gp-bg-surface);
   --color-subtle: var(--gp-bg-subtle);

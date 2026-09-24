@@ -141,7 +141,7 @@ Building the office dashboard? Also read `docs/design/03-ui-references.md` (the 
 
 Five rules hold even if you read nothing else:
 
-1. **Name a role, never a value.** `bg-canvas`, not `bg-neutral-25`, and never a hex. A ramp step is not reachable as a utility, and a raw `var(--gp-neutral-*)` fails a test. If no role means what you mean, you have found a missing role.
+1. **Name a role, never a value.** `bg-canvas`, not `bg-neutral-25`, and never a hex. This system's ramp steps are not reachable as utilities, and a raw `var(--gp-neutral-*)` fails a test. If no role means what you mean, you have found a missing role. Stock Tailwind stays whole since 2026-09-24 (owner; DEV-073): `max-w-md`, `sm:`, `text-sm`, the stock palette compile, and the roles override stock names they share — so a stock class is no longer a build error; stock colours are allowed too (owner), but `bg-neutral-*` is Tailwind's cool neutral, not ours. Prefer the role where one exists; the review holds that.
 2. **Never edit a file whose header says GENERATED.** Edit `packages/tokens/src/tokens.json`, then run `pnpm --filter @goproceed/tokens generate`. Colours in `tokens.json` are OKLCH triples; the hex is output.
 3. **Animation comes from `@goproceed/ui/motion`.** Importing `motion/react` anywhere else fails the build. Reduced motion is a different animation, never a faster one.
 4. **Never write a Tailwind class as a template literal** (`bg-${tone}`). The scanner sees the template, not the class, and emits no CSS, so the element renders unstyled with no warning.
