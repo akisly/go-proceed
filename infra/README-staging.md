@@ -204,6 +204,107 @@ If either apply exits non-zero, or the second `push` offers to apply anything
 at all, treat that as a migration bug and stop — do not proceed to §3 against
 a staging DB in an unknown state.
 
+### 2.3 INV-116: compare the database ACL (DEV-071, BL-157)
+
+`0102` revoked `TEMPORARY` on the database from PUBLIC and every `goproceed_*`
+role (INV-116). That ACL lives on the database, outside every schema, so a
+migration run does not re-check it: a logical restore into a new project
+(`pg_dump` carries the database ACL only with `--create`), a grant made in the
+dashboard or SQL editor, or a platform change can re-open it while
+`schema_migrations` still records `0102`. This step compares it instead of
+assuming it. It is detection, not prevention: drift between runs is invisible.
+
+**When:** after every `supabase db push`; after a restore or a clone; after the
+project is unpaused (free plan); after a Postgres upgrade; after any role or
+grant change made outside a migration.
+
+**How:** run `technical/database/checks/inv-116-temporary-privilege.sql`
+verbatim — one read-only `SELECT` over the system catalogs, runnable by any
+role, with the session's default `search_path` (`pg_catalog` searched first) —
+and expect **0 rows**. Each row is a violation (`check_id`, `subject`,
+`detail`); a run against the wrong project returns «product role missing»
+rows rather than nothing. The checks read catalogs only: the refusal itself
+(a product login denied a temporary table) is proven by the test suite
+locally and in CI, not on the hosted project.
+
+- **Through the Supabase connector's `execute_sql`** — the default. The
+  coordinator may do this on `goproceed-staging` at any time (owner,
+  2026-09-24). No password is involved.
+- **Or with the full snapshot — the owner, in their own terminal only.** An
+  agent never receives the hosted password, and it never goes on a command
+  line (shell history, `ps`) or into an exported variable (an exported
+  `SUPABASE_DB_URL` would point `packages/testing`'s `adminClient()` — and the
+  destructive fixture writes behind it — at the hosted database; BL-160).
+  Download the project's CA certificate (Dashboard → Database Settings → SSL
+  Configuration; https://supabase.com/docs/guides/platform/ssl-enforcement),
+  keep the password in `~/.pgpass` (mode `0600`) or type it with
+  `read -rs PGPASSWORD`, and give a URL without it:
+
+  On the free plan the direct host may answer over IPv6 only; if it cannot be
+  reached, use the session pooler's host and port with the user
+  `postgres.<project ref>` instead.
+
+  ```bash
+  read -rs PGPASSWORD && PGPASSWORD="$PGPASSWORD" SUPABASE_DB_URL='postgresql://postgres@<direct host>:5432/postgres?sslmode=verify-full&sslrootcert=<path to the CA file>' pnpm db:catalog-snapshot; unset PGPASSWORD
+  ```
+
+  The script refuses a non-local host without `sslmode=verify-full` and an
+  `sslrootcert`, runs in one read-only transaction, prints the INV-116 result
+  first, exits 1 on a violation, and writes the snapshot to the OS temporary
+  directory — never into the tracked `catalog-snapshots/` (a hosted snapshot is
+  not committed; owner, 2026-09-24). Delete it when done. Never run it through a
+  port-forward or tunnel on `127.0.0.1`/`localhost` to a hosted project: the
+  script would take it for the local stack, skip the TLS check and write into
+  the tracked directory.
+
+**If it returns rows**, route by the row — every remedy is a hosted write and
+needs the owner's word:
+
+Read the rows in this order:
+
+1. **`T2` «product role missing»** — the wrong project or database, or an
+   incomplete restore. Stop and confirm the target; no write.
+2. **`T1`** — PUBLIC holds `TEMPORARY`. Every product role then shows a `T2`
+   row too; those clear with it. Re-apply `0102` by hand as `postgres` (below).
+3. **`T2` «… via X»**, by what X is:
+   - X is a `goproceed_*` role (the subject itself or another — a login reaches
+     its role through a membership that is there by design): that product role
+     holds `TEMPORARY` directly. Re-apply `0102`.
+   - X is a non-product role that is not a superuser: a membership hands the
+     product role `TEMPORARY`. A forward migration revokes the membership.
+   - X, or the subject, is a superuser: `0102` cannot fix it (its assertion
+     would raise and roll back). `ALTER ROLE … NOSUPERUSER` or revoking the
+     membership is the platform's or the owner's action; `postgres` cannot do
+     it on a hosted project.
+4. **`T3`** — a `TEMPORARY` holder can become a product role: a forward
+   migration that revokes the membership.
+5. **`T6`** — a `TEMPORARY` holder can execute a definer: a forward migration
+   that revokes the `EXECUTE` grant.
+6. **`T8`** — a function body creates a temporary object: a forward migration.
+
+Re-applying `0102` (the owner, in their own terminal, with the same TLS and
+password handling as above): `psql 'postgresql://postgres@<direct
+host>:5432/postgres?sslmode=verify-full&sslrootcert=<CA file>' -v
+ON_ERROR_STOP=1 -1 -f
+supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql`. It
+is idempotent, refuses without the owner's rights, asserts its own result, and
+`db push` will not re-run it because `0102` is already recorded. Its NOTICE
+lines name every role it grants `TEMPORARY` back to: compare them with DA-202's
+list, and revoke from any role that is not on it (after a restore, a role
+created later may otherwise gain it). Then run this step again.
+
+A Supabase-side role removal that fails on «privileges for database postgres»
+is `0102`'s direct grant to that role: revoke `TEMPORARY` from that role alone
+(or let `DROP OWNED` do it, which revokes privileges on shared objects). Never
+grant it back to PUBLIC.
+
+**Status:**
+
+| Date (UTC) | Project | Head | Check file (sha256) | Rows | Run as | By |
+|---|---|---|---|---|---|---|
+| 2026-09-24 16:13 | `goproceed-staging` | `0102` | `bb4bb04a816ace835a6d2f36ddac2d5d3cc50e1423eabf198659b5373bf842b4` (DEV-071 round 1) | 0 | `postgres` (connector) | DEV-071 |
+| 2026-09-24 16:26 | `goproceed-staging` | `0102` | `bbcbbb246dc4ba64adad555b571e03cc15fcafac1f84b9e1e4e22654dd9a629a` (DEV-071 round 2, literals typed) | 0 | `postgres` (connector; `search_path` `"$user", public, extensions`) | DEV-071 |
+
 ## 3. Set the `goproceed_app_login`, `goproceed_service_login` and `goproceed_purge_worker_login` passwords on staging (mandatory, do this now)
 
 **Never run any of the following against this (or any real) Supabase

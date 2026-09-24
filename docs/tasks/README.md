@@ -87,3 +87,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-067](DEV-067-typescript-6.md) | done | BL-062: one TypeScript, 6.0.3, in the whole workspace; packages that use Node APIs declare `@types/node` |
 | [DEV-068](DEV-068-lockfile-react-guard.md) | done | BL-083: one `@types/react`/`@types/react-dom` via overrides, `apps/mobile` `react-dom` 19.2.3, and a CI lockfile check |
 | [DEV-069](DEV-069-vitest-5.md) | done | BL-061: vitest 3.2.4 → 5.0.1 with Vite 8.0.13; `vitest.workspace.ts` → `test.projects` |
+| [DEV-071](DEV-071-database-acl-compared.md) | verifying | BL-157 (P3): INV-116's catalog checks live in one read-only SQL file that the test suite, `pnpm db:catalog-snapshot` (exit 1 on a violation) and the hosted comparison in `infra/README-staging.md` §2.3 all run; first hosted run on `goproceed-staging`: 0 rows; BL-159 files the missing restore procedure |

@@ -914,6 +914,8 @@ above.
    127.0.0.1`, and the newest predates `0034`. No snapshot in the repository
    corroborates `0034`-`0040` on any environment, and none records constraints at
    all, so `0040`'s foreign key is unverified outside the migration text.
+   *[2026-09-24, DEV-071: only the database ACL (INV-116) is now compared on
+   `goproceed-staging`, `infra/README-staging.md` §2.3.]*
 5. **The purge worker's byte-deleting half is wired to no runtime.**
    `0038:29-32` is explicit that the grants do not make the purge work: marking
    an intent expired is scheduled (`0021:132`), but deleting the bytes needs

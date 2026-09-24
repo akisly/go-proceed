@@ -107,7 +107,7 @@ the migration text that decides it.
 | 5 | Audit enforced append-only | **Delivered** | `0006:10-19` — `app.reject_mutation` on a `BEFORE UPDATE OR DELETE` trigger, which fires for the table owner too, so a widened grant alone cannot rewrite history |
 | 6 | Future object privileges deny-by-default | **Delivered, with one residual the runner cannot close** | `0009:8` revokes `CREATE` on `public`; `0009:28-62` discovers every creator role from `pg_default_acl` rather than assuming one, and revokes tables, sequences, and functions from `anon`/`authenticated`, plus a **global**-scope function revoke because a schema-scoped one cannot subtract the built-in PUBLIC execute (`0009:16-20`). The residual is `supabase_admin`, documented at `0009:21-27` — see Current risks |
 | 7 | Reviewed BFF, worker, and service roles with no browser-reachable secret | **Partial** | `goproceed_app`/`goproceed_app_login` (`0003:8,11`) and `goproceed_service`/`goproceed_service_login` (`0034:25,28`) exist with `NOLOGIN`/`NOINHERIT` separation. `goproceed_worker` (`0008:35`) still has **no login role**, so the outbox has no credential. *[2026-09-23, DEV-036: the evidence purge has its own pair, `goproceed_purge_worker`/`goproceed_purge_worker_login` (`0090`), with EXECUTE on five `app.*upload*purge*` functions and nothing else.]* |
-| 8 | Live catalog comparison proving no staging/production drift | **Not delivered** | The newest snapshot, `catalog-snapshots/20260731-2102.md`, was taken against `127.0.0.1` and predates `0034`: its `## roles (6)` block contains no `goproceed_service` |
+| 8 | Live catalog comparison proving no staging/production drift | **Partial** | INV-116's catalog checks (`technical/database/checks/inv-116-temporary-privilege.sql`) are compared on `goproceed-staging` through the connector after every push or restore (`infra/README-staging.md` §2.3; 0 rows on 2026-09-24, DEV-071). No full snapshot of any hosted project exists: the newest committed one, `catalog-snapshots/20260731-2102.md`, was taken against `127.0.0.1` and predates `0034` (its `## roles (6)` block contains no `goproceed_service`) |
 
 The `0009` design note is worth keeping visible because it is the kind of thing a
 later migration will get wrong: a schema-scoped `ALTER DEFAULT PRIVILEGES …
@@ -616,7 +616,7 @@ Rules, with their delivery state:
 | 5 | Grant object/operation-specific privileges in the same migration that adds its RLS policies | Practice since `0011`/`0013`/`0016`; `0039` exists because `0003` granted UPDATE in a migration that added no policy |
 | 6 | Fail CI if a new exposed object lacks an owner, grant decision, RLS decision, and security test | Target |
 | 7 | Never grant a table-wide UPDATE ahead of the policy and capability that scope it | Delivered as doctrine by `0039:20-25`: a settings command adds a column-scoped grant, an owner/admin policy, and its capability in one migration — never the policy alone |
-| 8 | Revoke `TEMPORARY` on the database from `PUBLIC`; no `goproceed_*` role, nor anything it can become or inherit, holds it | Delivered (`0102`, DEV-060, INV-116). The Supabase-managed roles that held it through `PUBLIC` hold it by direct grant. Product roles are named `goproceed_*`: `0102`, INV-116's tests and its assertions find them by that name. A new product role never gets TEMP; a new non-product role that needs it gets an explicit grant in a migration. The roles that keep TEMP must never get `EXECUTE` on a definer in `app`, `public` or `api` — `service_role` included, whose Supabase default privileges grant it on new `public` functions; INV-116's T6 fails when one does. The ACL is outside the schema, so a restore without `--create` re-opens it (BL-157) |
+| 8 | Revoke `TEMPORARY` on the database from `PUBLIC`; no `goproceed_*` role, nor anything it can become or inherit, holds it | Delivered (`0102`, DEV-060, INV-116). The Supabase-managed roles that held it through `PUBLIC` hold it by direct grant. Product roles are named `goproceed_*`: `0102`, INV-116's tests and its assertions find them by that name. A new product role never gets TEMP; a new non-product role that needs it gets an explicit grant in a migration. The roles that keep TEMP must never get `EXECUTE` on a definer in `app`, `public` or `api` — `service_role` included, whose Supabase default privileges grant it on new `public` functions; INV-116's T6 fails when one does. The ACL is outside the schema, so a restore without `--create` re-opens it: `technical/database/checks/inv-116-temporary-privilege.sql` compares it after every hosted push or restore (`infra/README-staging.md` §2.3; DEV-071, BL-157) |
 
 Conceptual default:
 
@@ -986,6 +986,10 @@ described are proved delivered in Implementation status above.
    `## cron_jobs (3)` block still lists `outbox-drain`. No snapshot in the
    repository corroborates `0034`-`0040` anywhere. Grants, policies, default
    ACLs, and cron presence on a hosted environment are unproven.
+   *[2026-09-24, DEV-071: the database ACL alone is now compared on
+   `goproceed-staging` — INV-116's checks, `infra/README-staging.md` §2.3 — and
+   the snapshot records `database_acl` and `temp_privilege`; everything else in
+   this item still stands.]*
 5. **The purge worker's byte-deleting half was wired to no runtime.**
    `0038:29-32` was explicit that granting the four functions did not make the
    purge work. *[Closed in the repository 2026-09-23 by DEV-036 (BL-030): a
