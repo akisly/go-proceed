@@ -184,7 +184,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 | [BL-155](#bl-155) | P2 | closed → DEV-060 | PUBLIC holds TEMP on the database |
-| [BL-156](#bl-156) | P2 | scheduled → DEV-075 | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
+| [BL-156](#bl-156) | P2 | closed → DEV-075 | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 | [BL-157](#bl-157) | P3 | closed → DEV-071 | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
 | [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
 | [BL-159](#bl-159) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
@@ -1868,9 +1868,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-156"></a>
 ### BL-156 — P2 — The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers
 
-- **State:** scheduled → DEV-075
+- **State:** closed → DEV-075
 - **Legacy cite:** none
-- **Why:** DEV-058's `gp-reviewer` raised this as a separate question, and the owner asked on 2026-09-24 for it to be filed. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires the довідковий disclaimer «Under every generated requirement list, never collapsed», and the project-sourced items disclaimer «only on a list that also carries project-sourced items, immediately after it». The act (`apps/app/src/lib/statutory-act-form.ts`) prints both. Since DEV-058 the native field obligation screen prints both too. Two other surfaces print requirement citations with their verification label, including «за робочою документацією об'єкта», and print neither disclaimer:
+- **Why:** *[2026-09-24, DEV-075: both surfaces are requirement lists (gp-architect); the texts moved byte for byte into `apps/app/src/lib/required-disclaimers.ts`, and the Telegram card, the requirement-choice prompt and the blocked-reasons panel print them in full, the project-sourced note only after a printed `PROJECT_DOCUMENTATION` citation. The wording question the reading raised is BL-163. Merged in #146 (`96ef998a`).]* DEV-058's `gp-reviewer` raised this as a separate question, and the owner asked on 2026-09-24 for it to be filed. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires the довідковий disclaimer «Under every generated requirement list, never collapsed», and the project-sourced items disclaimer «only on a list that also carries project-sourced items, immediately after it». The act (`apps/app/src/lib/statutory-act-form.ts`) prints both. Since DEV-058 the native field obligation screen prints both too. Two other surfaces print requirement citations with their verification label, including «за робочою документацією об'єкта», and print neither disclaimer:
   - the Telegram assignment card and the requirement-choice prompt. Both come from `renderRequirements` in `apps/app/src/lib/telegram/cards.ts`, a numbered «Вимоги» list with a «Джерела» block;
   - the office's blocked-reasons list in the project money overview, where each reason shows its `normRef` with the label (`apps/app/src/components/projects/blocked-reasons-list.tsx`).
 

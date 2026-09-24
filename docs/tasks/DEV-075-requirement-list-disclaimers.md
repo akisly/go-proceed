@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: every surface that prints a requirement list carries the disclaimers that `docs/product/hidden-works-content-rules.md` §"Required disclaimers" requires. The Telegram assignment card, the requirement-choice prompt and the office's «Заблоковані вимоги» panel print the довідковий disclaimer under the list. When an item on the list is labelled «за робочою документацією об'єкта», the project-sourced items note follows immediately after it. Before this change only the act and the native field screen printed them.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): executed code under `apps/app` that touches the Telegram channel workflow's card renderer and a dashboard component. Route: `gp-architect` → implementation with failing tests first → `gp-reviewer` + `gp-ui-reviewer` → `gp-qa`.
@@ -72,6 +72,7 @@
 | 11 | gp-qa | On `aaf02810`: AC-1 to AC-5 PASS, AC-6 PASS (partial), AC-7 NOT RUN (no pull request yet). Mutations killed: note dropped, order swapped, helper always both, one byte changed, a second copy, disclaimers moved above «Джерела», empty-list guard removed. The moved blocks hash the same (sha256 `557dd825…`); `RENDERER_VERSION` is `statutory-act-render/2`. Every stated fix is in place. Q1 (minor): an expandable quote or a `<details>` survived. Q2 (nit): the §6 fixture used the role key `technical_supervision`; the real key is `technical_supervisor`, so the screenshot shows the raw fallback under «Хто вирішує». Tree clean after the run | Subagent report (session) | Fix Q1 |
 | 12 | Coordinator | Q1: «never collapses them» cases in `cards.test.ts` (card and prompt: no `<blockquote`, no `<tg-spoiler`) and `blocked-reasons-list.test.tsx` (no `<details`). Mutations: each disclaimer wrapped in its own `<blockquote expandable>` fails 3 (the new case and two adjacency checks); the panel's block wrapped in `<details>` fails 1; both restored. The two files: 37 of 37. Q2 recorded here: a fixture artifact, not a label bug | Session output | Pull request, CI |
 | 13 | gp-qa | Q1 PASS at `0dbc45ed`: the whole block wrapped in `<blockquote expandable>` (M7) or `<tg-spoiler>` (M7b) fails the new card case; the panel block wrapped in `<details>` (M8) fails the new panel case; tree restored each time. Two record corrections, applied here (row 12's mutation named; AC-6's limitation) | Subagent report (session) | CI |
+| 14 | Owner | #146 merged (`96ef998a`, 2026-09-24 22:53 UTC) on the owner's word («мержи»). CI green on the head `20bb8f8b` (run 36063259322: `verify` with the database suites, `app-qa`) and on `0dbc45ed` (run 36063165495), the last code commit | `gh pr view 146`; the CI runs | done |
 
 ## Findings and rework
 
@@ -108,7 +109,7 @@ Rework count and hypothesis changes: none. R1, R2, R3, R6 and Q1 are stated fixe
 | AC-4 panel texts under the list, in order, never collapsed, none when empty | Yes | `aaf02810` + Q1 tests | `blocked-reasons-list.test.tsx` 5/5 with the `<details` mutation; `mixed-390.png` | PASS | seen on a fixture, not the live route |
 | AC-5 one source; act bytes and `RENDERER_VERSION` unchanged | Yes | `aaf02810` | same sha256 for the moved blocks; byte-for-byte guard; sweep with mutation | PASS | |
 | AC-6 §5 gate and §6 | Yes | `248053c6` + working tree; `aaf02810` | rows 5, 6, 11 | PASS | assisted: §6 on a fixture with browser fonts; database suites NOT RUN locally (CI's); gp-qa did not re-run the landing or app builds and saw one of the two screenshots (`mixed-390.png`) |
-| AC-7 full CI on the pull request | Yes | — | pending | NOT RUN | environmental: no pull request yet; settled by the PR's `verify` and `app-qa` |
+| AC-7 full CI on the pull request | Yes | `20bb8f8b` | PR #146 CI run 36063259322, `verify` (database suites included) and `app-qa` green (row 14) | PASS | |
 
 ## Sources
 
@@ -120,5 +121,5 @@ No third-party documentation was needed: the change renders fixed strings throug
 - Review independence: independent — `gp-architect`, `gp-reviewer` and `gp-ui-reviewer` (native subagents); `gp-qa` (native subagents).
 - Verified scope: rows 3–6.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: the pull request's CI (AC-7); then the owner's merge.
-- Final state and reason: verifying — AC-1 to AC-6 PASS (gp-qa row 11, Q1 fixed in row 12); AC-7 waits on CI.
+- Next bounded action and owner: none in this task. BL-163 (the довідковий wording and its emphasis) waits on the owner.
+- Final state and reason: done — every required criterion PASS; #146 merged with CI green (row 14).
