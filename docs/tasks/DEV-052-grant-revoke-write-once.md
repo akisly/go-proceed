@@ -52,6 +52,7 @@
 | 11 | gp-qa | PASS on criteria 1–4 (21 suites one at a time, none skipped; the applied body's md5 equals the file's; 0099's DO block re-run in a rolled-back transaction); QA-01 low: the S1-01 case's SET check missed the supautils path (`supabase_privileged_role`) | QA report, 2026-09-24, on `scratchpad/dev051-r2.diff` | QA-01 |
 | 12 | coordinator | QA-01 fixed: the check also counts membership of `supabase_privileged_role`, and `postgres` is the positive control (flagged as owner and as able to set it); workspace-access-rls 26 passed | `scratchpad/dev051-suites-r3.txt` | gp-qa re-verifies QA-01 |
 | 13 | gp-qa | QA-01 re-verified: the fix matches its statement, the control passes only through the new membership check, workspace-access-rls 26 passed | QA report, 2026-09-24 | commit |
+| 14 | Owner; coordinator (hosted push) | On the owner's word «запушь миграции 0098–0100 на hosted» (2026-09-24), before PR #123's merge: from a `git archive` copy of `supabase/` at `fa1d79fd`, `supabase link --project-ref asrvzhjaueyvrfozxpzo`, `supabase db push --linked --dry-run` (exactly `0098`, `0099`, `0100`; no seeds, no roles), then the push, 12:02:57–12:03:02 UTC, exit 0, Supabase CLI 2.114.0, login role through the access token. Preflight (read-only, connector): the six functions owned by `postgres`, the pushing role; no trigger on `project_access_grants`. After: versions `0096`–`0100`; `project_access_grants_guard` (enabled `O`, type 27) on `app.guard_project_access_grant()` (invoker, `search_path=""`, EXECUTE `postgres` only). Production runs `main`, whose only grant writes are inserts and the revoke `0099` allows | `scratchpad/push-0098-0100-dryrun.txt`, `push-0098-0100.txt` | — |
 
 ## Findings and rework
 
@@ -73,7 +74,6 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 ## What is not true after this task
 
 - A superuser can still insert a grant outside the product, including one that leaves an action capability without a covering view (INV-111's «Not covered»).
-- `0099` is applied to the local database only; the hosted project needs the owner's push.
 - The suites that call `resetDb` are not run locally; they insert grants only.
 - The table owner can still bypass the guard: replica mode, `DISABLE TRIGGER`, `TRUNCATE` (INV-113 «Not covered»).
 - `service_role` keeps Supabase's default TRIGGER and REFERENCES on the table (S1-R1).
@@ -99,5 +99,5 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Review independence: `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents.
 - Verified scope: criteria 1–4.
 - Remaining risks / blocked requirements: «What is not true after this task»; the hosted push of `0098` and `0099`.
-- Next bounded action and owner: the cluster's final run (DEV-053); pushing `0098`–`0099` to the hosted project, and merging, are the owner's.
+- Next bounded action and owner: merging PR #123 is the owner's; `0098`–`0099` are on staging since 2026-09-24.
 - Final state and reason: verifying until the cluster's final run.
