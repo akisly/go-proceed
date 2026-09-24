@@ -235,10 +235,8 @@ jobs:
   # [2026-09-23, DEV-035] The field PWA was retired by the owner: the
   # disclaimer, the obligation screen's touch floor and the INV-081 banner are
   # no longer in apps/app, and this job no longer covers them. It covers the
-  # office dashboard. The field client's browser pass is apps/mobile's
-  # `pnpm --filter @goproceed/mobile qa`, which is in no CI job yet (BL-135).
-  # [2026-09-23, DEV-042: that script was removed with the Expo web field client;
-  # the native client has no harness yet.]
+  # office dashboard. The field client is now apps/mobile's native build
+  # (ADR-013); it has no browser or device harness, in CI or out of it (BL-135).
   app-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 20

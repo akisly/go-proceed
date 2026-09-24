@@ -1,4 +1,7 @@
-// PORT of apps/app/src/lib/otp-error.ts — byte-identical logic and copy. Transitional duplication under ADR-009: the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files.
+// Deliberate duplicate of apps/app/src/lib/otp-error.ts, the office dashboard's
+// login: one person signs in to both clients, so the three messages stay
+// byte-identical (otp-error-twin.test.ts reads the app's file) and a logic fix
+// lands in both (each side's otp-error.test.ts carries the same cases).
 
 /**
  * THE ONE PLACE A SUPABASE AUTH FAILURE BECOMES A SENTENCE A FOREMAN READS —

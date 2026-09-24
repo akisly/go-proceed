@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { nextStateFor } from "./recover";
 
-// PORT of apps/app/src/lib/capture/recover.test.ts — byte-identical assertions.
+// Ported from apps/app/src/lib/capture/recover.test.ts, deleted with the field
+// PWA (DEV-035); these assertions are the only copy now.
 
 describe("the problem+json userAction decides what the screen does next", () => {
   it("never shows an in-progress label for an action nothing acts on", () => {

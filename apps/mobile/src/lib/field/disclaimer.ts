@@ -1,7 +1,8 @@
-// PORT of the `DOVIDKOVYI_DISCLAIMER_TEXT` constant defined in
-// apps/app/src/lib/statutory-act-form.ts — byte-identical copy. Transitional
-// duplication under ADR-009: the PWA original retires when the Expo client
-// passes the parity gate; until then fix bugs (or wording) in BOTH files.
+// Deliberate duplicate of the `DOVIDKOVYI_DISCLAIMER_TEXT` constant in
+// apps/app/src/lib/statutory-act-form.ts. Both copies must equal, byte for
+// byte, the Approved text in docs/product/hidden-works-content-rules.md
+// §"Required disclaimers": disclaimer.test.ts checks this one and
+// apps/app/tests/act-content-fidelity.test.ts the app's.
 //
 // Split into its own module here (the source keeps it inside the much larger
 // `statutory-act-form.ts`, which this app has no reason to port in full —

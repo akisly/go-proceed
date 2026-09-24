@@ -6,8 +6,8 @@
  * `verifyCode` are closures over `useState` calls, so on the web side the
  * only way to exercise the 429 split, the generic-failure collapse, or the
  * re-entrancy guard is to actually render the component (which `apps/app`'s
- * Node-only `vitest` run cannot do — see `safe-next.ts`, `submit-guard.ts`
- * and `otp-error.ts`'s own headers for the same constraint). This module is
+ * Node-only `vitest` run cannot do — see `otp-error.ts`'s own header for the
+ * same constraint). This module is
  * that same decision, made into a plain class with no React and no DOM in
  * its module graph, so `login-flow.test.ts` can drive every branch — success,
  * a 429 on either phase, a generic failure on either phase, a re-entrant
@@ -65,7 +65,7 @@ export type LoginFlowDeps = {
   /**
    * Called once, after `verifyOtp` resolves with no error — never called on
    * a failure, and never called more than once per successful verify. Owns
-   * the `router.replace(safeNext(...))` navigation; this module has no
+   * the `router.replace(nativeNext(...))` navigation (`src/screens/login.tsx`); this module has no
    * `router` and no `window`, on purpose, for the same Node-testability
    * reason as everything else in this file.
    */

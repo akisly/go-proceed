@@ -1,0 +1,87 @@
+# DEV-057 — BL-135: the loose ends of the field PWA's retirement
+
+## Assignment
+
+- Objective and user-visible outcome: the field client's code says truthfully which of its modules are the only copy now and which are deliberate duplicates of `apps/app`, and the duplicates that print text a user reads are held equal by tests; dead web icons and the unused `safe-next.ts` are gone. Nothing a user sees changes.
+- State: reviewing
+- Coordinator: Claude Code primary session, 2026-09-24.
+- Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
+- Selected route and why (`agents/COORDINATION.md`): an `apps/mobile` change → `gp-mobile` for requirements; `gp-reviewer`, `gp-ui-reviewer` (paths under `apps/mobile/src`), `gp-security` (`apps/mobile/.env.example`), `gp-qa`.
+- Triggered stages (architect / security / ui-reviewer / mobile / researcher) and why: `gp-mobile` (apps/mobile); `gp-ui-reviewer` (`apps/mobile/src`; no screen renders differently, so no §6 screenshots); `gp-security` (an `.env.example` comment). Not `gp-architect`, not `gp-researcher`.
+- Owning module and allowed edit paths: `apps/mobile/src/lib/**` (headers, comments, the three guards, deleting `safe-next.ts` and its test), `apps/mobile/public/icons/*`, `apps/mobile/assets/{favicon.png,icon-concept-v2.png}`, `apps/app/public/{icon-192,icon-512,maskable-icon-512}.png`, `apps/mobile/.env.example` (comment), `scripts/generate-brand-icons.mjs`, `turbo.json` (test inputs), `.github/workflows/ci.yml` (comment), `infra/README-staging.md` (dated note), `docs/BACKLOG.md` (BL-135 note, BL-146), this record, `docs/tasks/README.md`.
+- Read context and applicable local instructions: root `AGENTS.md`, `apps/mobile/AGENTS.md`, `docs/design/02-building-ui.md`, ADR-013, DEV-035, `docs/product/hidden-works-content-rules.md` §"Required disclaimers".
+- Linked spec (`docs/specs/…`), ADR or earlier task: BL-135; DEV-035 (`gp-mobile` M1-03, M1-04, M1-06, M1-07); ADR-013.
+- Baseline: `origin/main` `e43c5ecf`.
+- Dependencies / constraints / out of scope: BL-135 (3)'s native harness and (6)'s device measurement stay open; switching the hand-copied contract types is BL-146.
+- Required acceptance criteria: `gp-mobile` AC-13…AC-23, each in «Acceptance evidence».
+- Skipped stages and rationale: none.
+
+## Owner decisions
+
+| Date | Decision | Source |
+|---|---|---|
+| 2026-09-24 | Item (5): «Оставить 404, закрыть» — an old `/a/{id}` link keeps landing on the 404; wontfix | Owner's choice in this session |
+| 2026-09-24 | Item (4): «Все веб-остатки» — delete the `apps/app` PWA icons and `apps/mobile/public/icons/*` with their generator lines | Owner's choice in this session |
+| 2026-09-24 | `apps/mobile/src/lib/safe-next.ts`: «Удалить с тестом» | Owner's choice, on `gp-mobile` Q1 |
+| 2026-09-24 | OTP messages: «Да, тест на совпадение» with the office login's | Owner's choice, on `gp-mobile` Q3 |
+| 2026-09-24 | Also in this PR: delete `assets/icon-concept-v2.png`; correct `apps/mobile/.env.example`'s «web-first»; file a backlog entry for the contract types (BL-146) | Owner's choice, on `gp-mobile` Q2, Q4, Q5 |
+
+## Plan
+
+1. Headers: canonical copies (`capture/{state,recover,attempt,hash}.ts`, `field/{assignments,obligations}.ts` and the three ported tests) say the original is gone; the three with a live twin say «deliberate duplicate» and name their guard; the false «not a mobile app dependency» comments are corrected. Check: AC-13, AC-14.
+2. Guards: `field/disclaimer.test.ts` (against the content rules' blockquote, through `apps/app/tests/helpers/content-rules.ts`), `otp-error-twin.test.ts`, and a new case in `field/norm-ref-labels.test.ts` (against `apps/app`'s files as text); `turbo.json` test inputs gain the four files read. Check: AC-15…AC-17, AC-19.
+3. Delete `safe-next.ts` and its test; fix `login-flow.ts`'s two mentions. Check: AC-18.
+4. Delete the nine icon files and their generator lines; `ci.yml` and `.env.example` comments; `infra/README-staging.md` note; BL-135 note and BL-146. Check: AC-20…AC-23.
+
+## Progress and decisions
+
+| Order | State or role | Decision / result | Evidence / reference | Next action |
+|---|---|---|---|---|
+| 1 | gp-mobile | Requirements and AC-13…AC-23; findings: `hash.ts` and three test headers also say PORT; `safe-next.ts` is dead (native login uses `nativeNext`); the «not a mobile app dependency» comments are false since DEV-042; ADR-013's own dated note already supersedes its handoff-page sentence, so (5) needs no ADR change; the disclaimer should answer to the Approved document, not to the app's copy; the guards read files outside the package, so `turbo.json` inputs must list them | Subagent report (session) | Owner questions |
+| 2 | Owner | Q1–Q5 answered (Owner decisions) | Session | Implement |
+| 3 | Coordinator | Implemented plan steps 1–4. `pnpm --filter @goproceed/mobile typecheck` exit 0; `test` 188 passed in 22 files (`main`: 186 in 20; −`safe-next.test.ts`, +`disclaimer.test.ts`, `otp-error-twin.test.ts`, one norm-ref case, and DEV-056's 7). `expo export --platform ios --platform android` on `main` and on this tree: both exit 0; the file lists (hashes masked) differ in exactly `icons/apple-touch-icon.png`, `icons/icon-192.png`, `icons/icon-512.png`, `icons/icon-maskable-512.png`, which the native export had been copying from `public/` into `dist/` although nothing native references them; `expo config --type public` names no favicon or web icon. `validate:canonical-docs` needed BL numbers to stay sequential, so the new entry is BL-146 and code comments cite «a backlog entry», not the number (the parallel «Доступ и админы» branch also starts at BL-146) | scratchpad `ac22.log` | Gate, reviews |
+| 4 | Coordinator | UI gate (`docs/design/02-building-ui.md` §5) at `e43c5ecf` + working tree: step 1 skipped (`tokens.json` unchanged); step 2 `motion-audit: clean`; step 3 only the thirteen `packages/testing` files that touch no database (contrast, token-fidelity, palette-derivation, primitive-leak, component-contract, app-entry, motion-audit, motion-contract, copy-catalog-fidelity, status-label-fidelity, tw-merge, subtle-body-copy, error-catalog-fidelity): 202 passed in 13 files — the rest call `resetDb()` (`supabase db reset`) and are NOT RUN without the owner; step 4 `pnpm turbo run typecheck` first failed on `@goproceed/app#typecheck` in this fresh worktree before any `next build` had generated its route types, then passed 10/10 (`--force`) after step 5; step 5 `pnpm --filter @goproceed/landing build` exit 0; `pnpm --filter @goproceed/app build` exit 0 (AC-21) | scratchpad `gate.log` | Reviews |
+
+## Findings and rework
+
+| Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
+|---|---|---|---|---|---|
+
+Rework count and hypothesis changes: none yet.
+
+## What is not true after this task
+
+- The native field client still has no browser or device harness, in CI or out of it (BL-135 (3) open).
+- What an icon installed from the old PWA does on a real phone is unmeasured (BL-135 (6), BL-002).
+- The mobile copies of contract shapes are still hand-written (BL-146); only the comments about them were corrected.
+- The guards compare text a user reads, not logic: `otp-error.ts`'s rule and the norm-ref function are held equal only by each side's mirrored tests.
+- The guards read `apps/app` files by path; renaming one breaks the mobile test, loudly.
+
+## Acceptance evidence
+
+| Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
+|---|---|---|---|---|---|
+| AC-13 no stale PORT/«BOTH files»/«parity gate» header on a canonical copy; no «not a mobile app dependency» claim | Yes | working tree | `grep -rn -E 'PORT\b|BOTH files|parity gate|not a mobile app dependency' apps/mobile/src` → nothing | PASS | negative |
+| AC-14 live twins say «deliberate duplicate» and name the guard | Yes | working tree | headers of `otp-error.ts`, `field/norm-ref-labels.ts`, `field/disclaimer.ts` | PASS | |
+| AC-15 disclaimer guard; mutation fails it | Yes | working tree | `field/disclaimer.test.ts` passes | PASS | mutation run left to gp-qa |
+| AC-16 norm-ref label guard; mutation fails it | Yes | working tree | `field/norm-ref-labels.test.ts` passes | PASS | mutation run left to gp-qa |
+| AC-17 OTP message guard; mutation fails it | Yes | working tree | `otp-error-twin.test.ts` passes | PASS | mutation run left to gp-qa |
+| AC-18 `safe-next` gone; tests and typecheck pass | Yes | working tree | `grep -rn 'safe-next\|safeNext' apps/mobile/src` → only `otp-error.ts`/`otp-error.test.ts` comments describing `apps/app`'s twin; row 3 | PASS | |
+| AC-19 an `apps/app`-only edit of a read file misses the turbo cache for `@goproceed/mobile#test` | Yes | working tree | — | NOT RUN | left to gp-qa |
+| AC-20 `ci.yml` diff is comments only and names no deleted command | Yes | working tree | diff; YAML parses | PASS | |
+| AC-21 the nine files deleted, the generator writes none, nothing references them; `apps/app` builds | Yes | working tree | grep; `pnpm --filter @goproceed/app build` (gate log) | PASS | |
+| AC-22 native export unaffected except the four copied icons | Yes | working tree | row 3 | PASS | EAS NOT RUN: no account |
+| AC-23 BL-135 dated note; staging README note | Yes | working tree | `docs/BACKLOG.md` BL-135; `infra/README-staging.md` §Installable | PASS | |
+
+## Sources
+
+- Expo SDK 57 app config (`platforms`, `web.favicon`), https://docs.expo.dev/versions/v57.0.0/config/app/ (accessed 2026-09-24 by `gp-mobile`); `expo` 57.0.24 installed. The export behaviour for `public/` was measured (row 3), not taken from the docs.
+
+## Completion / handoff
+
+- Changed / inspected files: see «Owning module».
+- Review independence: independent — `gp-mobile`; reviews pending.
+- Verified scope: unit tests, typecheck, native export comparison.
+- Remaining risks / blocked requirements: CI NOT RUN (billing block).
+- Next bounded action and owner: gate output, `gp-reviewer`, `gp-ui-reviewer`, `gp-security`, `gp-qa`; then the owner merges.
+- Final state and reason: reviewing.
