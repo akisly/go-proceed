@@ -9,7 +9,7 @@
   - a photo the user asked to delete is never sent afterwards;
   - the queue card names the requirement even offline;
   - a discard never waits unbounded.
-- State: reviewing
+- State: verifying
 - Coordinator: Claude Code primary session (2026-09-24).
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires.
 - Selected route and why: native client, sign-out session code, the vault and retention of personal data. That means `gp-mobile` and `gp-architect` before design (auth and session code always takes the architect and security route), then `gp-reviewer`, `gp-security`, `gp-ui-reviewer` (screens in `apps/mobile/src`) and `gp-qa`.
@@ -59,6 +59,7 @@
 | 7 | Coordinator (rework) | Stated fixes applied; see Findings. `apps/mobile` 210/210. Mutation check: with the S-02 fix removed, the two new race tests fail; restored, they pass. Rebuilt Android (arm64 debug) and iOS (simulator debug); the row 5 vault pass repeated on both with identical results (iOS `keysDeleted` now verified by `SecItemCopyMatching` returning not-found). R3 on the emulator: a photo imported, the journal corrupted → the app opens to the error card; the corrupt journal and the `.vault` stay on disk (no `DefaultDatabaseErrorHandler` deletion in logcat); «Стерти фото на пристрої» (attention colour) → confirm → vault recreated, card gone. U7: iOS screenshots recaptured with Metro running (error card, confirmation, after wipe). | `pnpm --filter @goproceed/mobile test`; `cdp-run.mjs`; `adb`, `simctl`; screenshots `a16-corrupt-card.png`, `a16-after-wipe2.png`, `ios-broken-login.png`, `ios-wipe-alert.png`, `ios-after-wipe.png` | Re-review, QA |
 | 8 | gp-ui-reviewer, gp-security, gp-reviewer (second round) | UI: HOLD (N1 major: a carried wipe message never cleared, and could be false; N2–N6 minor). Security: PASS (S-01…S-06 confirmed; S-07, S-08 Low; N-1, N-2 nits). Reviewer: no blocker or major (F1 = N1; F2–F7 minor or nit). | Subagent reports (session) | Rework |
 | 9 | Coordinator (second rework) | Stated fixes applied; see Findings. `main` `599d337a` merged in (DEV-056, DEV-057), and this task renumbered to DEV-058. Merged tree: `apps/mobile` 217/217, typecheck clean. Android arm64 and iOS simulator rebuilt, and the row 5 vault pass repeated with identical results on both. S-07 on the emulator: the journal's index page corrupted while the table still reads (`sqlite3`: `select count(*)` = 1, `quick_check` fails) → the app opens to the error card; logcat shows `SQLiteDatabaseCorruptException` from `quick_check`, and the journal and `.vault` stay on disk. | `pnpm --filter @goproceed/mobile test`; `./gradlew`, `xcodebuild`; `cdp-run.mjs`; `a16-index-corrupt.png` | UI re-review, QA |
+| 10 | gp-ui-reviewer (third round); Coordinator | UI: PASS. U3-1 (a sign-in after a failed reset now reopens the vault) and U3-2 (a clean wipe that left the user signed in is said as info) fixed; 217/217. | Subagent report (session); `pnpm --filter @goproceed/mobile test` | gp-qa |
 
 ### What changed
 
@@ -123,6 +124,8 @@
 | S-07 | Low | `NativeVault.kt`, `NativeVault.swift` | corruption the open does not touch lands in the error state | Coordinator | Fixed: `PRAGMA quick_check` in `openJournal` on both platforms (row 9) |
 | N-1 | Nit | `runtime.tsx` | `wipe()` checks the state itself | Coordinator | Fixed: refused unless the vault cannot open |
 | N-2 | Nit | `supabase.ts` | one reset retry at a time | Coordinator | Fixed |
+| U3-1 | Minor | `runtime.tsx` | a sign-in after a failed reinstall reset reaches ready without waiting for a foreground event | Coordinator | Fixed: the vault reopens when a session arrives while the reason is `installation` |
+| U3-2 | Nit | `profile.tsx` | a clean wipe that left the user signed in is said, not as an error | Coordinator | Fixed: a separate info notice |
 | S-03 residual | Low | sign-out | a sign-in inside auth-js's pending-refresh window | Owner | Deferred to [BL-155](../BACKLOG.md#bl-155) |
 
 Owner questions raised by gp-security, recorded (none blocks):
@@ -168,8 +171,8 @@ Rework count and hypothesis changes: 0 failed rounds (no QA FAIL, no new blocker
 ## Completion / handoff
 
 - Changed files: `apps/mobile/src/**` (native runtime, queue, sign-out, session storage, supabase, item labels, wipe notes, screens, primitives, `ui/vault-wipe.ts`), `apps/mobile/modules/goproceed-vault/{src,ios,android}/**`, `technical/states/transition-catalog.csv`, `technical/database/invariant-catalog.csv`, `docs/decisions/ADR-013-native-field-client.md`, `docs/specs/2026-09-22-mobile-native.md`, `docs/BACKLOG.md` (BL-155), this record, `docs/tasks/README.md`.
-- Review independence: independent — `gp-mobile`, `gp-architect`, and two rounds each of `gp-reviewer`, `gp-security` and `gp-ui-reviewer`; `gp-qa` pending. All subagents.
+- Review independence: independent — `gp-mobile`, `gp-architect`; `gp-reviewer` and `gp-security` two rounds each; `gp-ui-reviewer` three rounds; `gp-qa` pending. All subagents.
 - Verified scope: unit tests, native builds, the vault on the Android emulator and iOS simulator, iOS reinstall behaviour, and the vault-error UI.
 - Remaining risks / blocked requirements: see What is not true; the signed-in pass needs the owner.
-- Next bounded action and owner: gp-ui-reviewer on N1–N6, then gp-qa; the owner merges.
-- Final state and reason: reviewing — second-round fixes are in; UI re-review and QA are pending.
+- Next bounded action and owner: gp-qa on the final commit; the owner merges.
+- Final state and reason: verifying — every review stage passed (gp-ui-reviewer PASS in its third round, gp-security PASS, gp-reviewer with no blocker or major); gp-qa is pending.

@@ -246,6 +246,8 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
   // re-reads server authorization, and a refusal quarantines the items.
   useEffect(() => {
     subjectRef.current = subject;
+    // A sign-in succeeded, so the reinstall reset did too: open the vault now, not at the next foreground.
+    if (subject && errorReasonRef.current === "installation" && vaultRef.current) void openVault(vaultRef.current);
     setWorkspaceId(null); setAccessChanged(false); setElsewhere(new Set()); setMemberships(null);
     if (!subject || vaultStatus !== "ready") { setItems([]); setItemsKnown(false); return; }
     let current = true;
@@ -255,7 +257,7 @@ export function NativeRuntimeProvider({ children }: { children: ReactNode }) {
       await activateWorkspace(last);
     }).catch(() => undefined);
     return () => { current = false; };
-  }, [subject, vaultStatus, activateWorkspace]);
+  }, [subject, vaultStatus, activateWorkspace, openVault]);
 
   // One membership means the open workspace is the only journal this subject can have.
   useEffect(() => {

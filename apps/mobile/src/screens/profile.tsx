@@ -14,6 +14,7 @@ export function Profile() {
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wiping, setWiping] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
   const network = useNetworkState();
   if (!runtime.session) return <Page><Loading /></Page>;
   const offline = network.isConnected === false || network.isInternetReachable === false;
@@ -70,12 +71,14 @@ export function Profile() {
     </Card>
     {broken ? <Notice error>Захищене сховище на цьому телефоні не відкривається, тому знімати й надсилати фото зараз не можна.</Notice> : null}
     {error ? <Notice error announce>{error}</Notice> : null}
+    {info ? <Notice announce>{info}</Notice> : null}
     <Button label={leaving ? "Виходимо…" : "Вийти"} disabled={leaving || wiping} onPress={confirmSignOut} />
     {/* Only for a vault that cannot open (owner, 2026-09-24). Once signed out, the login
         screen shows the wipe's outcome (runtime.lastWipe); a failed sign-out stays here. */}
     {broken ? <Button destructive label={wiping ? "Стираємо…" : "Стерти фото й вийти"} disabled={leaving || wiping}
-      onPress={() => confirmWipe(runtime, true, () => { setWiping(true); setError(null); },
-        (note) => { setWiping(false); if (note.error) setError(note.text); })} /> : null}
+      onPress={() => confirmWipe(runtime, true, () => { setWiping(true); setError(null); setInfo(null); },
+        // Signed out: the login screen says it. Still here (no stored session was found): say it here.
+        (note) => { setWiping(false); if (note.error) setError(note.text); else if (runtime.session) setInfo(note.text); })} /> : null}
     <AppText variant="meta" secondary>GoProceed {Constants.expoConfig?.version ?? ""}</AppText>
   </Page>;
 }
