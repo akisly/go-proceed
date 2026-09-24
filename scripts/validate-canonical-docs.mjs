@@ -760,6 +760,30 @@ export function vitestRunFilterErrors(configText, testScript, where) {
 }
 
 /**
+ * A registry citation, `<file>::<describe>::<it>`, against the cited source: a
+ * file under packages/testing/src/ that names the relation and holds exactly
+ * one such test, which nothing outside it can skip and which asserts.
+ */
+function rlsCitationErrors({ citation, label, missing, relation, rel, sources }) {
+  if (!citation) return [missing];
+  const [path, describeTitle, ...rest] = citation.split("::");
+  const title = rest.join("::");
+  if (!path.startsWith("packages/testing/src/") || !path.endsWith(".test.ts") || !describeTitle || !title) {
+    return [`${label}: must cite a file under packages/testing/src/ as <file>::<describe>::<it>`];
+  }
+  const source = sources.get(path);
+  if (source === undefined) return [`${label}: ${path} does not exist`];
+  const errors = citedFileProblems(source).map((problem) => `${label}: ${path} can be skipped from outside a test: ${problem}`);
+  if (!new RegExp(`\\b${relation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(source)) errors.push(`${label}: ${path} does not name ${rel}`);
+  const matches = vitestTests(source).filter((x) => x.describe.title === describeTitle && x.title === title);
+  if (matches.length === 0) return [...errors, `${label}: no test «${describeTitle}» › «${title}» in ${path}`];
+  if (matches.length > 1) return [...errors, `${label}: «${describeTitle}» › «${title}» matches ${matches.length} tests in ${path}`];
+  const why = citedTestProblems(matches[0], vitestImports(source));
+  if (why.length) errors.push(`${label}: «${describeTitle}» › «${title}» can be skipped or pass without asserting (${why.join("; ")})`);
+  return errors;
+}
+
+/**
  * The registry against the migrations, the backlog, the entity catalog's modules
  * and the cited test sources. `sources` maps each cited path to its text, or
  * lacks it when the file does not exist.
@@ -808,23 +832,7 @@ export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modu
     if (r.classification !== "covered") return;
     if (r.backlog_id) errors.push(`${at} (${key}): covered takes no backlog_id`);
     for (const column of ["positive_test", "negative_test"]) {
-      const citation = r[column];
-      if (!citation) { errors.push(`${at} (${key}): covered needs a ${column}`); continue; }
-      const [path, describeTitle, ...rest] = citation.split("::");
-      const title = rest.join("::");
-      if (!path.startsWith("packages/testing/src/") || !path.endsWith(".test.ts") || !describeTitle || !title) {
-        errors.push(`${at} (${key}) ${column}: must cite a file under packages/testing/src/ as <file>::<describe>::<it>`);
-        continue;
-      }
-      const source = sources.get(path);
-      if (source === undefined) { errors.push(`${at} (${key}) ${column}: ${path} does not exist`); continue; }
-      for (const problem of citedFileProblems(source)) errors.push(`${at} (${key}) ${column}: ${path} can be skipped from outside a test: ${problem}`);
-      if (!new RegExp(`\\b${r.relation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(source)) errors.push(`${at} (${key}) ${column}: ${path} does not name ${rel}`);
-      const matches = vitestTests(source).filter((x) => x.describe.title === describeTitle && x.title === title);
-      if (matches.length === 0) { errors.push(`${at} (${key}) ${column}: no test «${describeTitle}» › «${title}» in ${path}`); continue; }
-      if (matches.length > 1) { errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» matches ${matches.length} tests in ${path}`); continue; }
-      const why = citedTestProblems(matches[0], vitestImports(source));
-      if (why.length) errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» can be skipped or pass without asserting (${why.join("; ")})`);
+      errors.push(...rlsCitationErrors({ citation: r[column], label: `${at} (${key}) ${column}`, missing: `${at} (${key}): covered needs a ${column}`, relation: r.relation, rel, sources }));
     }
   });
   for (const rel of [...exemptRels].filter((x) => classifiedRels.has(x)).sort()) {
@@ -833,6 +841,111 @@ export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modu
   for (const rel of [...deployed.keys()].sort()) {
     if (!listed.has(rel)) errors.push(`${where}: ${rel} is created by a migration but has no row`);
   }
+  return errors;
+}
+
+// --------------------------------------------------------------------------
+// The cross-workspace write minimum (DEV-076, BL-099, INV-060)
+// --------------------------------------------------------------------------
+
+export const RLS_WRITE_COVERAGE_CSV = "technical/database/rls-write-coverage.csv";
+const RLS_WRITE_HEADER = "schema,relation,principal,module,privileges,classification,negative_test,backlog_id,reason";
+const RLS_WRITE_PRIVILEGE = /^(INSERT|UPDATE|DELETE)(?:\(([a-z_][a-z0-9_]*(?: [a-z_][a-z0-9_]*)*)\))?$/;
+const RLS_WRITE_ORDER = ["INSERT", "UPDATE", "DELETE"];
+
+/**
+ * The write gaps DEV-076 filed on 2026-09-24 (owner: «widen now, in stages»):
+ * every covered pair holding a write then, measured on `goproceed-staging`. A
+ * write gap is accepted only for a key on this list. Stages remove keys as
+ * they cite tests; a key is never added, so a write granted later arrives
+ * covered.
+ */
+export const RLS_WRITE_GAP_BASELINE = Object.freeze([
+  "public.audit_events goproceed_app", "public.blocked_reasons goproceed_service",
+  "public.capture_events goproceed_app", "public.capture_events goproceed_service",
+  "public.communication_attachments goproceed_service", "public.communication_delivery_attempts goproceed_service",
+  "public.communication_message_events goproceed_service", "public.communication_messages goproceed_service",
+  "public.contract_version_rule_bindings goproceed_app", "public.contract_versions goproceed_app",
+  "public.contracts goproceed_app", "public.external_access_grants goproceed_app",
+  "public.external_decision_batches goproceed_app", "public.external_sessions goproceed_app",
+  "public.idempotency_records goproceed_app", "public.import_batches goproceed_app",
+  "public.import_files goproceed_app", "public.import_row_results goproceed_app", "public.invitations goproceed_app",
+  "public.legal_entities goproceed_app", "public.locations goproceed_app", "public.memberships goproceed_app",
+  "public.organizations goproceed_app", "public.own_legal_entity_profiles goproceed_app",
+  "public.parties goproceed_app", "public.party_contacts goproceed_app", "public.party_legal_profiles goproceed_app",
+  "public.progress_entries goproceed_app", "public.project_access_grants goproceed_app",
+  "public.project_field_channels goproceed_app", "public.project_parties goproceed_app",
+  "public.project_responsibility_assignment_ends goproceed_app",
+  "public.project_responsibility_assignments goproceed_app",
+  "public.project_sourced_requirement_items goproceed_app", "public.projects goproceed_app",
+  "public.readiness_projection goproceed_service", "public.requirement_evidence_decision_heads goproceed_app",
+  "public.requirement_evidence_decisions goproceed_app", "public.requirement_exception_heads goproceed_app",
+  "public.requirement_exceptions goproceed_app", "public.requirement_library_items goproceed_app",
+  "public.requirement_occurrences goproceed_app", "public.requirement_rule_versions goproceed_app",
+  "public.requirement_template_versions goproceed_app", "public.source_amount_resolutions goproceed_app",
+  "public.stage_closure_occurrences goproceed_app", "public.stage_closures goproceed_app",
+  "public.statutory_act_version_quantities goproceed_app", "public.statutory_act_version_signatories goproceed_app",
+  "public.statutory_act_versions goproceed_app", "public.statutory_acts goproceed_app",
+  "public.telegram_binding_intents goproceed_service", "public.telegram_chat_bindings goproceed_service",
+  "public.telegram_media_groups goproceed_service", "public.telegram_member_link_intents goproceed_service",
+  "public.telegram_member_links goproceed_service", "public.telegram_requirement_choice_sessions goproceed_service",
+  "public.telegram_requirement_choices goproceed_service", "public.transaction_outbox goproceed_app",
+  "public.unit_definitions goproceed_app", "public.upload_intents goproceed_app",
+  "public.valuation_allocations goproceed_app", "public.work_assignments goproceed_app",
+  "public.work_items goproceed_app", "public.work_stages goproceed_app",
+]);
+
+/**
+ * The write registry against the read registry, the backlog and the cited test
+ * sources. What each pair actually holds is `rls-coverage.test.ts`'s to check
+ * against a database; this checks what a file can.
+ */
+export function rlsWriteCoverageErrors({ csvText, readCsvText, sources, backlogIds, baseline = RLS_WRITE_GAP_BASELINE }) {
+  const where = RLS_WRITE_COVERAGE_CSV;
+  const errors = [];
+  const [header, ...rows] = rlsCsvRecords(csvText);
+  if (!header || header.join(",") !== RLS_WRITE_HEADER) return [`${where}: header must be ${RLS_WRITE_HEADER}`];
+  const [readHeader, ...readRows] = rlsCsvRecords(readCsvText);
+  const rc = (readHeader ?? []).reduce((m, c, i) => m.set(c, i), new Map());
+  const coveredModule = new Map(readRows.filter((f) => f[rc.get("classification")] === "covered")
+    .map((f) => [`${f[rc.get("schema")]}.${f[rc.get("relation")]} ${f[rc.get("principal")]}`, f[rc.get("module")]]));
+  const allowedGaps = new Set(baseline);
+  const cols = RLS_WRITE_HEADER.split(",");
+  const seen = new Set();
+  rows.forEach((fields, index) => {
+    const at = `${where}: row ${index + 2}`;
+    if (fields.length !== cols.length) { errors.push(`${at} has ${fields.length} fields, not ${cols.length}`); return; }
+    const r = Object.fromEntries(cols.map((c, i) => [c, fields[i]]));
+    const rel = `${r.schema}.${r.relation}`;
+    const key = `${rel} ${r.principal}`;
+    if (seen.has(key)) errors.push(`${at}: ${key} appears twice`);
+    seen.add(key);
+    if (!coveredModule.has(key)) errors.push(`${at} (${key}): not a covered row of ${RLS_COVERAGE_CSV}; the read minimum comes first`);
+    else if (coveredModule.get(key) !== r.module) errors.push(`${at} (${key}): module ${r.module} differs from ${RLS_COVERAGE_CSV}'s ${coveredModule.get(key)}`);
+    const verbs = (r.privileges ?? "").split("|").map((token) => token.match(RLS_WRITE_PRIVILEGE));
+    if (!r.privileges || verbs.some((m) => !m)) {
+      errors.push(`${at} (${key}): privileges must be INSERT, UPDATE and DELETE joined by |, each whole or VERB(col col): ${r.privileges}`);
+    } else {
+      const order = verbs.map((m) => RLS_WRITE_ORDER.indexOf(m[1]));
+      if (order.some((o, i) => i > 0 && o <= order[i - 1])) errors.push(`${at} (${key}): privileges must name each verb once, in the order INSERT, UPDATE, DELETE`);
+      if (verbs.some((m) => m[1] === "DELETE" && m[2])) errors.push(`${at} (${key}): DELETE has no column form`);
+      for (const m of verbs.filter((x) => x[2])) {
+        const names = m[2].split(" ");
+        if (names.some((n, i) => i > 0 && n <= names[i - 1])) errors.push(`${at} (${key}): the columns of ${m[1]} must be sorted and distinct`);
+      }
+    }
+    if (r.classification === "gap") {
+      if (!r.backlog_id) errors.push(`${at} (${key}): gap needs a backlog_id`);
+      else if (!/^BL-\d{3}$/.test(r.backlog_id) || !backlogIds.has(r.backlog_id)) errors.push(`${at} (${key}): ${r.backlog_id} is not an entry in docs/BACKLOG.md`);
+      if (!r.reason) errors.push(`${at} (${key}): gap needs a reason`);
+      if (r.negative_test) errors.push(`${at} (${key}): a gap cites no test; classify it covered`);
+      if (!allowedGaps.has(key)) errors.push(`${at}: ${key} is not on the DEV-076 write-gap baseline and cannot arrive as a gap; cite its write-denial test`);
+      return;
+    }
+    if (r.classification !== "covered") { errors.push(`${at} (${key}): unknown classification ${r.classification}`); return; }
+    if (r.backlog_id) errors.push(`${at} (${key}): covered takes no backlog_id`);
+    errors.push(...rlsCitationErrors({ citation: r.negative_test, label: `${at} (${key}) negative_test`, missing: `${at} (${key}): covered needs a negative_test`, relation: r.relation, rel, sources }));
+  });
   return errors;
 }
 
@@ -2591,6 +2704,34 @@ function selfTest() {
     if (!says(rlsCoverageErrors({ ...base, csvText: "schema,relation\n" }), "header must be")) t.push("rls coverage (bad header)");
     if (!says(cov([...rows, "public,projects,none,execution,exempt_no_grant,,,,r"]), "is both exempt and classified")) t.push("rls coverage (relation both exempt and classified)");
     if (!says(cov([...rows, "public,a.b,goproceed_app,execution,gap,,,BL-001,x"]), "public.a.b is not created by any migration")) t.push("rls coverage (relation name with a regex character)");
+    // DEV-076: the write registry.
+    const WH = "schema,relation,principal,module,privileges,classification,negative_test,backlog_id,reason";
+    const readCsv = [H, ...rows].join("\n") + "\n";
+    const wbase = { readCsvText: readCsv, sources: base.sources, backlogIds: base.backlogIds, baseline: ["public.projects goproceed_app"] };
+    const wcov = (rs, over = {}) => rlsWriteCoverageErrors({ ...wbase, ...over, csvText: [WH, ...rs].join("\n") + "\n" });
+    const wgap = "public,projects,goproceed_app,execution,INSERT|UPDATE(revoked_at version),gap,,BL-001,no write denial yet";
+    const wcovered = (neg, priv = "INSERT|UPDATE|DELETE") => `public,projects,goproceed_app,execution,${priv},covered,${neg},,`;
+    if (wcov([wgap]).length !== 0) t.push(`rls write coverage (agreeing gap: ${wcov([wgap]).join(" | ")})`);
+    if (wcov([wcovered(N)]).length !== 0) t.push(`rls write coverage (agreeing covered: ${wcov([wcovered(N)]).join(" | ")})`);
+    if (!says(wcov([wgap], { baseline: [] }), "not on the DEV-076 write-gap baseline")) t.push("rls write coverage (gap outside the baseline)");
+    if (!says(wcov([wgap.replace(",projects,", ",work_items,")]), "not a covered row of")) t.push("rls write coverage (key not covered in the read registry)");
+    if (!says(wcov([wgap.replace(",execution,", ",operational,")]), "differs from")) t.push("rls write coverage (module differs)");
+    if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "INSERT|WRITE")]), "privileges must be")) t.push("rls write coverage (unknown verb)");
+    if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "UPDATE|INSERT")]), "in the order INSERT, UPDATE, DELETE")) t.push("rls write coverage (verbs out of order)");
+    if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "INSERT|INSERT")]), "in the order INSERT, UPDATE, DELETE")) t.push("rls write coverage (verb twice)");
+    if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "DELETE(a)")]), "DELETE has no column form")) t.push("rls write coverage (DELETE with columns)");
+    if (!says(wcov([wgap.replace("UPDATE(revoked_at version)", "UPDATE(version revoked_at)")]), "sorted and distinct")) t.push("rls write coverage (unsorted columns)");
+    if (!says(wcov([wgap.replace(",BL-001,", ",BL-999,")]), "BL-999 is not an entry")) t.push("rls write coverage (unknown backlog id)");
+    if (!says(wcov([wgap.replace(",no write denial yet", ",")]), "gap needs a reason")) t.push("rls write coverage (gap without a reason)");
+    if (!says(wcov([wgap.replace(",gap,,", `,gap,${N},`)]), "a gap cites no test")) t.push("rls write coverage (gap citing a test)");
+    if (!says(wcov([wcovered("")]), "covered needs a negative_test")) t.push("rls write coverage (covered without a test)");
+    if (!says(wcov([wcovered(cite("isolation", "no such test"))]), "no test «isolation» › «no such test»")) t.push("rls write coverage (missing cited test)");
+    if (!says(wcov([wcovered(cite("isolation", "skipped read"))]), "it.skip")) t.push("rls write coverage (skipped cited test)");
+    if (!says(wcov([wcovered(N).replace(",,", ",BL-001,")]), "covered takes no backlog_id")) t.push("rls write coverage (covered with a backlog id)");
+    if (!says(wcov([wgap, wgap]), "appears twice")) t.push("rls write coverage (duplicate key)");
+    if (!says(wcov([wgap.replace(",gap,", ",maybe,")]), "unknown classification maybe")) t.push("rls write coverage (unknown classification)");
+    if (!says(rlsWriteCoverageErrors({ ...wbase, csvText: "schema,relation\n" }), "header must be")) t.push("rls write coverage (bad header)");
+    if (!says(wcov([wgap.split(",").slice(0, 5).join(",")]), "has 5 fields, not 9")) t.push("rls write coverage (wrong field count)");
     const cleanConfig = 'test: { include: ["src/**/*.test.ts"] }';
     if (vitestRunFilterErrors(cleanConfig, "vitest run", "fx").length !== 0) t.push("vitest run filters (clean)");
     for (const key of ["testNamePattern", "allowOnly", "retry", "passWithNoTests", "exclude"]) {
@@ -2671,6 +2812,7 @@ const REQUIRED = [
   "technical/database/relationship-catalog.csv",
   "technical/database/invariant-catalog.csv",
   "technical/database/rls-coverage.csv",
+  "technical/database/rls-write-coverage.csv",
   "technical/database/schema-v0.1.sql",
   "technical/openapi/README.md",
   "technical/openapi/scope-v0.1.csv",
@@ -3033,6 +3175,15 @@ function main() {
     const moduleIndex = entityRows[0].indexOf("module");
     const modules = new Set(entityRows.slice(1).map((r) => r[moduleIndex]));
     for (const e of rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modules })) fail(e);
+    // DEV-076: the cross-workspace write minimum.
+    if (existsSync(join(ROOT, RLS_WRITE_COVERAGE_CSV))) {
+      const writeText = read(RLS_WRITE_COVERAGE_CSV);
+      for (const record of rlsCsvRecords(writeText).slice(1)) {
+        const path = (record[6] ?? "").split("::")[0];
+        if (path && !sources.has(path) && existsSync(join(ROOT, path))) sources.set(path, read(path));
+      }
+      for (const e of rlsWriteCoverageErrors({ csvText: writeText, readCsvText: csvText, sources, backlogIds })) fail(e);
+    }
     const testingPkg = JSON.parse(read("packages/testing/package.json"));
     for (const e of vitestRunFilterErrors(read("packages/testing/vitest.config.ts"), testingPkg.scripts?.test ?? "", "packages/testing")) fail(e);
   }

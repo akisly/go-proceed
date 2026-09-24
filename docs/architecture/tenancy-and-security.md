@@ -1051,6 +1051,16 @@ passed 786 tests in 55 files with none skipped, against a database it rebuilt to
 §M0). The closure covers the v0.1 read minimum only: the other rows of the list
 below are not proved by it, and no dated record proves them.]*
 
+*[Added 2026-09-24 ([DEV-076](../tasks/DEV-076-write-denial-minimum.md)): the
+owner widened the minimum, without reopening gate 11. A covered row whose
+principal holds `INSERT`, `UPDATE` or `DELETE`, whole or on some columns, also
+needs a cross-workspace write denial proved by the policy (not a trigger), with
+the move of an own row into another workspace refused wherever the tenant key
+or a parent column is updatable. `technical/database/rls-write-coverage.csv`
+names the 65 such pairs; all are gaps (BL-164 to BL-173), due before real
+customer data. No principal holds `TRUNCATE` or `TRIGGER` on an in-scope
+relation, and `rls-coverage.test.ts` checks it.]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 

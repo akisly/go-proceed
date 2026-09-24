@@ -1033,6 +1033,8 @@ entry says in its *Limits* bullet what the closure does and does not prove.
 
 **Status: CLOSED, 2026-09-18** ([DEV-018](../tasks/DEV-018-gate11-closure.md)). The registry holds 74 `covered`, 0 `gap` and 7 `exempt_no_grant`, and the evidence run `test-strategy.md` §4 names — the unfiltered `pnpm --filter @goproceed/testing test` — passed 786 tests in 55 files with none skipped, against a database the run itself rebuilt to `0087`. The dated entry is in [version-0.1.md](version-0.1.md) §M0; its *Limits* bullet governs what this closure means (the v0.1 read minimum, BL-099; BL-101 and BL-103 to BL-106 open; local only; nothing in CI). The «one thing this gate cannot cite» note above still holds: no `apps/app` suite is cited as isolation evidence.
 
+**Update, 2026-09-24** ([DEV-076](../tasks/DEV-076-write-denial-minimum.md)). The owner widened the minimum after closure, without reopening the gate: a covered row whose principal holds a write also needs a cross-workspace write denial, registered in [rls-write-coverage.csv](../../technical/database/rls-write-coverage.csv). Its 65 rows are gaps (BL-164 to BL-173), due before real customer data enters an environment.
+
 ### 5.12 — Item 12: malware/content-type and resource-exhaustion controls, uploads **and** imports
 
 *(readiness gate 12)*

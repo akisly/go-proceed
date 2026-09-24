@@ -258,7 +258,20 @@ artifact the first time it is pasted into a bug report.
   minimum only: an authorised same-workspace read (or, without `SELECT`, a
   write) and a read denial to an active member of another workspace, or on the
   service plane the declared workspace reaching the row and another or no
-  declared workspace refused. Cross-workspace write denial (BL-099), every other
+  declared workspace refused. **From 2026-09-24 (owner; [DEV-076](../tasks/DEV-076-write-denial-minimum.md))
+  a covered row whose principal holds `INSERT`, `UPDATE` or `DELETE`, whole or
+  on some columns, also needs a cross-workspace write denial**, registered in
+  `technical/database/rls-write-coverage.csv` with the write it holds. Per
+  privilege: an `INSERT` carrying the other workspace's tenant key and parent
+  ids refused by the policy, beside the same statement succeeding in the own
+  workspace; an `UPDATE` and a `DELETE` of the other workspace's row affecting
+  no row, read back unchanged as admin; and, where the principal can update
+  the tenant key or a parent column, its own row refused when moved into the
+  other workspace. A trigger's refusal does not count. The 65 rows that held a
+  write on that day are gaps, BL-164 … BL-173, due before real customer data;
+  a write gap is accepted only for a key on the validator's pinned baseline, so
+  a write granted later arrives covered. No principal may hold `TRUNCATE` or
+  `TRIGGER` on an in-scope relation. Every other
   row of the `tenancy-and-security.md` test list, `SECURITY DEFINER` functions,
   storage paths, sequences and other schemas stay proved by review.
   `pnpm validate:canonical-docs` checks the registry against the migrations and
@@ -285,7 +298,8 @@ artifact the first time it is pasted into a bug report.
   `transaction_outbox`), a read denial proves nothing, because every member
   read fails at the grant; the negative is the other workspace's active member
   refused an insert into A, beside its own permitted insert. This does not make
-  write denial part of the minimum elsewhere (BL-099). That negative covers
+  write denial part of the minimum elsewhere (BL-099). *[2026-09-24, DEV-076:
+  it is now, for every covered row holding a write; see above.]* That negative covers
   members only: the external-session insert branches (`audit_insert_external`,
   `outbox_insert_external`) are exercised by no test yet.]*
 - This is also M0 gate 11 in

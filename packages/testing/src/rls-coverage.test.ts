@@ -3,8 +3,9 @@ import type { Client } from "pg";
 import { adminClient } from "./pg";
 import {
   BYPASS_ROLES, EXPOSED_RELATIONS_SQL, FOREIGN_GRANTEES_SQL, IN_SCOPE_RELATIONS_SQL, OWNER_WITHOUT_FORCED_RLS_SQL, PRINCIPALS,
-  RLS_OFF_SQL, UNSAFE_VIEWS_SQL,
-  compareCoverage, exemptionPrivilegeSql, parseCoverageCsv, readCoverageRegistry, type CoverageRow, type ExposedPair,
+  RLS_OFF_SQL, TRUNCATE_OR_TRIGGER_SQL, UNSAFE_VIEWS_SQL, WRITE_PRIVILEGES_SQL,
+  compareCoverage, compareWriteCoverage, exemptionPrivilegeSql, parseCoverageCsv, parseWriteCoverageCsv, readCoverageRegistry,
+  readWriteCoverageRegistry, type CoverageRow, type ExposedPair, type WriteCoverageRow, type WritePrivilege,
 } from "./rls-coverage";
 
 /**
@@ -62,6 +63,49 @@ describe("the coverage comparison, on fixtures", () => {
       'schema,relation,principal,module,classification,positive_test,negative_test,backlog_id,reason\n'
       + 'public,a,goproceed_app,execution,gap,,,BL-001,"no read, no ""negative"""\n');
     expect(rows).toEqual([row({ relation: "a", classification: "gap", positive_test: "", negative_test: "", backlog_id: "BL-001", reason: 'no read, no "negative"' })]);
+  });
+});
+
+const wrow = (over: Partial<WriteCoverageRow>): WriteCoverageRow => ({
+  schema: "public", relation: "t", principal: "goproceed_app", module: "execution", privileges: "INSERT",
+  classification: "gap", negative_test: "", backlog_id: "BL-001", reason: "r", ...over,
+});
+const grant = (relation: string, privileges: string, principal = "goproceed_app"): WritePrivilege =>
+  ({ schema: "public", relation, principal, privileges });
+
+describe("the write coverage comparison, on fixtures (DEV-076)", () => {
+  it("reports a covered pair holding a write that the write registry does not name", () => {
+    const out = compareWriteCoverage([wrow({ relation: "a" })], [row({ relation: "a" }), row({ relation: "b" })],
+      [grant("a", "INSERT"), grant("b", "UPDATE")]);
+    expect(out.unclassified).toEqual(["public.b goproceed_app"]);
+  });
+
+  it("reports a write-registry row whose pair holds no write", () => {
+    const out = compareWriteCoverage([wrow({ relation: "a" }), wrow({ relation: "gone" })],
+      [row({ relation: "a" }), row({ relation: "gone" })], [grant("a", "INSERT")]);
+    expect(out.stale).toEqual(["public.gone goproceed_app"]);
+  });
+
+  it("reports privileges that differ from the grant, a column-only grant included", () => {
+    const out = compareWriteCoverage([wrow({ relation: "a", privileges: "INSERT|UPDATE" })], [row({ relation: "a" })],
+      [grant("a", "INSERT|UPDATE(revoked_at version)")]);
+    expect(out.mismatched).toEqual(["public.a goproceed_app: INSERT|UPDATE → INSERT|UPDATE(revoked_at version)"]);
+  });
+
+  it("reports a write row whose key is not covered, or is covered in another module", () => {
+    const out = compareWriteCoverage(
+      [wrow({ relation: "a" }), wrow({ relation: "b", module: "evidence" }), wrow({ relation: "c" })],
+      [row({ relation: "a" }), row({ relation: "b" }), row({ relation: "c", classification: "gap" })],
+      [grant("a", "INSERT"), grant("b", "INSERT"), grant("c", "INSERT")]);
+    expect(out.notCovered).toEqual(["public.b goproceed_app", "public.c goproceed_app"]);
+  });
+
+  it("parses the write registry's header and quoted fields", () => {
+    const rows = parseWriteCoverageCsv(
+      "schema,relation,principal,module,privileges,classification,negative_test,backlog_id,reason\n"
+      + 'public,a,goproceed_app,execution,INSERT|UPDATE(b c),gap,,BL-001,"no write, yet"\n');
+    expect(rows).toEqual([wrow({ relation: "a", privileges: "INSERT|UPDATE(b c)", reason: "no write, yet" })]);
+    expect(() => parseWriteCoverageCsv("schema,relation\n")).toThrow("header must be");
   });
 });
 
@@ -174,6 +218,48 @@ describe("the coverage registry against this database", () => {
       const r = await c.query<{ name: string }>(UNSAFE_VIEWS_SQL);
       expect(r.rows.map((x) => x.name)).toContain("public._rls_coverage_probe_view");
     });
+  });
+
+  const writes = async (): Promise<WritePrivilege[]> => {
+    const covered = readCoverageRegistry().filter((r) => r.classification === "covered");
+    return (await c.query<WritePrivilege>(WRITE_PRIVILEGES_SQL, [
+      covered.map((r) => r.schema), covered.map((r) => r.relation), covered.map((r) => r.principal),
+    ])).rows;
+  };
+
+  it("a column UPDATE granted on a covered table without writes is reported, inside a rolled-back transaction", async () => {
+    // DEV-076: a column-level grant is a write the table-level privilege does
+    // not show, which is how `project_access_grants`' UPDATE(revoked_at version) looks.
+    await inTransaction(async () => {
+      await c.query("grant update (original_filename) on public.evidence_objects to goproceed_app");
+      const out = compareWriteCoverage(readWriteCoverageRegistry(), readCoverageRegistry(), await writes());
+      expect(out.unclassified).toContain("public.evidence_objects goproceed_app");
+      expect((await writes()).find((w) => w.relation === "evidence_objects" && w.principal === "goproceed_app")?.privileges)
+        .toBe("UPDATE(original_filename)");
+    });
+  });
+
+  it("a TRUNCATE granted on a covered table is reported, inside a rolled-back transaction", async () => {
+    const t = covered();
+    await inTransaction(async () => {
+      await c.query(`grant truncate on ${t.schema}.${t.relation} to goproceed_app`);
+      const r = await c.query<{ name: string; principal: string }>(TRUNCATE_OR_TRIGGER_SQL, [PRINCIPALS]);
+      expect(r.rows).toContainEqual({ name: `${t.schema}.${t.relation}`, principal: "goproceed_app" });
+    });
+  });
+
+  it("the write-holding covered pairs equal the write registry, both ways", async () => {
+    // DEV-076 (BL-099): every covered pair holding INSERT, UPDATE or DELETE has
+    // a row stating that write, and every row still holds exactly that write.
+    const out = compareWriteCoverage(readWriteCoverageRegistry(), readCoverageRegistry(), await writes());
+    expect(out).toEqual({ unclassified: [], stale: [], mismatched: [], notCovered: [] });
+  });
+
+  it("no principal holds TRUNCATE or TRIGGER on an in-scope relation", async () => {
+    // Row level security does not apply to TRUNCATE, so a policy test proves
+    // nothing about it; the minimum is that no principal holds it (DEV-076).
+    const r = await c.query<{ name: string; principal: string }>(TRUNCATE_OR_TRIGGER_SQL, [PRINCIPALS]);
+    expect(r.rows).toEqual([]);
   });
 
   it("the exposed set equals the registry, both ways", async () => {

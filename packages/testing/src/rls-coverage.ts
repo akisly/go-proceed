@@ -211,3 +211,122 @@ export function compareCoverage(rows: CoverageRow[], exposed: ExposedPair[], inS
     brokenExemptions: sorted([...exempt].filter((r) => exposedRels.has(r))),
   };
 }
+
+// --------------------------------------------------------------------------
+// The cross-workspace write minimum (DEV-076, BL-099, INV-060).
+// --------------------------------------------------------------------------
+
+/**
+ * `technical/database/rls-write-coverage.csv` holds one row per `covered` row
+ * of the read registry whose principal holds INSERT, UPDATE or DELETE, whole or
+ * on some columns: the write it holds, and the test proving a member of
+ * another workspace cannot write there — or a gap with its backlog entry.
+ * `privileges` is `INSERT|UPDATE|DELETE` in that order; a column-only grant is
+ * `VERB(col col)`, the columns sorted by name.
+ */
+export const WRITE_COVERAGE_COLUMNS = [
+  "schema", "relation", "principal", "module", "privileges",
+  "classification", "negative_test", "backlog_id", "reason",
+] as const;
+
+export interface WriteCoverageRow {
+  schema: string;
+  relation: string;
+  principal: string;
+  module: string;
+  privileges: string;
+  classification: string;
+  negative_test: string;
+  backlog_id: string;
+  reason: string;
+}
+
+export interface WritePrivilege { schema: string; relation: string; principal: string; privileges: string }
+
+export interface WriteCoverageComparison {
+  /** Covered pairs holding a write with no row in the write registry. */
+  unclassified: string[];
+  /** Write-registry rows whose pair holds no write. */
+  stale: string[];
+  /** Rows whose `privileges` differ from what the database grants: `key: registry → database`. */
+  mismatched: string[];
+  /** Write-registry rows with no `covered` row of the same key and module in the read registry. */
+  notCovered: string[];
+}
+
+const WRITE_REGISTRY_URL = new URL("../../../technical/database/rls-write-coverage.csv", import.meta.url);
+
+export function parseWriteCoverageCsv(text: string): WriteCoverageRow[] {
+  const [header, ...rest] = csvRecords(text);
+  if (!header || header.join(",") !== WRITE_COVERAGE_COLUMNS.join(",")) {
+    throw new Error(`rls-write-coverage.csv: header must be ${WRITE_COVERAGE_COLUMNS.join(",")}`);
+  }
+  return rest.map((fields, index) => {
+    if (fields.length !== WRITE_COVERAGE_COLUMNS.length) {
+      throw new Error(`rls-write-coverage.csv: row ${index + 2} has ${fields.length} fields, not ${WRITE_COVERAGE_COLUMNS.length}`);
+    }
+    return Object.fromEntries(WRITE_COVERAGE_COLUMNS.map((k, i) => [k, fields[i]!])) as unknown as WriteCoverageRow;
+  });
+}
+
+export function readWriteCoverageRegistry(): WriteCoverageRow[] {
+  return parseWriteCoverageCsv(readFileSync(WRITE_REGISTRY_URL, "utf8"));
+}
+
+/**
+ * The writes each `(schema, relation, principal)` of $1, $2, $3 holds, direct
+ * or inherited — the path `goproceed_service` has to every `goproceed_app`
+ * table (BL-019) counts. A whole-table privilege is its verb; a privilege on
+ * some columns only is `VERB(col col)`. Pairs holding no write are omitted.
+ */
+export const WRITE_PRIVILEGES_SQL = `
+  with pairs as (
+    select p.schema, p.relation, p.principal, to_regclass(format('%I.%I', p.schema, p.relation)) as rel
+      from unnest($1::text[], $2::text[], $3::text[]) as p(schema, relation, principal)
+  ),
+  verbs as (
+    select pairs.schema, pairs.relation, pairs.principal, v.ord, v.verb,
+           has_table_privilege(pairs.principal, pairs.rel, v.verb) as whole,
+           (select string_agg(a.attname, ' ' order by a.attname)
+              from pg_attribute a
+             where a.attrelid = pairs.rel and a.attnum > 0 and not a.attisdropped and v.verb <> 'DELETE'
+               and has_column_privilege(pairs.principal, pairs.rel, a.attname, v.verb)) as cols
+      from pairs cross join (values (1, 'INSERT'), (2, 'UPDATE'), (3, 'DELETE')) as v(ord, verb)
+     where pairs.rel is not null
+  )
+  select schema, relation, principal,
+         string_agg(case when whole then verb else verb || '(' || cols || ')' end, '|' order by ord) as privileges
+    from verbs
+   where whole or cols is not null
+   group by schema, relation, principal
+   order by 1, 2, 3`;
+
+/**
+ * Any of the five principals holding TRUNCATE or TRIGGER on an in-scope
+ * relation ($1): row level security does not apply to TRUNCATE, and a trigger
+ * its holder creates runs with its own rights.
+ */
+export const TRUNCATE_OR_TRIGGER_SQL = `
+  with rels as (${IN_SCOPE_RELS})
+  select r.nspname || '.' || r.relname as name, p as principal
+    from rels r cross join unnest($1::text[]) as p
+   where exists (select 1 from pg_roles where rolname = p)
+     and (has_table_privilege(p, r.oid, 'TRUNCATE') or has_table_privilege(p, r.oid, 'TRIGGER'))
+   order by 1, 2`;
+
+export function compareWriteCoverage(
+  writeRows: WriteCoverageRow[], readRows: CoverageRow[], measured: WritePrivilege[],
+): WriteCoverageComparison {
+  const key = (x: { schema: string; relation: string; principal: string }) => `${x.schema}.${x.relation} ${x.principal}`;
+  const sorted = (xs: Iterable<string>) => [...new Set(xs)].sort();
+  const registry = new Map(writeRows.map((r) => [key(r), r]));
+  const granted = new Map(measured.map((m) => [key(m), m.privileges]));
+  const covered = new Map(readRows.filter((r) => r.classification === "covered").map((r) => [key(r), r.module]));
+  return {
+    unclassified: sorted([...granted.keys()].filter((k) => !registry.has(k))),
+    stale: sorted([...registry.keys()].filter((k) => !granted.has(k))),
+    mismatched: sorted([...registry].filter(([k, r]) => granted.has(k) && granted.get(k) !== r.privileges)
+      .map(([k, r]) => `${k}: ${r.privileges} → ${granted.get(k)}`)),
+    notCovered: sorted([...registry].filter(([k, r]) => covered.get(k) !== r.module).map(([k]) => k)),
+  };
+}

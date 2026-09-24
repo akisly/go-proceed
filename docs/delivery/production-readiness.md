@@ -456,6 +456,12 @@ M0 rather than leaving them to a milestone.
         closed, the entry does (the gate 10 precedent). Read that entry's
         *Limits* before citing this: `covered` is the v0.1 read minimum, the run
         was local, and nothing ran in CI.
+      - *[2026-09-24, [DEV-076](../tasks/DEV-076-write-denial-minimum.md):
+        a tightening after closure, not a reopening (owner). A covered row whose
+        principal holds a write also needs a cross-workspace write denial,
+        registered in `technical/database/rls-write-coverage.csv`; the 65 such
+        rows are gaps (BL-164 … BL-173), due before real customer data enters
+        an environment.]*
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,
