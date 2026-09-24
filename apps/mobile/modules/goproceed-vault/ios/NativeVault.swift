@@ -78,7 +78,10 @@ final class NativeVault {
       let next = ["subjectId": try uuid(input, "subjectId"), "workspaceId": try uuid(input, "workspaceId")]
       let previous = try? context()
       if previous != next { try quarantineRows() }
-      cancellation.lock(); identity = next; generation += 1; uploadGeneration += 1; cancellation.unlock()
+      // Cancel a transfer of the previous identity now: its producer may already have
+      // handed the last chunk to the stream and stopped checking (DEV-070 S-2).
+      cancellation.lock(); identity = next; generation += 1; uploadGeneration += 1; let running = task; cancellation.unlock()
+      running?.cancel()
     case "quarantine":
       // Close the identity here too, so an authenticate reordered before it cannot leave it open.
       cancellation.lock(); identity = nil; generation += 1; uploadGeneration += 1; let running = task; cancellation.unlock()
@@ -303,9 +306,10 @@ final class NativeVault {
     var key = try loadKey(source); defer { gp_wipe(&key, key.count) }
     guard gp_verify_file(location(id).path, key, aad, expectedHash, size) == 0 else { throw failure("VAULT_CIPHERTEXT_CORRUPT") }
     let version = currentUpload()
-    let stream = try VaultInputStream(path: location(id).path, key: key, binding: aad, hash: expectedHash, size: size, cancelled: { self.currentUpload() != version })
-    defer { stream.close() }
-    let delegate = VaultUploadDelegate(stream: stream)
+    let body = try VaultBody(path: location(id).path, key: key, binding: aad, hash: expectedHash, size: size, cancelled: { self.currentUpload() != version })
+    // Runs after the session is invalidated (defers run in reverse); a second stop is a no-op.
+    defer { body.stop() }
+    let delegate = VaultUploadDelegate(stream: body.stream)
     let config = URLSessionConfiguration.ephemeral
     config.urlCache = nil; config.httpCookieStorage = nil; config.urlCredentialStorage = nil
     config.timeoutIntervalForRequest = 60; config.timeoutIntervalForResource = 180
@@ -314,7 +318,6 @@ final class NativeVault {
     var request = URLRequest(url: url); request.httpMethod = "PUT"
     request.setValue(String(size), forHTTPHeaderField: "Content-Length")
     request.setValue(source["mimeType"] as? String, forHTTPHeaderField: "Content-Type")
-    request.httpBodyStream = stream
     let running = session.uploadTask(withStreamedRequest: request)
     cancellation.lock()
     // One transfer slot natively, not only by the JavaScript single-flight.
@@ -329,7 +332,8 @@ final class NativeVault {
     cancellation.lock()
     let valid = [generation, uploadGeneration] == version && identity != nil
     cancellation.unlock()
-    if valid { running.resume() } else { running.cancel() }
+    body.onFailure = { running.cancel() }
+    if valid { body.start(); running.resume() } else { running.cancel() }
     // The journal is released for the transfer so imports, listing and quarantine
     // are not held behind a slow network. call() holds `work` exactly once here.
     work.unlock()
@@ -346,7 +350,9 @@ final class NativeVault {
       throw failure("VAULT_UPLOAD_INTERRUPTED")
     }
     item = latest
-    guard completed, currentUpload() == version, delegate.error == nil, let status = delegate.status else {
+    // A 2xx counts only if the producer sent the whole authenticated body.
+    let bodyComplete = body.stop()
+    guard completed, currentUpload() == version, delegate.error == nil, let status = delegate.status, bodyComplete else {
       item["state"] = currentUpload() == version ? "failed" : "not_sent"; try persist(item)
       throw failure("VAULT_UPLOAD_INTERRUPTED")
     }
@@ -355,37 +361,124 @@ final class NativeVault {
   }
 }
 
-private final class VaultInputStream: InputStream {
-  // URLSession reads on its own thread while the uploader may close on timeout.
-  private let access = NSLock()
-  private var reader: OpaquePointer?
+/**
+ * The upload body as a bound stream pair (Apple DTS's pattern for streamed bodies): a
+ * producer thread decrypts chunks into the output side, URLSession reads the input side.
+ * An InputStream subclass is not a supported URLSession body: CFNetwork's HTTP/2 path
+ * calls -setDelegate: on it and the process died (DEV-070).
+ *
+ * Only the producer touches the reader once started, and it frees the reader on its own
+ * exit, so it is never read after it is closed (DEV-042 N5). One chunk is held back until
+ * the next read succeeds, so the final bytes leave only after the authenticated EOF.
+ * On failure the producer asks for the task to be cancelled (asynchronous, best effort)
+ * and leaves the body without its end; `stop()` closes it once the producer has exited.
+ * What guarantees no partial body counts as sent is `Content-Length`, the server's hash
+ * check at finalize, and `upload()` requiring `stop() == true`.
+ */
+private final class VaultBody: @unchecked Sendable {
+  let stream: InputStream
+  private let output: OutputStream
+  private let reader: OpaquePointer
+  private let expected: UInt64
   private let cancelled: () -> Bool
-  private var status: Stream.Status = .notOpen
+  private let state = NSLock()
+  private var started = false
+  private var stopped = false
+  private var complete = false
+  private var exited = false
+  /** Cancels the task: a short body alone is not a guaranteed failure on every protocol. */
+  var onFailure: (() -> Void)?
+  private let finished = DispatchSemaphore(value: 0)
+
   init(path: String, key: [UInt8], binding: String, hash: String, size: UInt64, cancelled: @escaping () -> Bool) throws {
-    self.cancelled = cancelled
-    reader = gp_reader_open(path, key, binding, hash, size)
-    guard reader != nil else { throw failure("VAULT_CIPHERTEXT_CORRUPT") }
-    super.init(data: Data())
+    guard let reader = gp_reader_open(path, key, binding, hash, size) else { throw failure("VAULT_CIPHERTEXT_CORRUPT") }
+    var input: InputStream?, output: OutputStream?
+    Stream.getBoundStreams(withBufferSize: Int(GP_VAULT_CHUNK_BYTES), inputStream: &input, outputStream: &output)
+    guard let input, let output else { gp_reader_close(reader); throw failure("VAULT_STREAM_FAILED") }
+    self.reader = reader; self.stream = input; self.output = output; self.expected = size; self.cancelled = cancelled
   }
-  override func open() { access.lock(); status = .open; access.unlock() }
-  override func close() {
-    access.lock(); defer { access.unlock() }
-    if let reader { gp_reader_close(reader); self.reader = nil }; status = .closed
+
+  func start() {
+    state.lock(); defer { state.unlock() }
+    guard !started, !stopped else { return }
+    started = true
+    let thread = Thread { [self] in produce() }
+    thread.name = "goproceed-vault-body"
+    thread.start()
   }
-  override var streamStatus: Stream.Status { access.lock(); defer { access.unlock() }; return status }
-  override var hasBytesAvailable: Bool { streamStatus == .open }
-  override var streamError: Error? { streamStatus == .error ? failure("VAULT_STREAM_FAILED") : nil }
-  override func read(_ buffer: UnsafeMutablePointer<UInt8>, maxLength len: Int) -> Int {
-    access.lock(); defer { access.unlock() }
-    guard !cancelled(), let reader else { status = .error; return -1 }
-    let count = Int(gp_reader_read(reader, buffer, len))
-    if count == 0 { status = .atEnd }; if count < 0 { status = .error }
-    return count
+
+  /**
+   * Stops the producer and waits for it (bounded). True only when it wrote the whole
+   * authenticated body. A producer that does not stop in time is left, never raced:
+   * the reader stays its own.
+   */
+  @discardableResult func stop() -> Bool {
+    state.lock()
+    let wasStarted = started, first = !stopped
+    stopped = true
+    state.unlock()
+    if !wasStarted {
+      if first { gp_reader_close(reader); output.close() }
+      return false
+    }
+    if first { _ = finished.wait(timeout: .now() + 2) } // the producer notices within one poll
+    state.lock(); let done = exited, ok = complete; state.unlock()
+    // A failed body was left open so the cancel, not a short body, ends the request.
+    if first && done && !ok { output.close() }
+    return ok
   }
-  override func getBuffer(_ buffer: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>, length len: UnsafeMutablePointer<Int>) -> Bool { false }
-  override func schedule(in aRunLoop: RunLoop, forMode mode: RunLoop.Mode) {}
-  override func remove(from aRunLoop: RunLoop, forMode mode: RunLoop.Mode) {}
-  deinit { close() }
+
+  private var halted: Bool {
+    state.lock(); let stop = stopped; state.unlock()
+    return stop || cancelled() // never under `state`: cancelled() takes the vault's own lock
+  }
+
+  private func produce() {
+    let capacity = Int(GP_VAULT_CHUNK_BYTES)
+    let first = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
+    let second = UnsafeMutablePointer<UInt8>.allocate(capacity: capacity)
+    var current = first, next = second
+    var ok = false
+    output.open()
+    defer {
+      if ok { output.close() } else { onFailure?() }
+      gp_wipe(first, capacity); gp_wipe(second, capacity)
+      first.deallocate(); second.deallocate()
+      gp_reader_close(reader)
+      state.lock(); complete = ok; exited = true; state.unlock()
+      finished.signal()
+    }
+    var sent: UInt64 = 0
+    var held = Int(gp_reader_read(reader, current, capacity))
+    while held > 0 {
+      if halted { return }
+      // Read ahead before sending: the last chunk leaves only after the EOF authenticates.
+      let following = Int(gp_reader_read(reader, next, capacity))
+      if following < 0 { return }
+      guard write(current, count: held) else { return }
+      sent += UInt64(held)
+      gp_wipe(current, held)
+      if following == 0 { ok = sent == expected; return }
+      swap(&current, &next)
+      held = following
+    }
+    ok = held == 0 && sent == expected // an empty photo is not a valid import, but stay exact
+  }
+
+  /** Writes all bytes, never blocking: the loop must notice a stop or cancel. */
+  private func write(_ bytes: UnsafeMutablePointer<UInt8>, count: Int) -> Bool {
+    var written = 0
+    while written < count {
+      if halted || output.streamStatus == .error || output.streamStatus == .closed { return false }
+      // 5 ms keeps a slow uplink from waking this thread 1,000 times a second. It caps
+      // the body near 100 Mbit/s (64 KiB per 5 ms), above a typical field uplink.
+      if !output.hasSpaceAvailable { usleep(5_000); continue }
+      let n = output.write(bytes + written, maxLength: count - written)
+      if n <= 0 { return false }
+      written += n
+    }
+    return true
+  }
 }
 private final class VaultUploadDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, @unchecked Sendable {
   let done = DispatchSemaphore(value: 0)
