@@ -33,6 +33,8 @@ if (!existsSync(source)) {
 const target = process.argv[2] ?? 'host';
 const architecture = process.argv[3] ?? process.arch;
 const sdk = process.argv[4] ?? '';
+// Android: the minimum API level Gradle resolved (the app's minSdk).
+const androidApi = /^\d+$/.test(process.argv[5] ?? '') ? process.argv[5] : '29';
 const slice = `${target}-${architecture}-${sdk ? sdk.replaceAll(/[^a-zA-Z0-9]/g, '_') : 'default'}`;
 const env = { ...process.env };
 const args = ['--disable-shared', '--enable-static', '--with-pic', '--disable-dependency-tracking'];
@@ -51,11 +53,12 @@ if (target === 'ios') {
   const triples = { 'arm64-v8a': ['aarch64-linux-android', 'aarch64-linux-android'], 'armeabi-v7a': ['armv7a-linux-androideabi', 'arm-linux-androideabi'], x86: ['i686-linux-android', 'i686-linux-android'], x86_64: ['x86_64-linux-android', 'x86_64-linux-android'] };
   const pair = triples[architecture];
   if (!pair) throw new Error('Unsupported Android ABI');
-  env.CC = resolve(bin, `${pair[0]}29-clang`);
+  env.CC = resolve(bin, `${pair[0]}${androidApi}-clang`);
   env.AR = resolve(bin, 'llvm-ar');
   env.RANLIB = resolve(bin, 'llvm-ranlib');
   env.STRIP = resolve(bin, 'llvm-strip');
-  env.CFLAGS = '-O2 -fPIC';
+  // libsodium's assert messages embed __FILE__: keep the builder's absolute paths out of the shipped library.
+  env.CFLAGS = `-O2 -fPIC -ffile-prefix-map=${source}=libsodium`;
   args.push(`--host=${pair[1]}`);
 }
 // The build directory is keyed by everything that shapes the library, flags included.
@@ -74,5 +77,8 @@ if (!existsSync(result) || !existsSync(complete)) {
   writeFileSync(complete, tag);
 }
 // Machine-readable output used by build scripts; paths contain no user secrets.
-writeFileSync(resolve(cache, `${target}-${architecture}-${sdk || 'default'}.json`), JSON.stringify({ version, digest, install }));
+// Rewritten only on change: CMake reconfigures whenever this file is touched.
+const manifest = resolve(cache, `${target}-${architecture}-${sdk || 'default'}.json`);
+const content = JSON.stringify({ version, digest, install });
+if (!existsSync(manifest) || readFileSync(manifest, 'utf8') !== content) writeFileSync(manifest, content);
 process.stdout.write(`${install}\n`);
