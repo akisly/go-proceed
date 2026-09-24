@@ -185,10 +185,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 | [BL-155](#bl-155) | P2 | closed → DEV-060 | PUBLIC holds TEMP on the database |
 | [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
-| [BL-157](#bl-157) | P3 | open | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
+| [BL-157](#bl-157) | P3 | scheduled → DEV-071 | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
 | [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
 | [BL-159](#bl-159) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
 | [BL-160](#bl-160) | P2 | open | Four DEV-061 field-client behaviours have no observed run: a hold resolved by the server, the received-anyway notice, «Стираємо…» signed in, and the reinstall-reset retry |
+| [BL-161](#bl-161) | P3 | open | No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL |
+| [BL-162](#bl-162) | P3 | open | `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1883,9 +1885,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-157"></a>
 ### BL-157 — P3 — The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL
 
-- **State:** open
+- **State:** scheduled → DEV-071
 - **Legacy cite:** none
-- **Why:** DEV-060's `gp-architect` design, 2026-09-24. `0102` changes the database's own ACL (PUBLIC loses TEMPORARY; INV-116). That ACL is not part of any schema: pg_dump carries database access privileges only with `--create` (PostgreSQL 17, «pg_dump»), so a restore or clone into a new project would bring PUBLIC's TEMP back while `schema_migrations` still records `0102` — silently. Roles created after `0102` (a future Supabase-managed role, a new `goproceed_*` login) also sit outside what `0102` enumerated. `packages/testing/src/temporary-privilege.test.ts` checks the local stack only — including T6, the only check that the roles keeping TEMP reach no definer. And each direct grant `0102` made records a dependency on that platform role, so a platform-side `DROP ROLE` (a retired `pgbouncer`, say) would fail on «privileges for database postgres» until a revoke runs first (DEV-060 review R1-04).
+- **Why:** *[2026-09-24, DEV-071: INV-116's catalog checks moved to one read-only file, `technical/database/checks/inv-116-temporary-privilege.sql`, run by `temporary-privilege.test.ts` (with a negative control per check), by `pnpm db:catalog-snapshot` (new `database_acl`, `temp_privilege`, `inv116_violations` sections; exit 1 on a violation) and on hosted projects after every push or restore (`infra/README-staging.md` §2.3; the owner allowed the coordinator to run it read-only through the connector at any time). First hosted run: `goproceed-staging`, 0 rows. The `pg_shdepend` point is documentation only — `DROP OWNED` revokes privileges on shared objects, and §2.3 names the remedy. Detection, not prevention; the missing restore procedure is BL-161.]* DEV-060's `gp-architect` design, 2026-09-24. `0102` changes the database's own ACL (PUBLIC loses TEMPORARY; INV-116). That ACL is not part of any schema: pg_dump carries database access privileges only with `--create` (PostgreSQL 17, «pg_dump»), so a restore or clone into a new project would bring PUBLIC's TEMP back while `schema_migrations` still records `0102` — silently. Roles created after `0102` (a future Supabase-managed role, a new `goproceed_*` login) also sit outside what `0102` enumerated. `packages/testing/src/temporary-privilege.test.ts` checks the local stack only — including T6, the only check that the roles keeping TEMP reach no definer. And each direct grant `0102` made records a dependency on that platform role, so a platform-side `DROP ROLE` (a retired `pgbouncer`, say) would fail on «privileges for database postgres» until a revoke runs first (DEV-060 review R1-04).
 - **Evidence:** `supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql` (header); INV-116 «Not covered»; [DEV-060](tasks/DEV-060-no-product-temporary-schema.md).
 - **Depends on:** the catalog comparison against the hosted project (`docs/architecture/tenancy-and-security.md`). The cheapest step is a `database_acl` section in `scripts/snapshot-db-catalog.mjs` next to `roles`, plus T6's query, compared after every hosted push and restore.
 - **Deadline:** before any restore or clone of a hosted database.
@@ -1928,3 +1930,23 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** the DEV-061 acceptance table (the deferred rows) and «What is not true»; `apps/mobile/src/lib/native/{queue.ts,runtime.tsx}`, `apps/mobile/src/lib/supabase.ts`. The fault-injection recipe that worked for DEV-070 (an `lldb` breakpoint with a `platform shell` command, record row 8) can stall a transfer or corrupt a file on the simulator.
 - **Depends on:** a signed-in simulator or device session (the owner's code); for the hold, an intent created a day before the run.
 - **Deadline:** before field phones are used in a pilot.
+
+<a id="bl-161"></a>
+### BL-161 — P3 — No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-071's `gp-architect` design, 2026-09-24; filed on the owner's answer the same day. The organization is on the Supabase free plan: no daily backups, no PITR, no «Restore to a new project» (paid plans with physical backups only — https://supabase.com/docs/guides/platform/backups, https://supabase.com/docs/guides/platform/clone-project). The only restore left is logical (a `supabase db dump` or dashboard `.backup` into a new project), and pg_dump carries the database ACL only with `--create`, so it brings PUBLIC's TEMPORARY back while `schema_migrations` still records `0102` (INV-116). Daily backups also do not store custom roles' passwords, so the `goproceed_*_login` passwords need resetting after a restore. Nothing in the repository says who restores, from what, in what order, or how the result is checked.
+- **Evidence:** `infra/README-staging.md` §2.3 (the INV-116 comparison and the manual re-apply of `0102`); [DEV-071](tasks/DEV-071-database-acl-compared.md).
+- **Depends on:** the owner's choice of backup source on the free plan (or a paid plan) and of who runs a restore.
+- **Deadline:** before production holds data that must survive a lost project.
+
+<a id="bl-162"></a>
+### BL-162 — P3 — `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-071's `gp-security` S1-08, 2026-09-24. `adminClient()` (`packages/testing/src/pg.ts`) reads `SUPABASE_DB_URL` with no check of where it points, and `dropWorkspaces` and `bypassingGuards` run on it in replica mode and delete rows. `scripts/snapshot-db-catalog.mjs` reads the same variable, and `infra/README-staging.md` §2.3 describes running it against a hosted project: an operator who exports that URL instead of passing it inline would point the next local suite's destructive fixtures at the hosted database. `superuserClient()` already refuses to run beside a URL for another database (DEV-060); `adminClient()` does not.
+- **Evidence:** `packages/testing/src/pg.ts` (`adminClient`, `superuserClient`); `infra/README-staging.md` §2.3; [DEV-071](tasks/DEV-071-database-acl-compared.md).
+- **Depends on:** nothing. The fix is the same host/port/database guard for `adminClient()`, or a separate variable for the suites.
+- **Deadline:** before anyone runs `packages/testing` from a shell that has held a hosted URL.

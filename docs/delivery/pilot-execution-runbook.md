@@ -1197,7 +1197,7 @@ pnpm db:local-credentials
 | `pnpm test` | — | **Do not use.** It is the same turbo task **without** `--concurrency=1`, which lets one package's truncate race another's in-flight transaction |
 | `pnpm turbo run build` | That Tailwind compiled what you wrote and every Next/tsup build succeeded; `apps/app`'s `prebuild` runs the deploy preflight | — |
 | `pnpm --filter @goproceed/testing test` | The design-system contract suite and the database sweeps — 42 files (measured 2026-09-03; 40 on 2026-09-01), most of them needing Postgres | — |
-| `pnpm db:catalog-snapshot` | Nothing — it **dumps** tables/RLS/policies/grants/functions/roles/triggers/default-ACLs/cron so drift becomes diffable | — |
+| `pnpm db:catalog-snapshot` | INV-116 on the database it reads: exit 1 when `technical/database/checks/inv-116-temporary-privilege.sql` returns a row (DEV-071). Otherwise it **dumps** tables/RLS/policies/grants/functions/roles/database ACL/TEMP holders/triggers/default-ACLs/cron so drift becomes diffable | — |
 
 **Group C — browser and deploy.** Preconditions, in order — **neither QA
 command runs without them**, and neither prints a message that names what is
@@ -1577,6 +1577,9 @@ a live catalog comparison to detect drift. Every committed snapshot under
 `migration/goproceed-canonical-v0.1/catalog-snapshots/` — **eight files, dated
 2026-07-30/31** — is local: the newest carries `Source host: 127.0.0.1` on line
 3 and `## tables (33)` on line 5.
+*[2026-09-24, DEV-071: INV-116's database-ACL checks now run on staging after
+every push or restore (`infra/README-staging.md` §2.3); a hosted snapshot is
+not committed (owner, 2026-09-24).]*
 
 ### 8.2 The §6 verification checklist
 
