@@ -88,3 +88,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-067](DEV-067-typescript-6.md) | done | BL-062: one TypeScript, 6.0.3, in the whole workspace; packages that use Node APIs declare `@types/node` |
 | [DEV-068](DEV-068-lockfile-react-guard.md) | done | BL-083: one `@types/react`/`@types/react-dom` via overrides, `apps/mobile` `react-dom` 19.2.3, and a CI lockfile check |
 | [DEV-069](DEV-069-vitest-5.md) | done | BL-061: vitest 3.2.4 → 5.0.1 with Vite 8.0.13; `vitest.workspace.ts` → `test.projects` |
+| [DEV-070](DEV-070-ios-upload-stream.md) | verifying | iOS photo uploads no longer crash the app: the vault's upload body is a bound stream pair fed by a producer thread (CFNetwork's HTTP/2 path cannot drive an `InputStream` subclass); the body completes only after the reader's authenticated EOF, and any producer failure cancels the task |
