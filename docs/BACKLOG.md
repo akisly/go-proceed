@@ -922,7 +922,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** `TODOS.md` «vertical-m1 steps 7 and 8 went red once and would not do it again»
 - **Why:** a real unexplained red in one full serialized run on 2026-08-10. The hypothesis to test first is cross-package residue from `@goproceed/testing` running before `apps/app`.
-- **Evidence:** none since; CI history was not searched for a recurrence.
+- **Evidence:** none since; CI history was not searched for a recurrence. *[2026-09-24: it recurred. CI run 36024385064 (`claude/app-qa-otp-flake`, `9f885170`, verify job 107717069989): step 7 failed at `vertical-m1.int.test.ts:190` with «expected 'failed' to be 'preview_ready'», then step 8 failed at `:222` with «expected { …(11) } to deeply equal undefined». The change under test touched only `apps/app/qa/field.mjs` and docs. Recorded by [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md).]*
 - **Depends on:** a recurrence: capture the assertion text before re-running.
 - **Deadline:** none recorded.
 
@@ -1576,7 +1576,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** observed during DEV-032. `apps/app/tests/telegram-evidence.int.test.ts` «waits for retryable album parts, then completes once on retry success or exhaustion» failed once at line 856 (two receipts for message 791 where one is expected) and passed in the nine runs after it; the baseline passed five of five. The 791 part never downloads successfully, so it never reaches finalization, where DEV-032's change lies. Either the test's two back-to-back `processDueTelegramEvidenceRetries` calls race, or the exhaustion path can write its terminal receipt twice — which the product must not do. Ranked by DEV-032.
-- **Evidence:** `scratchpad/dev032-r1-suite-telegram-evidence.txt` (the failure), `dev032-flake-mine-*.txt` and `dev032-baseline-telegram-*.txt` (the reruns), cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md).
+- **Evidence:** `scratchpad/dev032-r1-suite-telegram-evidence.txt` (the failure), `dev032-flake-mine-*.txt` and `dev032-baseline-telegram-*.txt` (the reruns), cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md). *[2026-09-24: it recurred in CI run 36024441017 on main (`2c820957`, verify job 107717268103). The test failed at `telegram-evidence.int.test.ts:863` with «expected [ { …(5) }, { …(5) } ] to have a length of 1 but got 2». Recorded by [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md).]*
 - **Depends on:** nothing.
 - **Deadline:** before the Telegram webhook is enabled anywhere.
 
@@ -1903,7 +1903,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
   [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md) makes each failed attempt record the `POST /auth/v1/otp` status and body, the `role="alert"` text, the URL, the typed address, the submit button's state and a screenshot. Each record also says whether the request was sent at all, and lists the page's console warnings. The attempt is repeated once, and a pass that needed the repeat prints a `::warning::` line.
 - **Evidence:** the two failing runs' job logs (jobs 107635316713 and 107654794894) and their `app-qa-output` artifacts; `requestOtpCode` in `apps/app/qa/field.mjs`.
 - **Depends on:** the first `::warning::app-qa /login (code step)` annotation, or finding, on a run that includes DEV-063.
-- **Deadline:** none recorded. Close it by naming the cause and removing the repeat, or by recording the cause as outside the repository. If no annotation or finding appears by 2026-10-31, remove the repeat, keep the diagnostic and close it as not reproduced. That fallback is proposed and still needs the owner's agreement.
+- **Deadline:** none recorded. Close it by naming the cause and removing the repeat, or by recording the cause as outside the repository. If no annotation or finding appears by 2026-10-31, remove the repeat, keep the diagnostic and close it as not reproduced. That fallback is proposed and still needs the owner's agreement. *[2026-09-24: DEV-063 merged in #137 (`2c820957`). The first three app-qa runs with it (36018704568, 36024385064, 36024714256) passed on the first attempt with no annotation. Main's run 36024441017 died in `supabase start` (runner Docker networking) before the harness ran.]*
 
 <a id="bl-159"></a>
 ### BL-159 — P3 — A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh

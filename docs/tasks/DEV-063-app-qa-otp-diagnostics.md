@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: CI's `app-qa` job stops failing with only «Waiting for selector `#otp-code` failed» to show for it. Each failed code request in the daylight audit records what GoTrue answered and what the page showed, and the request is repeated once. A pass that needed the repeat leaves a `::warning::` annotation. That way BL-158's cause turns up in the log without turning the run red.
-- State: verifying
+- State: done
 - Coordinator: primary Claude Code session, 2026-09-24
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires
 - Selected route and why (`agents/COORDINATION.md`): "New behavior inside existing boundaries" (Implementer → `gp-reviewer` → `gp-qa`). The change is to executed code under `apps/`, the browser harness. The cause is not understood yet, so "bounded bug with an understood cause" does not fit.
@@ -53,6 +53,7 @@
 | 8 | coordinator | Rebased onto `9d050cca`; BL-157 renumbered to BL-158 in `field.mjs`, the backlog, the index and this record; `pnpm validate:canonical-docs` OK; `node --check` OK. | this record | `gp-qa` re-check of criteria 4 and 5 |
 | 9 | `gp-qa` round 2 | Criteria 1–5 PASS on `9d050cca` plus the staged change. `field.mjs` differs from the round-1 revision only by the BL number. No new defects. The CI-only items stay NOT RUN and do not block. | agent report, 2026-09-24 | commit, PR; record the first CI run |
 | 10 | coordinator | origin/main `648be7ad` (#134, #136) merged into the branch. The only conflict was the `docs/tasks/README.md` index. main's rows were kept and DEV-063 was placed after DEV-060. `field.mjs` was untouched on main, and BL-158 is still free there. `pnpm validate:canonical-docs` OK, `node --check` OK. | merge commit | owner merges #137 |
+| 11 | owner, coordinator | The owner merged #137 (`2c820957`, 2026-09-24). app-qa with the change: PR run 36018704568 (`5b7fc5bf`), merge-head run 36024385064 (`9f885170`) and main run 36024714256 (`3ded684a`, after #139) all passed on the first attempt. No `::warning::app-qa` line, no finding, `login-code-1440.png` and `login-code-390.png` present, `qa-report.json` `ok: true`. Main run 36024441017 (`2c820957`) never reached the harness: `supabase start` failed with «failed to set up container networking: driver failed programming external connectivity on endpoint supabase_db_goproceed» (runner Docker). `verify` was red in both 2c820957-era runs on known integration flakes this change does not touch (vitest includes only `src/`, `tests/` and `scripts/`, never `qa/`): BL-127 on main (`telegram-evidence.int.test.ts:863`, two receipts where one is expected, job 107717268103) and BL-064 on the merge head (`vertical-m1.int.test.ts:190` and `:222`, steps 7 and 8, job 107717069989). Both are noted in the backlog. | CI runs above | none; BL-158 waits for a recurrence |
 
 ## Findings and rework
 
@@ -99,6 +100,6 @@ Rework count and hypothesis changes: hypothesis 1 (config.toml's `email_sent = 2
 - Changed / inspected files: `apps/app/qa/field.mjs`, `docs/BACKLOG.md`, `docs/tasks/DEV-063-app-qa-otp-diagnostics.md`, `docs/tasks/README.md`.
 - Review independence: independent — `gp-reviewer` (round 1) and `gp-qa` (rounds 1 and 2) as subagents.
 - Verified scope: the daylight audit's `/login (code step)` loop and `requestOtpCode` against a production build with GoTrue mocked; BL-158; the docs validator.
-- Remaining risks / blocked requirements: BL-158's cause. The BL-158 number collides with open PR #135.
-- Next bounded action and owner: the owner merges the PR. The coordinator records the first `app-qa` run with this change under BL-158, and renumbers if #135 merges first.
-- Final state and reason: verifying. Every required criterion passes; the record moves to done once the PR is merged.
+- Remaining risks / blocked requirements: BL-158's cause is still unknown. Four app-qa runs so far include the change. In three of them the harness ran and passed on the first attempt. The fourth died in `supabase start`. The BL-158 collision with #135 is resolved: #135 took BL-159 and BL-160 when it merged (`28b83be0`). The 2026-10-31 fallback in BL-158 still needs the owner's agreement.
+- Next bounded action and owner: when a `::warning::app-qa /login (code step)` annotation or a code-step finding appears, whoever sees it records it in BL-158.
+- Final state and reason: done. The owner merged #137 (`2c820957`, 2026-09-24) after `gp-reviewer` and `gp-qa` passed. The diagnostic and the repeat are in main, and BL-158 stays open for the cause.
