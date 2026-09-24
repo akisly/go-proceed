@@ -663,7 +663,8 @@ databaseDescribe("a creator who lost access can still abandon the upload (BL-032
     // The same caller, stripped of the read only, is not fully authorized.
     await q(`update public.project_access_grants set revoked_at = now()
               where workspace_id = $1 and capability = 'project.view'
-                and member_id = (select id from public.memberships where user_id = $2) and revoked_at is null`,
+                and member_id = (select id from public.memberships where user_id = $2 and organization_id = $1)
+                and revoked_at is null`,
       [fx.workspaceId, B]);
     expect(await ask()).toBe(true);
     expect((await stateOf(intent.uploadIntentId)).status).toBe("orphaned_for_purge");
