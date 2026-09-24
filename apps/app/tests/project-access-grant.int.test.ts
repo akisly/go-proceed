@@ -207,3 +207,49 @@ describe("project_access.grant keeps project.view covering the member's action c
     expect((await liveView(projectId)).map((r) => [r.id, r.until])).toEqual([[view, null]]);
   });
 });
+
+/**
+ * DEV-050 / BL-137 (owner, 2026-09-24: «Зафиксировать + BL-014»): through the
+ * product a project keeps an active member with a live, undated
+ * `project.admin` grant. `projects.create` gives the creator one; the revoke
+ * refuses to take the last one (INV-110); and the grant never touches an
+ * existing admin row, so a dated `project.admin` can only exist beside an
+ * undated one and its lapse is harmless. These cases pin the grant's half.
+ */
+describe("a dated administrator grant never displaces the undated one (DEV-050, BL-137)", () => {
+  const adminRows = (projectId: string, memberId: string) => q<{ until: Date | null; revoked: boolean }>(
+    `select valid_until as until, revoked_at is not null as revoked from public.project_access_grants
+      where workspace_id = $1 and project_id = $2 and member_id = $3 and capability = 'project.admin'`,
+    [WS, projectId, memberId]);
+
+  it("a dated re-grant of project.admin to its undated holder is skipped, and the grant stays undated", async () => {
+    const projectId = await project();
+    const res = await grantRoute(projectId, { memberId: members.admin, capabilities: ["project.admin"], validUntil: inDays(1) });
+    expect(res.status).toBe(201);
+    expect((await res.json()).granted).toEqual([]);
+    expect(await adminRows(projectId, members.admin!)).toEqual([{ until: null, revoked: false }]);
+  });
+
+  it("another member's dated administrator grant lapses beside the creator's, and the creator still administers the project", async () => {
+    const projectId = await project();
+    const until = inDays(2);
+    const res = await grantRoute(projectId, { memberId: members.member, capabilities: ["project.admin"], validUntil: until });
+    expect(res.status).toBe(201);
+    expect(await adminRows(projectId, members.admin!)).toEqual([{ until: null, revoked: false }]);
+    expect(await adminRows(projectId, members.member!)).toEqual([{ until: new Date(until), revoked: false }]);
+    // The member's dated grant has since lapsed: written by the fixture, as a lapse cannot be waited for.
+    const lapsed = await q<{ id: string }>(
+      `select id from public.project_access_grants
+        where workspace_id = $1 and project_id = $2 and member_id = $3 and capability = 'project.admin'`,
+      [WS, projectId, members.member]);
+    await q(
+      `update public.project_access_grants set valid_from = now() - interval '2 days', valid_until = now() - interval '1 day'
+        where id = $1`, [lapsed[0]!.id]);
+    // The lapse took effect: the member, whose view still runs, can no longer grant.
+    const refused = await grantRoute(projectId, { memberId: members.admin, capabilities: ["contracts.edit"] }, MEMBER);
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).code).toBe("SCOPE_PROJECT_DENIED");
+    const again = await grantRoute(projectId, { memberId: members.member, capabilities: ["contracts.edit"] });
+    expect(again.status).toBe(201);
+  });
+});

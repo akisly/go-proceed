@@ -184,9 +184,13 @@ cascade. A revoke that takes away a live `project.admin` grant is refused
 unless another active member keeps a live admin grant with no end date, the
 actor's own included (INV-110), because the
 creator's bootstrap no longer applies to a project that has grants and a
-workspace role confers no project capability. The rule covers revokes only: a
-project whose administrator grants are all dated can still lapse, and a
-suspension still leaves it without an administrator (BL-137). The application role may
+workspace role confers no project capability. With the creator's undated grant
+from `projects.create` and a grant route that never touches an existing admin
+row, the product keeps such an administrator on every project: a dated admin
+grant can only exist beside an undated one (DEV-050). What can still orphan a
+project is outside the product today — grants rewritten by SQL, a future
+membership suspension (BL-014 must refuse it), or an only administrator who has
+left while their membership stays active (BL-137). The application role may
 update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
 does not end responsibilities (INV-021), work assignments, Telegram member
 links or external review links the member issued. A removal (a revoke naming

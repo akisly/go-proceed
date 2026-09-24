@@ -132,7 +132,9 @@ for:
   stay live until `external_grants.revoke_reissue` retires them.
 - Keeping a project administrable when its only administrator grant lapses
   through `valid_until` or its holder's membership is suspended (BL-014); the
-  last-administrator rule covers revokes only.
+  last-administrator rule covers revokes only. *[Amended 2026-09-24 (DEV-050):
+  neither path is reachable through the product in v0.1 — see «Amendment,
+  2026-09-24 — what the last-administrator rule already covers».]*
 - A trigger that makes `revoked_at` write-once or the other grant columns
   immutable; with the column grant, the product can still clear `revoked_at`
   through a defect.
@@ -211,3 +213,26 @@ options the coordinator put: «Только отчёт» (decision 5) and «Ре
 BL-024» (the group). The field names, the audit key and the read-before-update
 order are the coordinator's detail of that option, ratified by the owner's
 merge.
+
+## Amendment, 2026-09-24 — what the last-administrator rule already covers
+
+Recorded by the coordinator of [DEV-050](../tasks/DEV-050-last-admin-records.md)
+(BL-137) to transcribe the owner's ruling below. It changes no behaviour.
+
+The clause above that decision 1 does not keep a project administrable «when
+its only administrator grant lapses through `valid_until` or its holder's
+membership is suspended» describes paths the product does not allow. `projects.create`
+gives the creator an undated `project.admin`; the revoke never takes the last
+undated one; and the grant route skips a capability its holder already has
+unrevoked, so it never dates or replaces an existing admin grant. A dated
+`project.admin` can therefore exist only beside an undated one, and no product
+command suspends or ends a membership in v0.1. What can still leave a project
+without an administrator is outside the product today: grants rewritten by SQL, a
+future suspend or end command (BL-014, which must refuse it under a lock
+shared with the revoke), and an only administrator who has left while their
+membership stays active. A recovery path for a workspace owner is decided with
+BL-014.
+
+**Approval.** Approved by the owner on 2026-09-24, in conversation, on the
+option «Зафиксировать + BL-014» after the `gp-architect` design; the wording is
+the coordinator's, ratified by the owner's merge.

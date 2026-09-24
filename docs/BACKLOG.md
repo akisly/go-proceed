@@ -165,7 +165,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-134](#bl-134) | P3 | open | Dashboard follow-ups the DEV-035 UI review named and left out of scope |
 | [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
 | [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
-| [BL-137](#bl-137) | P2 | open | A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension |
+| [BL-137](#bl-137) | P3 | open | A project whose only administrator has left cannot be recovered through the product, and a future suspend must not orphan one |
 | [BL-138](#bl-138) | P3 | open | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
 | [BL-140](#bl-140) | P3 | scheduled → DEV-048 | A member's `project.view` can lapse before the action capabilities it was added for |
@@ -332,6 +332,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** offboarding is one-way; a rehired foreman cannot get back in.
 - **Evidence:** `0011:188-191`, the `ALREADY_MEMBER` guard, has no status filter; `apps/app/app/v1/workspaces/[workspaceId]/members/route.ts` exports only `GET`; no scope row reactivates a membership.
 - **Depends on:** membership lifecycle commands, a governance decision with its own audit and capability.
+- **Acceptance (DEV-050, owner 2026-09-24):** a suspend or end command refuses with 409 `PROJECT_FINAL_ADMIN`, naming the projects in `details`, when the member is the last active holder of a live undated `project.admin` grant on any project, and decides under a lock the revoke shares (a per-project advisory lock in project-id order, or the revoke's locked select taking the memberships too). A workspace owner's recovery of an orphaned project (BL-137) is decided with this item.
 - **Deadline:** none recorded.
 
 <a id="bl-015"></a>
@@ -1659,13 +1660,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** before a pilot foreman signs in on the field origin.
 
 <a id="bl-137"></a>
-### BL-137 — P2 — A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension
+### BL-137 — P3 — A project whose only administrator has left cannot be recovered through the product, and a future suspend must not orphan one
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-043's `gp-architect` design and `gp-security` review (S1-02). `project_access.revoke` refuses to take away a live `project.admin` grant unless another active member keeps an undated one (INV-110; the owner ruled on 2026-09-23 that a dated survivor does not count, which closed the two-step path of granting admin for a minute and then revoking one's own), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so a project whose admin grants are all dated can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting — including one committed while a revoke runs, since the revoke locks grant rows, not memberships. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
-- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (`validUntil` on any capability); `supabase/migrations/0011_workspace_access_security.sql` (`app.project_has_grants`, `pag_insert`); INV-110's «Not covered».
-- **Depends on:** a decision between refusing a dated `project.admin` grant when no undated one remains, and a recovery path for a workspace owner (an ADR: it would give a workspace role a project capability).
+- **Why:** *[2026-09-24, DEV-050: `gp-architect` showed neither path is reachable through the product in v0.1 — a dated `project.admin` can exist only beside the creator's undated one (the grant route never touches an existing admin row), and no product command suspends a membership. The owner ruled «Зафиксировать + BL-014»: the records are corrected (INV-110, ADR-014's amendment, the tenancy paragraph), the priority drops to P3, and what remains — an only administrator who has left, and a workspace owner's recovery path — is decided with BL-014, which now carries the refusal. The text below is kept as written.]* DEV-043's `gp-architect` design and `gp-security` review (S1-02). `project_access.revoke` refuses to take away a live `project.admin` grant unless another active member keeps an undated one (INV-110; the owner ruled on 2026-09-23 that a dated survivor does not count, which closed the two-step path of granting admin for a minute and then revoking one's own), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so a project whose admin grants are all dated can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting — including one committed while a revoke runs, since the revoke locks grant rows, not memberships. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
+- **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (`app.project_has_grants`, `pag_insert`: no bootstrap once a project has grants); INV-110's «Not covered»; [DEV-050](tasks/DEV-050-last-admin-records.md) row 1 (why the lapse and suspension paths are not reachable through the product). *[Until DEV-050 this line cited `validUntil` on any capability in the grant route as the cause.]*
+- **Depends on:** BL-014 (the suspend or end refusal and a workspace owner's recovery path; an ADR if a workspace role gains a project capability). *[Until DEV-050 this line offered refusing a dated `project.admin` grant, which the owner did not choose on 2026-09-24.]*
 - **Deadline:** before a pilot workspace has more than one project administrator to lose.
 
 <a id="bl-138"></a>
