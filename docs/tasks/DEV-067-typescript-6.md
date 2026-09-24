@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the root, `packages/ui` and `apps/mobile` all declare TypeScript `6.0.3`, the version Expo SDK 57 expects, so the lockfile holds one TypeScript. Nothing a user sees changes.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): build and dependency configuration (`package.json`, `pnpm-lock.yaml`, tool configs) → `gp-researcher` for current docs, implementation, `gp-reviewer`, `gp-qa`; the full serialized database run is CI's (the local database is shared and not reset).
@@ -35,6 +35,7 @@
 | 2 | Owner | «6.0.3 везде» | Session | Implement |
 | 3 | Coordinator | Pinned; the lockfile holds one `typescript@6.0.3` (5.9.2 and 5.9.3 gone); every package's `tsc -v` 6.0.3; typecheck 10/10 on the TypeScript change alone. After Vitest 5, `discovery` and `domain` failed (`Cannot find name 'node:fs'`, `Buffer`): four packages had used Node APIs without declaring `@types/node`, reaching it through the hoist and Vitest 3's types. Declared it, scoped the types (plan step 2); typecheck 10/10 (`--force --continue`); `apps/app` and `apps/landing` build | session | Review |
 | 4 | gp-qa | gp-qa on `2d45e0b4`: every criterion PASS, every Fixed finding in place; `validate:lockfile`, `validate:canonical-docs`, `validate:agents`, typecheck 10/10 (`--force`) and every DB-free test set green locally; mutations reported as expected (lockfile pairing, second `@types/react`, `packages/ui` react split; `packages/domain` without `types: ["node"]` fails typecheck; the landing abort test fails without the timeout signal); collected test files equal git's in all eight packages (266); database suites and builds rest on CI run 36019198599 (`ef4bee57`), later commits are records only; `git status` empty | Subagent report (session) | Owner merges |
+| 5 | Coordinator (closure) | Owner merged #136 as `648be7ad` on 2026-09-24 (15:59 UTC); state `done` | `gh pr view 136` (MERGED) | — |
 
 ## Findings and rework
 
@@ -72,5 +73,5 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 - Review independence: independent — `gp-researcher`, `gp-reviewer`, `gp-qa` (all subagents).
 - Verified scope: local typecheck, builds and every DB-free test set.
 - Remaining risks / blocked requirements: the full serialized run is CI's.
-- Next bounded action and owner: the owner reviews and merges PR #136; then the coordinator records `done`.
-- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.
+- Next bounded action and owner: none in this task.
+- Final state and reason: done — every required criterion PASS (gp-qa row); merged by the owner in #136 (`648be7ad`, 2026-09-24).

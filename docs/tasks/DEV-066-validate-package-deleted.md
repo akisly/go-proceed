@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: the orphaned 2,403-line spec-package validator, which nothing has invoked since 2026-08-20 and which crashes on the deleted `prototype/`, leaves the tree. The comments that described it as kept are corrected. Nothing that runs changes.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): a change to code under `scripts/` and to CI and validator comments → implementation, `gp-reviewer`, `gp-qa`.
@@ -35,6 +35,7 @@
 | 2 | Owner | Delete | Session | Implement |
 | 3 | Coordinator | Deleted; four comments corrected; `pnpm validate:canonical-docs` OK; `node --check scripts/validate-canonical-docs.mjs` OK; `ci.yml` parses | working tree | gp-reviewer |
 | 4 | gp-qa | gp-qa on `2d45e0b4`: every criterion PASS, every Fixed finding in place; `validate:lockfile`, `validate:canonical-docs`, `validate:agents`, typecheck 10/10 (`--force`) and every DB-free test set green locally; mutations reported as expected (lockfile pairing, second `@types/react`, `packages/ui` react split; `packages/domain` without `types: ["node"]` fails typecheck; the landing abort test fails without the timeout signal); collected test files equal git's in all eight packages (266); database suites and builds rest on CI run 36019198599 (`ef4bee57`), later commits are records only; `git status` empty | Subagent report (session) | Owner merges |
+| 5 | Coordinator (closure) | Owner merged #136 as `648be7ad` on 2026-09-24 (15:59 UTC); state `done` | `gh pr view 136` (MERGED) | — |
 
 ## Findings and rework
 
@@ -68,5 +69,5 @@ None beyond the repository.
 - Review independence: independent — `gp-reviewer`, `gp-qa` (all subagents).
 - Verified scope: static.
 - Remaining risks / blocked requirements: none.
-- Next bounded action and owner: the owner reviews and merges PR #136; then the coordinator records `done`.
-- Final state and reason: verifying — every required criterion PASS (gp-qa row); `done` is recorded after the owner merges.
+- Next bounded action and owner: none in this task.
+- Final state and reason: done — every required criterion PASS (gp-qa row); merged by the owner in #136 (`648be7ad`, 2026-09-24).
