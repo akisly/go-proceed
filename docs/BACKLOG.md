@@ -187,6 +187,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-156](#bl-156) | P2 | open | The Telegram assignment card and the office's blocked-reasons list print requirement citations, including «за робочою документацією об'єкта» items, without the required disclaimers |
 | [BL-157](#bl-157) | P3 | scheduled → DEV-071 | The database-level TEMP revoke lives outside the schema, and nothing compares the hosted database ACL |
 | [BL-158](#bl-158) | P3 | open | app-qa's daylight audit intermittently gets no code step on its third code request of the run, cause unknown |
+| [BL-159](#bl-159) | P3 | open | A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh |
+| [BL-160](#bl-160) | P2 | open | Four DEV-061 field-client behaviours have no observed run: a hold resolved by the server, the received-anyway notice, «Стираємо…» signed in, and the reinstall-reset retry |
 | [BL-161](#bl-161) | P3 | open | No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL |
 | [BL-162](#bl-162) | P3 | open | `packages/testing`'s `adminClient()` connects wherever `SUPABASE_DB_URL` points, and its fixtures delete and bypass triggers |
 <!-- index:end -->
@@ -1904,6 +1906,30 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** the two failing runs' job logs (jobs 107635316713 and 107654794894) and their `app-qa-output` artifacts; `requestOtpCode` in `apps/app/qa/field.mjs`.
 - **Depends on:** the first `::warning::app-qa /login (code step)` annotation, or finding, on a run that includes DEV-063.
 - **Deadline:** none recorded. Close it by naming the cause and removing the repeat, or by recording the cause as outside the repository. If no annotation or finding appears by 2026-10-31, remove the repeat, keep the diagnostic and close it as not reproduced. That fallback is proposed and still needs the owner's agreement.
+
+<a id="bl-159"></a>
+### BL-159 — P3 — A sign-in within auth-js's pending-refresh window after an offline sign-out could still be overwritten by that refresh
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** [DEV-061](tasks/DEV-061-field-client-decisions.md) — `gp-security` S-03 and `gp-reviewer` R5, 2026-09-24. A local sign-out closes the session storage (`closeAfterSignOut`) so that a refresh already in flight cannot write the old session back. The login screen reopens it just before `verifyOtp`. auth-js 2.112.3 already discards a refresh when the stored refresh token changed while it ran (`GoTrueClient.js`, the `storageChangedUnderUs` check). What is left is a refresh whose storage snapshot was taken after the sign-out's removal, which then completes after another user reopened storage to sign in. It needs a shared phone, an offline sign-out with an expired token, the removal landing in that gap, and the network returning inside auth-js's retry window (up to about 30 s).
+- **Evidence:** `apps/mobile/src/lib/native/sign-out.ts`, `apps/mobile/src/lib/native/session-storage.ts` (the latch), `apps/mobile/src/screens/login.tsx` (`reopenForSignIn`); the reviews recorded in DEV-061's Findings.
+- **Depends on:** re-checking the guard on every auth-js upgrade. A possible hardening: before `reopenForSignIn()`, wait a bounded time for auth-js's lock (for example through `getSession()`).
+- **Deadline:** before shared field phones are used in a pilot.
+
+<a id="bl-160"></a>
+### BL-160 — P2 — Four DEV-061 field-client behaviours have no observed run: a hold resolved by the server, the received-anyway notice, «Стираємо…» signed in, and the reinstall-reset retry
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** [DEV-061](tasks/DEV-061-field-client-decisions.md) — the owner deferred four required acceptance criteria on 2026-09-24, after the signed-in pass (record row 13) had covered the rest. Each is covered by unit tests and code review only:
+  - a held discard resolved when the server reports its intent terminal (`resolveHold` → `removeLocally`); the intent expires 24 h after creation, so a run needs a hold created a day ahead;
+  - the received-anyway notice (`receivedAnyway`, `toldReceived`) after a discard the server completes anyway;
+  - «Стираємо…» (the wipe of a vault that cannot open) with a real signed-in session;
+  - S-08: a failed reinstall reset shows its own card and is retried (`installationReady`, `errorReason === "installation"`).
+- **Evidence:** the DEV-061 acceptance table (the deferred rows) and «What is not true»; `apps/mobile/src/lib/native/{queue.ts,runtime.tsx}`, `apps/mobile/src/lib/supabase.ts`. The fault-injection recipe that worked for DEV-070 (an `lldb` breakpoint with a `platform shell` command, record row 8) can stall a transfer or corrupt a file on the simulator.
+- **Depends on:** a signed-in simulator or device session (the owner's code); for the hold, an intent created a day before the run.
+- **Deadline:** before field phones are used in a pilot.
 
 <a id="bl-161"></a>
 ### BL-161 — P3 — No written procedure restores a hosted project, and the free plan leaves only a logical restore, which drops the database ACL

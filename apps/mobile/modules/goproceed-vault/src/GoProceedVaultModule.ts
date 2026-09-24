@@ -27,6 +27,11 @@ const api: VaultAPI = {
   restore: () => call('restore'),
   warnQuarantine: () => call('warnQuarantine'),
   discard: (id, confirmation) => call('discard', { id, ...confirmation }),
+  requestDiscard: (id, confirmation) => call('requestDiscard', { id, ...confirmation }),
+  wipe: (confirmation) => call('wipe', confirmation),
+  installationCheck: () => call('installationCheck'),
+  installationMark: () => call('installationMark'),
+  closeIdentity: () => { native?.cancel(true); },
   purgeExpired: () => call('purgeExpired'),
 };
 export function requireVault(): VaultAPI {
