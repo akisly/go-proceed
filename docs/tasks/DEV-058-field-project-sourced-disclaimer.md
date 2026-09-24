@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: a foreman who opens an obligation list containing items labelled «за робочою документацією об'єкта» sees the project-sourced items disclaimer that `docs/product/hidden-works-content-rules.md` §"Required disclaimers" mandates. It appears only on such a list, immediately after the довідковий disclaimer. Lists without such an item do not change.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): an `apps/mobile` change, so `gp-mobile` sets requirements first; then `gp-reviewer`, `gp-ui-reviewer` (paths under `apps/mobile/src`) and `gp-qa`.
@@ -45,6 +45,7 @@
 | 10 | gp-qa | Every code criterion PASS. `pnpm --filter @goproceed/mobile test` 199 passed in 22 files; `typecheck` exit 0; `motion-audit: clean`; `validate:canonical-docs` OK. Five mutations, all killed: the text changed by one character; `.some`→`.every`; always the text; always `null`; the screen's label changed. The tree was restored (`code.diff` hash `64166333…` before and after). One finding, Q1 (below). No copy-catalog row needed | Subagent report (session) | Fix Q1 |
 | 11 | Coordinator | Q1 fixed: same harness, the top of the page after the failed refresh. Harness reverted; the code-only diff (`git diff 90cb9b63 -- apps/`) hash `d08bbee3…` is unchanged | `05a-ac10-failed-refresh-notice.png` | gp-qa re-check |
 | 12 | gp-qa | Q1 closed. AC-01…AC-12 PASS, and AC-10…AC-12 keep the fixture-harness qualifier. The §5 gate, the §6 screenshots and the copy-catalog check PASS. It verified the code unchanged since its mutation run by comparing hashes, not by re-running the tests | Subagent report (session) | Commit; owner: PR |
+| 13 | Owner | #126 was merged into `claude/mobile-loose-ends` after #125 had already landed on `main`, so the same branch was reopened against `main` as #127. The owner merged #127 (`5c5bbb0c`, 2026-09-24 13:36 UTC). BL-154 is closed | #126, #127 | none |
 
 ## Findings and rework
 
@@ -92,6 +93,6 @@ No third-party documentation decided anything in this task. `expo` 57.0.24 and `
 - Changed / inspected files: see «Owning module».
 - Review independence: independent: `gp-mobile`, `gp-reviewer` PASS, `gp-ui-reviewer` PASS, `gp-qa` PASS (after Q1).
 - Verified scope: unit tests, typecheck, UI gate, and simulator screenshots with fixture data, including a failed refresh and a refusal.
-- Remaining risks / blocked requirements: the end-to-end route, screen readers and Android are NOT RUN. CI is NOT RUN (Actions billing block). The branch stacks on the unpushed `claude/mobile-loose-ends`.
-- Next bounded action and owner: the PR, stacked on `claude/mobile-loose-ends`, which is not yet pushed (owner's choice of how). The owner merges. After the merge, BL-154 closes and this record moves to done.
-- Final state and reason: verifying. Every stage has passed and the owner's merge is pending.
+- Remaining risks / blocked requirements: the end-to-end route, screen readers and Android are NOT RUN. CI is NOT RUN (Actions billing block).
+- Next bounded action and owner: none; merged in #127. The open question of whether the Telegram cards and the office's blocked-reasons list also need the note (gp-reviewer) is the owner's.
+- Final state and reason: done. Merged in #127 (`5c5bbb0c`, 2026-09-24) after gp-mobile, gp-reviewer, gp-ui-reviewer and gp-qa passed; the real route, screen readers, Android and CI stay NOT RUN as recorded.

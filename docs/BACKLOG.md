@@ -182,7 +182,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-151](#bl-151) | P3 | open | Routes outside `/v1/projects/{projectId}` still answer a malformed path id with 500 |
 | [BL-152](#bl-152) | P2 | open | Definer function bodies name types unqualified, which a session's temporary schema can shadow |
 | [BL-153](#bl-153) | P3 | open | `apps/mobile` restates `@goproceed/contracts` shapes by hand instead of importing them |
-| [BL-154](#bl-154) | P2 | open | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
+| [BL-154](#bl-154) | P2 | closed → DEV-058 | The field client's obligation list never prints the project-sourced items disclaimer the content rules require |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1839,9 +1839,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-154"></a>
 ### BL-154 — P2 — The field client's obligation list never prints the project-sourced items disclaimer the content rules require
 
-- **State:** open
+- **State:** closed → DEV-058
 - **Legacy cite:** none
 - **Why:** DEV-057's `gp-ui-reviewer` finding U1. `docs/product/hidden-works-content-rules.md` §"Required disclaimers" (an Approved document) requires «Пункти, позначені «за робочою документацією об'єкта»…» «only on a list that also carries project-sourced items, immediately after» the довідковий disclaimer. The field obligation screen (`apps/mobile/src/screens/assignment.tsx`) labels such items «за робочою документацією об'єкта» but ends with the довідковий text only; `apps/mobile/src` has no copy of the second disclaimer, which exists in `apps/app/src/lib/statutory-act-form.ts` (`PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`) for the act alone. The retired field PWA did not print it either (`git grep` at `98040e95^`), so this is a gap since ADR-010 and migration `0059`, not a regression. The owner asked on 2026-09-24 for it to be a separate task. Ranked by DEV-057.
 - **Evidence:** `apps/mobile/src/screens/assignment.tsx` (the list and its closing `model.disclaimer`); `apps/mobile/src/lib/field/obligations.ts` (`buildObligationScreen`); `hidden-works-content-rules.md` §"Required disclaimers".
 - **Depends on:** nothing. The fix needs `gp-ui-reviewer` and a §6 screenshot of an obligation list with a project-sourced item, and a byte-for-byte guard against the content rules like `apps/mobile/src/lib/field/disclaimer.test.ts`.
-- **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client. *[2026-09-24, [DEV-058](tasks/DEV-058-field-project-sourced-disclaimer.md): `buildObligationScreen` exposes the note when an item's `normRef.verification` is `PROJECT_DOCUMENTATION`, and `assignment.tsx` prints it right after the довідковий text. `disclaimer.test.ts` compares it byte for byte with the content rules. Seen in the iOS simulator with fixture data only; the real route, a screen reader and Android are NOT RUN. It stays open until the PR merges.]*
+- **Deadline:** before a pilot workspace authors project-sourced requirements and a foreman opens them in the field client. *[2026-09-24, [DEV-058](tasks/DEV-058-field-project-sourced-disclaimer.md): `buildObligationScreen` exposes the note when an item's `normRef.verification` is `PROJECT_DOCUMENTATION`, and `assignment.tsx` prints it right after the довідковий text. `disclaimer.test.ts` compares it byte for byte with the content rules. Seen in the iOS simulator with fixture data only; the real route, a screen reader and Android are NOT RUN. Merged in #127 (`5c5bbb0c`, 2026-09-24).]*
