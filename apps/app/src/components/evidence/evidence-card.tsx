@@ -175,7 +175,7 @@ export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
           {/* `break-all`, WITH `font-mono` (unlike the field client's own
            * `capture.tsx:355-360` [deleted 2026-09-23, DEV-035], which explicitly refuses `font-mono`
            * because `globals.css` clears `--font-*` there). The dash theme
-           * does not: `packages/ui/src/theme.generated.css:46` re-adds
+           * does not: `packages/ui/src/theme.generated.css` re-adds
            * `--font-mono`, so it resolves under `/` — verified against
            * that file, not assumed from the field client's comment about a
            * different stylesheet. */}

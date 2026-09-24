@@ -69,8 +69,9 @@ seven other files carried spacing-scale workarounds (`max-w-112`,
 ## What this decision does NOT authorise
 
 - No change to any token value, role or the contrast pairs.
-- No stock colour in a component as a substitute for a missing role: a missing
-  role is still added to `tokens.json`.
+- No test or rule refusing stock colours (decision 4). A missing role is still
+  best added to `tokens.json`, and review may ask for it; nothing refuses the
+  stock colour meanwhile.
 
 ## Approval
 

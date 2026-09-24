@@ -21,10 +21,12 @@ Regenerate: `node packages/tokens/scripts/generate-docs.mjs`.
 ## How to read this
 
 Three layers. **A component names a role, never a ramp step.** `bg-canvas`,
-`text-ink-muted`, `border-line` — not `neutral-25`. Tailwind enforces half of
-that (no ramp step is in the `--color-*` namespace, so `bg-neutral-200` does
-not compile) and `packages/testing/src/primitive-leak.test.ts` enforces the
-other half (a raw `var(--gp-neutral-200)` fails the build).
+`text-ink-muted`, `border-line` — not `neutral-25`. No step of this system's
+ramps is in the `--color-*` namespace, but since 2026-09-24 stock Tailwind
+stays whole (ADR-015), so `bg-neutral-200` compiles — to Tailwind's cool
+neutral of the same name, not this ramp. Preferring the role is a review
+rule; `packages/testing/src/primitive-leak.test.ts` still fails a raw
+`var(--gp-neutral-200)`.
 
 Every colour is **derived, not picked**: each is the sRGB result of an OKLCH
 triple, with chroma clamped to the gamut boundary.

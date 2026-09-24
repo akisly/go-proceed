@@ -26,10 +26,12 @@ import { cx } from "./cn";
  * not change. The root is transparent; state reaches the box through a NAMED
  * group (`group/checkbox`), so an ancestor `.group` carrying its own
  * `data-state` cannot paint it, and `peer` stays on the root for a sibling
- * label. A negative inline margin (`-mx-1`, `touch:-mx-3.5`) cancels the hit
- * area's horizontal inset, so the painted box sits on the column edge like the
- * inputs above it; the hit area then overlaps the label beside it, which
- * toggles the same control. Vertical placement is the parent's: `Field`'s
+ * label. A negative START margin (`-ml-1`, `touch:-ml-3.5`) cancels the hit
+ * area's inset on the column side, so the painted box sits on the column edge
+ * like the inputs above it. The END side keeps its inset: cancelling it would
+ * pull the label under the focus ring's 2px + 2px offset (gp-ui-reviewer U6),
+ * so the label starts the inset plus the parent's gap after the box (desk
+ * 4px more, touch 14px more than a bare 16px box would give). Vertical placement is the parent's: `Field`'s
  * horizontal orientation centres the control on its content. A caller's
  * `className` styles the hit area, not the box.
  */
@@ -40,7 +42,7 @@ export function Checkbox({ className, ...rest }: ComponentProps<typeof CheckboxP
       className={cx(
         "group/checkbox peer inline-grid shrink-0 place-items-center rounded-control",
         "size-(--gp-control-target-desk) touch:size-(--gp-control-height-touch)",
-        "-mx-1 touch:-mx-3.5",
+        "-ml-1 touch:-ml-3.5",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
