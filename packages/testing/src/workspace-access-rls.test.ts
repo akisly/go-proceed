@@ -368,7 +368,8 @@ describe("project_access_grants: revoked_at is written once (DEV-052, BL-138)", 
     expect(t.rows).toEqual([{ enabled: "O", type: 1 | 2 | 8 | 16, fn: "app.guard_project_access_grant()" }]);
     const f = await admin.query<{ definer: boolean; config: string[] | null }>(
       "select prosecdef as definer, proconfig as config from pg_proc where oid = 'app.guard_project_access_grant()'::regprocedure");
-    expect(f.rows[0]).toEqual({ definer: false, config: ['search_path=""'] });
+    // pg_temp last since 0101 (DEV-059, INV-115); it was '' from 0099.
+    expect(f.rows[0]).toEqual({ definer: false, config: ["search_path=pg_catalog, pg_temp"] });
     const x = await admin.query<{ role: string; can: boolean }>(
       `select r as role, has_function_privilege(r, 'app.guard_project_access_grant()', 'EXECUTE') as can
          from unnest(array['anon', 'authenticated', 'goproceed_app', 'goproceed_service', 'service_role']) as r`);
@@ -493,22 +494,24 @@ describe("project_responsibility_assignment_ends (DEV-044)", () => {
 /**
  * DEV-047 / BL-143 (migration 0098): the three SECURITY DEFINER helpers every
  * workspace-access policy rests on — `app.active_member_id`,
- * `app.has_project_capability` and `app.project_has_grants` (0011) — pin the
- * empty search path the project's definer rule asks for, not `public`. Their
- * bodies qualify every name, so behaviour is unchanged: the isolation tests
- * above run every one of them through the policies after the change.
+ * `app.has_project_capability` and `app.project_has_grants` (0011) — moved
+ * from `public` to an empty search path, and since DEV-059 / 0101 to
+ * `pg_catalog, pg_temp`, the path the definer rule now asks for (an empty path
+ * still searches the temporary schema first). Their bodies qualify every name,
+ * so behaviour is unchanged: the isolation tests above run them through the
+ * policies after each change.
  */
-describe("the workspace-access helpers pin an empty search_path (DEV-047)", () => {
-  it("app.active_member_id, app.has_project_capability and app.project_has_grants are SECURITY DEFINER with search_path=\"\"", async () => {
+describe("the workspace-access helpers pin a search_path with pg_temp last (DEV-047, DEV-059)", () => {
+  it("app.active_member_id, app.has_project_capability and app.project_has_grants are SECURITY DEFINER with search_path=pg_catalog, pg_temp (0098 set '', 0101 lists pg_temp last)", async () => {
     const r = await admin.query<{ fn: string; definer: boolean; config: string[] | null }>(
       `select p.oid::regprocedure::text as fn, p.prosecdef as definer, p.proconfig as config
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'app' and p.proname = any($1::text[])
         order by 1`, [["active_member_id", "has_project_capability", "project_has_grants"]]);
     expect(r.rows).toEqual([
-      { fn: "app.active_member_id(uuid)", definer: true, config: ['search_path=""'] },
-      { fn: "app.has_project_capability(uuid,uuid,text[])", definer: true, config: ['search_path=""'] },
-      { fn: "app.project_has_grants(uuid,uuid)", definer: true, config: ['search_path=""'] },
+      { fn: "app.active_member_id(uuid)", definer: true, config: ["search_path=pg_catalog, pg_temp"] },
+      { fn: "app.has_project_capability(uuid,uuid,text[])", definer: true, config: ["search_path=pg_catalog, pg_temp"] },
+      { fn: "app.project_has_grants(uuid,uuid)", definer: true, config: ["search_path=pg_catalog, pg_temp"] },
     ]);
   });
 
@@ -575,7 +578,7 @@ describe("the inlined helpers name their types (DEV-055, BL-150)", () => {
 
   it("a temporary object named uuid does not change what the owner of A reads", async () => {
     // The application's own connection: PUBLIC holds TEMP on the database, so it can create one.
-    // Revoking TEMP from PUBLIC (BL-152) must rewrite this case.
+    // Revoking TEMP from PUBLIC (BL-155) must rewrite this case.
     const c = appClient();
     await c.connect();
     try {

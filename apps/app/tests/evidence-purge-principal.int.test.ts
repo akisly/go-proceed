@@ -90,7 +90,7 @@ describe("the purge principal (BL-030)", () => {
         where n.nspname in ('public', 'app') and p.prosecdef
           and has_function_privilege('public', p.oid, 'execute')`);
     // The positive control (R2-03): a definer created with PUBLIC's execute is found.
-    await q("create function app.zz_public_definer_probe() returns int language sql security definer set search_path = '' as 'select 1'");
+    await q("create function app.zz_public_definer_probe() returns int language sql security definer set search_path = pg_catalog, pg_temp as 'select 1'");
     await q("grant execute on function app.zz_public_definer_probe() to public");
     try {
       expect((await publicDefiners()).map((x) => x.fn)).toEqual(["app.zz_public_definer_probe()"]);

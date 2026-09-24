@@ -574,7 +574,14 @@ that the next worker migration must not undo:
 `SECURITY DEFINER` is exceptional. Such a function must:
 
 - live in a non-exposed schema;
-- use a fixed empty `search_path` and schema-qualified object names;
+- pin `search_path` to `pg_catalog, pg_temp` (or a trusted schema — one in which
+  no role but the owner holds CREATE; `public` is not shown to qualify — then
+  `pg_temp`), with `pg_temp` listed once and last, and schema-qualify every
+  relation, type and function outside `pg_catalog`. An empty
+  path is not enough: unless `pg_temp` is listed, the session's temporary schema
+  is searched first for relation and type names, so a temporary domain named
+  like a built-in type could run code with the owner's rights (BL-152, `0101`,
+  INV-115);
 - validate the calling subject/service and complete tenant chain internally;
 - expose one bounded command, not arbitrary SQL;
 - revoke `EXECUTE` from `PUBLIC`, `anon`, `authenticated`, and unrelated
