@@ -415,6 +415,15 @@ describe("the requirement-list disclaimers on the card and the prompt (BL-156)",
     }
   });
 
+  it("never collapses them behind an expandable quote or a spoiler", () => {
+    // «never collapsed»: Telegram's <blockquote expandable> and <tg-spoiler>
+    // hide text until tapped, which is what the rule forbids.
+    for (const text of [card([seeded, project]), formatRequirementChoicePrompt([seeded, project]).text]) {
+      expect(text).not.toContain("<blockquote");
+      expect(text).not.toContain("<tg-spoiler");
+    }
+  });
+
   it("adds no project-sourced note for a requirement whose citation was withheld", () => {
     // A withheld citation prints no label, so there is no label to explain.
     const text = card([seeded, withheldProject]);

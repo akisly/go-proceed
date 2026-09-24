@@ -68,6 +68,13 @@ describe("BlockedReasonsList disclaimers", () => {
     expect(html.slice(dovidkovyi + escaped(DOVIDKOVYI_DISCLAIMER_TEXT).length, note)).toMatch(/^<\/p><p[^>]*>$/);
   });
 
+  it("never collapses them behind a disclosure", () => {
+    // «never collapsed»: a <details> would hide both texts until opened.
+    const html = renderToStaticMarkup(<BlockedReasonsList reasons={[reason(), project]} />);
+
+    expect(html).not.toContain("<details");
+  });
+
   it("adds no project note for a reason whose citation was withheld", () => {
     const html = renderToStaticMarkup(<BlockedReasonsList reasons={[reason({ normRef: null })]} />);
 

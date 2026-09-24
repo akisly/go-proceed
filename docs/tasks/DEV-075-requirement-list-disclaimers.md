@@ -3,7 +3,7 @@
 ## Assignment
 
 - Objective and user-visible outcome: every surface that prints a requirement list carries the disclaimers that `docs/product/hidden-works-content-rules.md` §"Required disclaimers" requires. The Telegram assignment card, the requirement-choice prompt and the office's «Заблоковані вимоги» panel print the довідковий disclaimer under the list. When an item on the list is labelled «за робочою документацією об'єкта», the project-sourced items note follows immediately after it. Before this change only the act and the native field screen printed them.
-- State: reviewing
+- State: verifying
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): executed code under `apps/app` that touches the Telegram channel workflow's card renderer and a dashboard component. Route: `gp-architect` → implementation with failing tests first → `gp-reviewer` + `gp-ui-reviewer` → `gp-qa`.
@@ -69,6 +69,8 @@
 | 8 | gp-ui-reviewer | PASS, with U1 (advisory) and U2 (optional). Roles only; `text-meta`/`text-ink-muted` match the field screen's `meta secondary`. It agrees that no copy-catalog row is right. Not run: the live route, and four of the six widths as images (they are seen through the measurements) | Subagent report (session) | — |
 | 9 | gp-reviewer | PASS WITH FINDINGS, no blocker or major: R1–R6 (below). It confirmed that the moved texts are the same bytes, that the act's output and `RENDERER_VERSION` are unchanged, and that the prompt-subset argument holds (candidates come from the card's snapshot, `0084`; occurrences are immutable, `0043`). It also found that the panel's bundle does not pull in `node:crypto` | Subagent report (session) | Fixes |
 | 10 | Coordinator | R1: BL-163 filed `open`, not `deferred (owner)`, since the owner has not ruled; U1 added to it. R2: re-run read-only through the connector on `goproceed-staging` as `postgres` (`rolbypassrls` true), with positive controls: `communication_messages` 0, `requirement_occurrences` 1, `schema_migrations` 102. R3: the moved comment names `statutory-act-form.ts`, and the double blank line is gone. R6: the prompt cases assert «once» with `split(…)`. `cards.test.ts` 31 of 31 | Connector result; session output | gp-qa |
+| 11 | gp-qa | On `aaf02810`: AC-1 to AC-5 PASS, AC-6 PASS (partial), AC-7 NOT RUN (no pull request yet). Mutations killed: note dropped, order swapped, helper always both, one byte changed, a second copy, disclaimers moved above «Джерела», empty-list guard removed. The moved blocks hash the same (sha256 `557dd825…`); `RENDERER_VERSION` is `statutory-act-render/2`. Every stated fix is in place. Q1 (minor): an expandable quote or a `<details>` survived. Q2 (nit): the §6 fixture used the role key `technical_supervision`; the real key is `technical_supervisor`, so the screenshot shows the raw fallback under «Хто вирішує». Tree clean after the run | Subagent report (session) | Fix Q1 |
+| 12 | Coordinator | Q1: «never collapses them» cases in `cards.test.ts` (card and prompt: no `<blockquote`, no `<tg-spoiler`) and `blocked-reasons-list.test.tsx` (no `<details`). Mutations: disclaimers wrapped in `<blockquote expandable>` fails 3; the panel's block wrapped in `<details>` fails 1; both restored. The two files: 37 of 37. Q2 recorded here: a fixture artifact, not a label bug | Session output | Pull request, CI |
 
 ## Findings and rework
 
@@ -82,8 +84,10 @@
 | R6 | nit | gp-reviewer; `cards.test.ts` prompt case | AC-1's «once» was not asserted on the prompt | Coordinator | Fixed (row 10) |
 | U1 | minor (advisory) | gp-ui-reviewer | The approved text bolds two phrases; every surface prints them plain | Coordinator | Not this diff's (a precedent across the act, mobile and now these surfaces); added to BL-163 for the owner's ruling |
 | U2 | optional | gp-ui-reviewer; the disclaimer block | It has a row's padding and border, so it could be read as a third row | Coordinator | Stays as is: the block's muted 12px text and lack of a criterion line already set it apart from a row, and the finding is marked optional |
+| Q1 | minor | gp-qa; both surfaces | Nothing tested «never collapsed»: a `<blockquote expandable>` on the card or a `<details>` on the panel survived | Coordinator | Fixed: tests with mutations (row 12). A test-only change to a stated fix |
+| Q2 | nit | gp-qa; §6 fixture | The fixture's role key is `technical_supervision`, not `technical_supervisor` | Coordinator | Recorded (row 12); evidence only, the product is unaffected |
 
-Rework count and hypothesis changes: none. R1, R2, R3 and R6 are stated fixes after the first review; no QA FAIL so far.
+Rework count and hypothesis changes: none. R1, R2, R3, R6 and Q1 are stated fixes; no QA FAIL and no new blocker, so no round is counted.
 
 ## What is not true after this task
 
@@ -97,6 +101,13 @@ Rework count and hypothesis changes: none. R1, R2, R3 and R6 are stated fixes af
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 once, after «Джерела», before the instruction | Yes | `aaf02810` + Q1 tests | `cards.test.ts`; gp-qa mutation (moved above «Джерела») | PASS | string only; no Telegram client (BL-024) |
+| AC-2 the project note only for a printed `PROJECT_DOCUMENTATION` citation | Yes | `aaf02810` | `cards.test.ts`, `blocked-reasons-list.test.tsx`; gp-qa mutations | PASS | |
+| AC-3 prompt ≤ card; over-limit card refused, not shortened | Yes | `aaf02810` | subset and boundary cases (4086 without, over 4096 with); staging query row 10 | PASS | assisted: the no-earlier-cards premise is the coordinator's staging query |
+| AC-4 panel texts under the list, in order, never collapsed, none when empty | Yes | `aaf02810` + Q1 tests | `blocked-reasons-list.test.tsx` 5/5 with the `<details` mutation; `mixed-390.png` | PASS | seen on a fixture, not the live route |
+| AC-5 one source; act bytes and `RENDERER_VERSION` unchanged | Yes | `aaf02810` | same sha256 for the moved blocks; byte-for-byte guard; sweep with mutation | PASS | |
+| AC-6 §5 gate and §6 | Yes | `248053c6` + working tree; `aaf02810` | rows 5, 6, 11 | PASS | assisted: §6 on a fixture with browser fonts; database suites NOT RUN locally (CI's) |
+| AC-7 full CI on the pull request | Yes | — | pending | NOT RUN | environmental: no pull request yet; settled by the PR's `verify` and `app-qa` |
 
 ## Sources
 
@@ -105,8 +116,8 @@ No third-party documentation was needed: the change renders fixed strings throug
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: independent — `gp-architect`, `gp-reviewer` and `gp-ui-reviewer` (native subagents); `gp-qa` pending.
+- Review independence: independent — `gp-architect`, `gp-reviewer` and `gp-ui-reviewer` (native subagents); `gp-qa` (native subagents).
 - Verified scope: rows 3–6.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the fixed revision.
-- Final state and reason: reviewing — review findings settled; `gp-qa` next.
+- Next bounded action and owner: the pull request's CI (AC-7); then the owner's merge.
+- Final state and reason: verifying — AC-1 to AC-6 PASS (gp-qa row 11, Q1 fixed in row 12); AC-7 waits on CI.
