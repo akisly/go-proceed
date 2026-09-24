@@ -18,9 +18,13 @@
 // forces a lockfile regeneration, and ci.yml runs --frozen-lockfile.
 //
 // Vitest 4 removed `vitest.workspace.ts` for `test.projects` in a config file
-// (BL-061, DEV-065). Vitest 5 no longer searches parent directories for a
+// (BL-061, DEV-069). Vitest 5 no longer searches parent directories for a
 // config, so a package without its own `vitest.config.ts` still runs with
 // defaults rooted at its directory and never picks this file up.
+//
+// A root `vitest run` reaches apps/app (truncates tenant tables) AND
+// packages/testing (runs `supabase db reset`) together: never run it against
+// a local stack whose data matters (root AGENTS.md).
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({

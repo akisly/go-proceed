@@ -10,7 +10,7 @@ onlyBuiltDependencies:
   - esbuild
   - sharp
 
-# One @types/react and @types/react-dom for every importer (BL-083, DEV-064):
+# One @types/react and @types/react-dom for every importer (BL-083, DEV-068):
 # pnpm 9 privately hoists whichever copy it lists first, so a second version
 # splits the web programs' types at random (DEV-008). Read by pnpm >=10 here;
 # pnpm 9.x reads the same map from package.json "pnpm.overrides". Keep both in

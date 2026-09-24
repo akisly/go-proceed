@@ -25,7 +25,7 @@
 ## Plan
 
 1. Pin `typescript` `6.0.3` at the root and in `packages/ui` (`apps/mobile` already had it). Check: one `typescript@` in the lockfile; `npx tsc -v` per package.
-2. Fix what TypeScript 6's `types: []` default breaks once Vitest 5 stops pulling Node's types in (DEV-069): the packages that use Node APIs declare `@types/node` `24.9.2` (the apps' version); `discovery` (a Node tool) sets `types: ["node"]`; `packages/domain`'s one Node-using test file references Node's types itself, so domain code keeps no Node globals. Check: `pnpm turbo run typecheck --force` 10/10.
+2. Fix what TypeScript 6's `types: []` default breaks once Vitest 5 stops pulling Node's types in (DEV-069): the packages that use Node APIs declare `@types/node` `24.9.2` (the apps' version); `discovery` (a Node tool) and `packages/domain` (its code uses `node:crypto` and `Buffer`) set `types: ["node"]` *(revised after R2; the first version referenced Node's types from one test file)*. `packages/database` and `packages/testing` also reach Node's types through `@types/pg`; their `@types/node` devDependency makes that explicit. Check: `pnpm turbo run typecheck --force` 10/10.
 
 ## Progress and decisions
 
@@ -39,8 +39,10 @@
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R2 | minor | `packages/domain/src/import/xlsx.test.ts:1-2` | a triple-slash reference types the whole program, and domain code itself uses `node:crypto` and `Buffer` (`invitations.ts`, `import/xlsx.ts`), so «domain code keeps no Node globals» was false | Coordinator | Fixed: `packages/domain/tsconfig.json` sets `types: ["node"]`; the reference is removed; plan step 2 corrected below |
+| R4 | minor | `discovery/tsconfig.json` | cited a DEV-065 that does not exist | Coordinator | Fixed: DEV-067 |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: one rework after the first review (not a round); every change is a stated fix above.
 
 ## What is not true after this task
 

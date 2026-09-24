@@ -1,7 +1,7 @@
 {
   "extends": "../tsconfig.base.json",
   // A Node tool (node:sqlite, node:fs). TypeScript 6 includes no @types by
-  // default, and Vitest 5 no longer pulls Node's types in (DEV-065).
+  // default, and Vitest 5 no longer pulls Node's types in (DEV-067).
   "compilerOptions": { "types": ["node"] },
   "include": ["src"]
 }

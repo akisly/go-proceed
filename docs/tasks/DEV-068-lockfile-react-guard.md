@@ -40,8 +40,11 @@
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R3 | minor | `scripts/check-lockfile-versions.mjs` `WEB_IMPORTERS` | `packages/ui` resolves its own `react`/`react-dom` and both web apps consume it as source; a split there passed | Coordinator | Fixed: `packages/ui` added; self-test for its split |
+| R4 | minor | `pnpm-workspace.yaml`, `ci.yml`, the script header | cited a DEV-064 that does not exist | Coordinator | Fixed: DEV-068 |
+| R6 | nit | `selfTest()` | no fixture for two `@types/react-dom` versions or a web `react-dom` split | Coordinator | Fixed: both added |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: one rework after the first review (not a round); every change is a stated fix above.
 
 ## What is not true after this task
 

@@ -40,8 +40,15 @@
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1 | major (evidence) | AC-3 | the full serialized run, database suites included, had not run; the recorded evidence predated merging `main` | Coordinator | CI on PR #136 (row 4); typecheck and file lists re-run at the merged head |
+| R4 | minor | `vitest.config.ts`, `apps/{app,landing}/vitest.config.ts`, `pilot-form.test.tsx` | cited a DEV-065 that does not exist | Coordinator | Fixed: DEV-069 |
+| R5 | minor | runbook line 1240 | still named `vitest.workspace.ts` | Coordinator | Fixed: dated annotation |
+| R7 | nit | `pilot-form.test.tsx` | `mockRestore()` skipped when an expect before it failed | Coordinator | Fixed: `try/finally` |
+| R8 | nit | `apps/{app,landing}/vitest.config.ts` | Vitest 5's default exclude is only `node_modules` and `.git` | Coordinator | Fixed: explicit `include`; the collected files are unchanged (156) |
+| R9 | nit | `validate-canonical-docs.mjs:631` | the skip audit named vitest 3.2.4 only | Coordinator | Fixed: the comment records the 5.0.1 re-check (`aroundEach`/`aroundAll` throw; tags already refused) |
+| R10 | nit | `vitest.config.ts` | a root run reaches truncating and resetting suites together | Coordinator | Fixed: warning in the header |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: one rework after the first review (not a round); every change is a stated fix above.
 
 ## What is not true after this task
 

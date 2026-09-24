@@ -1,5 +1,3 @@
-/// <reference types="node" />
-// The fixture builder needs node:zlib and Buffer; the domain code under test does not (DEV-065).
 import { describe, it, expect } from "vitest";
 import ExcelJS from "exceljs";
 import { deflateRawSync } from "node:zlib";

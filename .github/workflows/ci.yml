@@ -100,7 +100,7 @@ jobs:
       # is visible in the log rather than inferred.
       - run: python3 --version && pnpm validate:agents
 
-      # Lockfile gate (BL-083, DEV-064): one @types/react, @types/react-dom
+      # Lockfile gate (BL-083, DEV-068): one @types/react, @types/react-dom
       # and typescript for every importer, every react-dom paired with the
       # same react, and one react pair across the web apps. pnpm 9 privately
       # hoists whichever copy it lists first, so a second version splits the

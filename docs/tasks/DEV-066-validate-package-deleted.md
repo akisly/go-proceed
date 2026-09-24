@@ -39,8 +39,9 @@
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R5 | minor | `docs/delivery/pilot-execution-runbook.md:1273` | still offered the deleted script as «Orphaned — do not wire» | Coordinator | Fixed: dated annotation «DEV-066: deleted» |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: one rework after the first review (not a round); every change is a stated fix above.
 
 ## What is not true after this task
 

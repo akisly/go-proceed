@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// pnpm-lock.yaml guard (BL-083, DEV-064).
+// pnpm-lock.yaml guard (BL-083, DEV-068).
 //
 // pnpm 9 privately hoists the copy of a package brought by whichever importer
 // it lists first, and that order varies between runs (DEV-008). A package the
@@ -23,7 +23,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const SINGLE_VERSION = ["@types/react", "@types/react-dom", "typescript"];
-export const WEB_IMPORTERS = ["apps/app", "apps/landing"];
+// packages/ui is consumed as source by both web apps, so its React is theirs.
+export const WEB_IMPORTERS = ["apps/app", "apps/landing", "packages/ui"];
 
 function unquote(key) {
   return key.replace(/^'(.*)'$/, "$1");
@@ -112,14 +113,15 @@ export function lockfileErrors(text) {
   return errs;
 }
 
-function fixture({ types = ["19.2.18"], ts = ["6.0.3"], reactDom = [["19.2.8", "19.2.8"]], web = ["19.2.8", "19.2.8"] } = {}) {
+function fixture({ types = ["19.2.18"], typesDom = ["19.2.4"], ts = ["6.0.3"], reactDom = [["19.2.8", "19.2.8"]], web = ["19.2.8", "19.2.8", "19.2.8"], webDom = null } = {}) {
   const pkg = [
     ...types.map((v) => `  '@types/react@${v}':\n    resolution: {}\n`),
-    "  '@types/react-dom@19.2.4':\n    resolution: {}\n",
+    ...typesDom.map((v) => `  '@types/react-dom@${v}':\n    resolution: {}\n`),
     ...ts.map((v) => `  typescript@${v}:\n    resolution: {}\n`),
   ].join("\n");
   const snaps = reactDom.map(([d, r]) => `  react-dom@${d}(react@${r}):\n    dependencies:\n      react: ${r}\n      scheduler: 0.27.0\n`).join("\n");
-  const imp = WEB_IMPORTERS.map((n, i) => `  ${n}:\n    dependencies:\n      react:\n        specifier: ${web[i]}\n        version: ${web[i]}\n      react-dom:\n        specifier: ${web[i]}\n        version: ${web[i]}(react@${web[i]})\n`).join("\n");
+  const dom = webDom ?? web;
+  const imp = WEB_IMPORTERS.map((n, i) => `  ${n}:\n    dependencies:\n      react:\n        specifier: ${web[i]}\n        version: ${web[i]}\n      react-dom:\n        specifier: ${dom[i]}\n        version: ${dom[i]}(react@${web[i]})\n`).join("\n");
   return `lockfileVersion: '9.0'\n\nimporters:\n\n${imp}\npackages:\n\n${pkg}\nsnapshots:\n\n${snaps}`;
 }
 
@@ -130,7 +132,10 @@ export function selfTest() {
   if (!has(lockfileErrors(fixture({ types: ["19.2.18", "19.2.14"] })), "@types/react resolves to 2 versions")) t.push("two @types/react versions not reported");
   if (!has(lockfileErrors(fixture({ ts: ["6.0.3", "5.9.2"] })), "typescript resolves to 2 versions")) t.push("two typescript versions not reported");
   if (!has(lockfileErrors(fixture({ reactDom: [["19.2.8", "19.2.3"]] })), "react-dom@19.2.8(react@19.2.3) is paired with react 19.2.3")) t.push("react-dom/react mismatch not reported");
-  if (!has(lockfileErrors(fixture({ web: ["19.2.8", "19.2.9"] })), "web importers resolve react to different versions")) t.push("web importer split not reported");
+  if (!has(lockfileErrors(fixture({ web: ["19.2.8", "19.2.9", "19.2.8"] })), "web importers resolve react to different versions")) t.push("web importer split not reported");
+  if (!has(lockfileErrors(fixture({ web: ["19.2.9", "19.2.9", "19.2.8"] })), "packages/ui 19.2.8")) t.push("packages/ui split not reported");
+  if (!has(lockfileErrors(fixture({ webDom: ["19.2.8", "19.2.9", "19.2.8"] })), "web importers resolve react-dom to different versions")) t.push("web react-dom split not reported");
+  if (!has(lockfileErrors(fixture({ typesDom: ["19.2.4", "19.2.3"] })), "@types/react-dom resolves to 2 versions")) t.push("two @types/react-dom versions not reported");
   if (!has(lockfileErrors("lockfileVersion: '9.0'\n"), "no importers/packages/snapshots section")) t.push("empty lockfile not reported");
   if (splitKey("'@types/react-dom@19.2.4(@types/react@19.2.18)'").name !== "@types/react-dom") t.push("scoped key split wrong");
   return t;

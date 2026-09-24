@@ -629,7 +629,9 @@ function sameLineClosing(rest) {
  * body up to its own closing line, and that closing; each describe keeps its
  * closing and whether its body holds control flow, so `citedTestProblems` can
  * refuse anything but the one plain shape. vitest 3.2.4 has at least nine ways
- * to keep a test from running (DEV-013 record, Sources).
+ * to keep a test from running (DEV-013 record, Sources). Re-checked for vitest
+ * 5.0.1 (DEV-069): `aroundEach`/`aroundAll` throw when the callback is never
+ * called, and tags need options, `tagsFilter` or a flag, all already refused.
  */
 function vitestTests(rawSource) {
   const describeRe = /^(describe|suite)((?:\.\w+(?:\([^()]*\))?)*)\(\s*"((?:[^"\\]|\\.)*)"(.*)$/;
