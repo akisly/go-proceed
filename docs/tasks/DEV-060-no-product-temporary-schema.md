@@ -10,9 +10,9 @@
 - **Triggered stages and why:** `gp-architect` (a grant and database roles in `supabase/migrations`); `gp-security` (grants, database roles); `gp-reviewer` (always); `gp-qa` (always). `gp-ui-reviewer`, `gp-mobile`: not triggered. `gp-researcher`: not needed — the PostgreSQL 17 and Supabase documentation read directly (Sources).
 - **Owning module and allowed edit paths:** `supabase/migrations/0102_the_temporary_schema_no_product_role_creates.sql` (new); `packages/testing/src/temporary-privilege.test.ts` (new), `packages/testing/src/pg.ts` (`purgeClient`, `superuserClient`), `packages/testing/src/definer-search-path.test.ts`, `packages/testing/src/workspace-access-rls.test.ts`; `apps/app/tests/upload-intents-finalize.int.test.ts` (F-01, one subquery); `technical/database/invariant-catalog.csv` (INV-116 new; INV-105, INV-114, INV-115); `technical/data-access-surface.csv` (DA-202); `docs/architecture/tenancy-and-security.md`; `docs/BACKLOG.md` (BL-155, BL-157); `docs/STATUS.md`; this record; `docs/tasks/README.md`.
 - **Read context and applicable local instructions:** root `AGENTS.md`; `agents/COMMON.md`; DEV-059's record (BL-152, `0101`, gp-security S1-01); `0003`, `0034`, `0090` (the product roles).
-- **Linked spec, ADR or earlier task:** BL-155, filed by [DEV-059](DEV-059-temporary-schema-searched-last.md) (BL-152, PR #131). No ADR: the change only tightens a privilege (`gp-architect`).
-- **Baseline:** `e420e3be` (`claude/definer-search-path`, DEV-059 = `ef3c7809` merged with main `66c3dd68`; unmerged, PR #131); local database at `0101`.
-- **Dependencies / constraints / out of scope:** DEV-059 must merge first (this branch contains it). The definers still trusting `public` (BL-146). Other databases on the cluster (`_supabase` exists locally, not on the hosted project). `0102` is applied to the local database by hand; the hosted push is the owner's.
+- **Linked spec, ADR or earlier task:** BL-155, filed by [DEV-059](DEV-059-temporary-schema-searched-last.md) (BL-152, merged in #131). No ADR: the change only tightens a privilege (`gp-architect`).
+- **Baseline:** `e420e3be` (`claude/definer-search-path`, DEV-059 = `ef3c7809` merged with main `66c3dd68`); local database at `0101`. #131 and DEV-059's closure #132 merged while this task ran; the branch merged `origin/main` (`919a8c10`) before its pull request — documentation only (STATUS, BACKLOG, the task index, DEV-059's record).
+- **Dependencies / constraints / out of scope:** DEV-059 (`0101`, merged in #131 and on staging). The definers still trusting `public` (BL-146). Other databases on the cluster (`_supabase` exists locally, not on the hosted project). `0102` is applied to the local database by hand; the hosted push is the owner's.
 - **Required acceptance criteria:**
   1. `temporary-privilege.test.ts`: PUBLIC holds no TEMPORARY; nothing a `goproceed_*` role reaches holds it or is a superuser; no TEMP holder short of a superuser or the owner can become a product role or reach a definer in `app`/`public`/`api`; the application, service and purge logins, before and after SET ROLE, are refused a temporary table and a `pg_temp` domain (42501, «permission denied to create temporary tables in database») and have no temporary schema; the owner is not refused (positive control); a product role cannot add to a temporary schema a superuser created in the same backend; no function body creates a temporary object. The cases that assert the revoke are red at `0101` and green at `0102`.
   2. `0102` applies by hand as `postgres` on a database at `0101`, in one transaction; its assertion block passes; a before/after capture shows only the seven product roles lost TEMP; a re-run grants nothing and passes; the assertion raises when a product role can reach TEMP.
@@ -93,7 +93,7 @@ Rework count and hypothesis changes: none (first review; the fixes are the state
 - The Supabase-managed roles keep TEMP, `anon` and `authenticated` now by an explicit grant; only the EXECUTE revokes (T6, local only) keep them away from the definers.
 - Each direct grant records a dependency on its platform role, so a platform-side `DROP ROLE` would need a revoke first (BL-157).
 - T8 cannot see a statement a body assembles at run time, nor definers outside `app`, `public` and `api`.
-- `0102` is applied to the local database only; the hosted project needs the owner's push, after DEV-059's `0101` (already on staging).
+- `0102` is applied to the local database only; the hosted project (at `0101`) needs the owner's push.
 
 ## Acceptance evidence
 
@@ -118,7 +118,7 @@ Rework count and hypothesis changes: none (first review; the fixes are the state
 - Review independence: `gp-architect`, `gp-reviewer` (r1, r2), `gp-security` (r1, r2) and `gp-qa` as independent native subagents, before the commit.
 - Verified scope: criteria 1–5 (`gp-qa` PASS).
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: CI on the PR; the owner's merge of #131 and this PR, and the owner's word for the hosted push of `0102` — before it, preflight P1, P4–P7 (`gp-security`'s list; P2, P3, P8 done); after it, P7 and P9, the NOTICE list pasted below, and the product logins' backends terminated only if P7 shows temporary objects owned by a `goproceed_*` role (a hosted action, the owner's).
+- Next bounded action and owner: CI on the PR; the owner's merge of this PR, and the owner's word for the hosted push of `0102` — before it, preflight P1, P4–P7 (`gp-security`'s list; P2, P3, P8 done); after it, P7 and P9, the NOTICE list pasted below, and the product logins' backends terminated only if P7 shows temporary objects owned by a `goproceed_*` role (a hosted action, the owner's).
 - Final state and reason: verifying.
 
 ## Appendix — roles `0102` granted TEMPORARY back to (local, 2026-09-24)
