@@ -73,7 +73,7 @@ Desktop.ini
 *.code-workspace
 .codegraph/
 
-# Prototype build + QA scratch (qa-screenshots/ IS tracked — validate_package.py:2404 requires them)
+# Prototype build + QA scratch (prototype/ and validate_package.py are deleted; kept so a stale checkout stays clean)
 prototype/dist/
 prototype/qa-runtime-tmp/
 

@@ -25,7 +25,7 @@
   - `docs/tasks/README.md`.
 - Read context: DEV-042 (Findings, «Owner decisions owed»), DEV-046, ADR-013, the spec's vault section, `docs/product/hidden-works-content-rules.md` (INV-073).
 - Linked: [DEV-042](DEV-042-mobile-native.md), [DEV-046](DEV-046-android-vault.md), [ADR-013](../decisions/ADR-013-native-field-client.md).
-- Baseline: `origin/main` `e43c5ecf`; branch `claude/field-decisions` in worktree `.claude/worktrees/android-vault`. `origin/main` `406f5efe` was merged in on 2026-09-24 (commit `ed400aa3`): main's cluster had taken DEV-047…055 and INV-113/114, so this task became DEV-056 and its invariants INV-116/116. `origin/main` `599d337a` was merged in on 2026-09-24 (commit `50828fcf`): a parallel session had taken DEV-056 (libsodium minisign) and DEV-057, so this task became DEV-058. `origin/main` `919a8c10` was merged in on 2026-09-24: DEV-058 (the field disclaimer), DEV-059, BL-155/156 and INV-115 had been taken, so this task took DEV-060, its invariants INV-116 and INV-117, and its backlog entry BL-157. main's DEV-059 record had already announced DEV-060 for the BL-155 cluster, so this task is DEV-061. `origin/main` `9d050cca` was merged in on 2026-09-24: BL-157 and INV-116 had been taken by DEV-060, so this task's backlog entry is BL-158 and its invariants INV-117 and INV-118.
+- Baseline: `origin/main` `e43c5ecf`; branch `claude/field-decisions` in worktree `.claude/worktrees/android-vault`. `origin/main` `406f5efe` was merged in on 2026-09-24 (commit `ed400aa3`): main's cluster had taken DEV-047…055 and INV-113/114, so this task became DEV-056 and its invariants INV-116/116. `origin/main` `599d337a` was merged in on 2026-09-24 (commit `50828fcf`): a parallel session had taken DEV-056 (libsodium minisign) and DEV-057, so this task became DEV-058. `origin/main` `919a8c10` was merged in on 2026-09-24: DEV-058 (the field disclaimer), DEV-059, BL-155/156 and INV-115 had been taken, so this task took DEV-060, its invariants INV-116 and INV-117, and its backlog entry BL-157. main's DEV-059 record had already announced DEV-060 for the BL-155 cluster, so this task is DEV-061. `origin/main` `9d050cca` was merged in on 2026-09-24: BL-157 and INV-116 had been taken by DEV-060, so this task's backlog entry became BL-158 and its invariants INV-117 and INV-118. `origin/main` `3ded684a` was merged in on 2026-09-24: DEV-063 (#137) had taken BL-158, so this task's backlog entry is BL-159.
 - Dependencies / constraints / out of scope:
   - No server change: no migration, grant, contract or error code.
   - No OTP email is triggered by the agent, so signed-in paths need the owner.
@@ -130,7 +130,7 @@
 | N-2 | Nit | `supabase.ts` | one reset retry at a time | Coordinator | Fixed |
 | U3-1 | Minor | `runtime.tsx` | a sign-in after a failed reinstall reset reaches ready without waiting for a foreground event | Coordinator | Fixed: the vault reopens when a session arrives while the reason is `installation` |
 | U3-2 | Nit | `profile.tsx` | a clean wipe that left the user signed in is said, not as an error | Coordinator | Fixed: a separate info notice |
-| S-03 residual | Low | sign-out | a sign-in inside auth-js's pending-refresh window | Owner | Deferred to [BL-158](../BACKLOG.md#bl-158) |
+| S-03 residual | Low | sign-out | a sign-in inside auth-js's pending-refresh window | Owner | Deferred to [BL-159](../BACKLOG.md#bl-159) |
 
 Owner questions raised by gp-security, recorded (none blocks):
 1. A time-box or inactivity timeout for hosted sessions left unrevoked by an offline sign-out. This needs the Supabase Pro plan and the hosted settings were not inspected; the owner already accepted non-revocation.
@@ -145,7 +145,7 @@ Rework count and hypothesis changes: 0 failed rounds (no QA FAIL, no new blocker
 - **Signed-in paths ran on 2026-09-24 (row 13), except three.** A hold resolved against staging, the received-anyway notice and «Стираємо…» with a real session were not exercised; see the NOT RUN row. The pass ran on a build that also carries DEV-070 (PR #138), because the iOS upload crash it found blocks any send on iOS without it.
 - **The hold waits on the server.** A held photo disappears only once the server expires its intent: 24 h plus the next purge cron, observed only while the app is open and online. The user cannot cancel a hold. A held photo whose `available` receipt does not match cannot be resolved; the card shows the problem.
 - **Offline sign-out does not revoke the server session.** The refresh token is deleted from the phone but stays valid on the server; hosted session limits need the Supabase Pro plan and were not inspected. An online sign-out whose request times out also becomes local-only, with no copy saying so.
-- **The S-03 residual.** A sign-in inside auth-js's pending-refresh window can still be overwritten ([BL-158](../BACKLOG.md#bl-158)).
+- **The S-03 residual.** A sign-in inside auth-js's pending-refresh window can still be overwritten ([BL-159](../BACKLOG.md#bl-159)).
 - **Quarantine without expiry** until a public store launch (ADR-013 amendment); the seven-day warned expiry is not wired.
 - **The wipe is device-wide.** It deletes every account's unsent photos when the vault cannot open. A vault that opens but later fails a write (a full disk) can still refuse sign-out without offering the wipe; `quick_check` covers corruption, not a full disk.
 - **U4's citation question.** Whether the queue card's verbatim requirement text must carry a verification tag and source (INV-073, content rules) is open for the owner or gp-architect.
@@ -176,7 +176,7 @@ Rework count and hypothesis changes: 0 failed rounds (no QA FAIL, no new blocker
 
 ## Completion / handoff
 
-- Changed files: `apps/mobile/src/**` (native runtime, queue, sign-out, session storage, supabase, item labels, wipe notes, screens, primitives, `ui/vault-wipe.ts`), `apps/mobile/modules/goproceed-vault/{src,ios,android}/**`, `technical/states/transition-catalog.csv`, `technical/database/invariant-catalog.csv`, `docs/decisions/ADR-013-native-field-client.md`, `docs/specs/2026-09-22-mobile-native.md`, `docs/BACKLOG.md` (BL-158), this record, `docs/tasks/README.md`.
+- Changed files: `apps/mobile/src/**` (native runtime, queue, sign-out, session storage, supabase, item labels, wipe notes, screens, primitives, `ui/vault-wipe.ts`), `apps/mobile/modules/goproceed-vault/{src,ios,android}/**`, `technical/states/transition-catalog.csv`, `technical/database/invariant-catalog.csv`, `docs/decisions/ADR-013-native-field-client.md`, `docs/specs/2026-09-22-mobile-native.md`, `docs/BACKLOG.md` (BL-159), this record, `docs/tasks/README.md`.
 - Review independence: independent — `gp-mobile`, `gp-architect`; `gp-reviewer` and `gp-security` two rounds each; `gp-ui-reviewer` three rounds; `gp-qa` pending. All subagents.
 - Verified scope: unit tests, native builds, the vault on the Android emulator and iOS simulator, iOS reinstall behaviour, and the vault-error UI.
 - Remaining risks / blocked requirements: see What is not true; the signed-in pass needs the owner.

@@ -12,6 +12,7 @@
     "@goproceed/contracts": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "24.9.2",
     "@types/pg": "^8.23.1",
     "pg": "^8.23.0",
     "tailwind-merge": "^3.6.0"

@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no behaviour a user sees changes. PUBLIC loses TEMPORARY on the database, and so does every `goproceed_*` role and login; every other role that held it through PUBLIC keeps it by direct grant. A session on an application, service or purge connection can then never create a temporary schema, so `pg_temp` is in no path it runs, and the class BL-152 belonged to — a definer resolving a name through the caller's temporary schema — is closed for product sessions, not only narrowed (DEV-059's `gp-security` S1-01).
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session («Close BL-153: revoke TEMP from product roles»), 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a grant on the database and the product roles in a migration: `gp-architect` → failing tests → migration and catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -26,6 +26,7 @@
 | Date | Decision | Source |
 |---|---|---|
 | 2026-09-24 | BL-155 (filed as BL-153 before DEV-059's renumbering) as a separate cluster in a new session | chat, «займись BL-153 отдельным кластером в новой сессии» |
+| 2026-09-24 | Push `0102` to staging after green CI | chat, «пушь 0102 на staging после зелёного CI» |
 | 2026-09-24 | Which database runs: the coordinator chooses the necessary suites, one at a time; truncating tenant tables is allowed; never a reset; hosted pushes only on the owner's explicit word | the session brief |
 
 ## Plan
@@ -57,6 +58,10 @@
 | 15 | gp-reviewer | r2 PASS on R1-01..R1-07 and F-01; R2-01..R2-03 nit | review, 2026-09-24, on `scratchpad/dev060-r2.diff` | fixes |
 | 16 | coordinator | R2-01..R2-03 fixed; re-runs: temporary-privilege 19, definer-search-path 7, workspace-access-rls 31, `tsc` exit 0; the guard checked with a remote and a `?host=` URL | `scratchpad/dev060-r3-green.txt` | gp-qa |
 | 17 | gp-qa | PASS on criteria 1–5, every stated fix in place. Re-ran one at a time: temporary-privilege 19, definer-search-path 7, workspace-access-rls 31 (its first run of the last two may have overlapped — both pass, the first writes nothing — so it re-ran each alone), `packages/database` 32, upload-intents-finalize 36 twice (around signatory-participants 17, with B's stray membership present), evidence-purge-principal 8, invitations 9, `external-evidence` 12 (a before/after snapshot of 167 policy expressions: unchanged); red state re-created in rolled-back transactions (T2 12 rows, T6 197 rows, as recorded); the final `0102` on a re-created pre-`0102` ACL: 13 granted back, 7 without, the resulting ACL equals the live one; re-run 0 granted; four negative cases raise, `anon` is refused as a non-owner; `tsc` exit 0 in both; `validate:canonical-docs` OK. Q-01 info, Q-02 record hygiene | QA report, 2026-09-24, on `scratchpad/dev060-r3.diff` | commit |
+| 18 | owner | #133 merged (`9d050cca`, 14:52 UTC); CI green on the head: `verify` ran all 57 `packages/testing` files, 871 tests, the four `resetDb` suites included (`temporary-privilege` 19, `definer-search-path` 7, `workspace-access-rls` 31, `m1-schema` 10, `rls` 5), and `app-qa` passed | `gh pr view 133`; CI run 36014372099 | hosted push |
+| 19 | coordinator | Preflight on `goproceed-staging`, read-only through the connector: P1 owner `postgres` (not a superuser), ACL as recorded; P4, P5, P6 no rows; P7 no temporary object of any owner, `goproceed_app_login` 2 backends; P8 head `0101` | connector query, 2026-09-24 | push |
+| 20 | coordinator | On the owner's word: `supabase db push --linked --dry-run` listed only `0102`; `supabase db push --linked` at 14:54 UTC: «Applying migration 0102_the_temporary_schema_no_product_role_creates.sql… Finished supabase db push.» (the CLI shows no NOTICE lines) | `scratchpad/dev060-hosted-push.txt` | postflight |
+| 21 | coordinator | Postflight (P9, P7): head `0102`; PUBLIC holds no TEMPORARY; direct TEMP holders exactly P3's 12 plus `postgres` and `dashboard_user` (Appendix); without TEMP exactly the seven `goproceed_*` roles and `cli_login_postgres`; T2 and T3 no rows; no temporary object owned by a `goproceed_*` role, so no backend needs ending | connector query, 2026-09-24 | done |
 
 ## Findings and rework
 
@@ -93,7 +98,6 @@ Rework count and hypothesis changes: none (first review; the fixes are the state
 - The Supabase-managed roles keep TEMP, `anon` and `authenticated` now by an explicit grant; only the EXECUTE revokes (T6, local only) keep them away from the definers.
 - Each direct grant records a dependency on its platform role, so a platform-side `DROP ROLE` would need a revoke first (BL-157).
 - T8 cannot see a statement a body assembles at run time, nor definers outside `app`, `public` and `api`.
-- `0102` is applied to the local database only; the hosted project (at `0101`) needs the owner's push.
 
 ## Acceptance evidence
 
@@ -102,7 +106,7 @@ Rework count and hypothesis changes: none (first review; the fixes are the state
 | 1 | yes | `e420e3be` + this task | `npx vitest run src/temporary-privilege.test.ts` (packages/testing). Red at `0101`: «Tests 16 failed \| 3 passed (19)» — T1 «expected [ { explicit: true, …(1) } ] to deeply equal …», T2 «expected [ …(12) ] to deeply equal []», each T4 «expected '' to match /permission denied to create temporary…/», T6 «expected [ …(197) ] to deeply equal []», T7 «expected '' to match /permission denied for schema pg_temp_/». Green at `0102`: «Tests 19 passed (19)» | PASS (coordinator; `gp-qa` re-ran green and re-created the red state in rolled-back transactions) | the red run at `0101` is the coordinator's |
 | 2 | yes | same | `psql -v ON_ERROR_STOP=1 -1 -f 0102` as `postgres`: exit 0, «DO», 13 «granted back», 7 «no TEMPORARY for goproceed_*»; before/after diff: the ACL and the seven product rows only; re-run: 0 granted back; negative: «ERROR: 0102: a product role reaches TEMPORARY or a superuser: goproceed_service via dev060_x, …» | PASS (coordinator; `gp-qa` on the final file) | the one-transaction apply was r1's; r2/r3 checked in rolled-back transactions (S2-02) |
 | 3 | yes | same | at `0101`: definer-search-path «Tests 7 passed (7)», workspace-access-rls «Tests 31 passed (31)»; mutation: «ERROR: BL152-PROBE ran as postgres» | PASS (coordinator; `gp-qa` re-ran the mutation) | the `0101` runs are the coordinator's |
-| 4 | yes | same | 53 `packages/testing` suites «839 passed», none skipped; `packages/database` «Tests 32 passed (32)»; 64 `apps/app` integration suites «832 passed», 1 failed (F-01), fixed and re-run: «Tests 36 passed (36)» | PASS (coordinator's full run; `gp-qa` re-ran a subset and `external-evidence` 12/12) | the four `resetDb` suites NOT RUN (a reset is the owner's; CI runs them); CI not yet run |
+| 4 | yes | same | 53 `packages/testing` suites «839 passed», none skipped; `packages/database` «Tests 32 passed (32)»; 64 `apps/app` integration suites «832 passed», 1 failed (F-01), fixed and re-run: «Tests 36 passed (36)» | PASS (coordinator's full run; `gp-qa` re-ran a subset and `external-evidence` 12/12) | the four `resetDb` suites ran in CI only (run 36014372099, green) |
 | 5 | yes | same | `pnpm validate:canonical-docs`: «canonical documentation: OK» | PASS (coordinator, `gp-qa`) | — |
 
 ## Sources
@@ -118,9 +122,9 @@ Rework count and hypothesis changes: none (first review; the fixes are the state
 - Review independence: `gp-architect`, `gp-reviewer` (r1, r2), `gp-security` (r1, r2) and `gp-qa` as independent native subagents, before the commit.
 - Verified scope: criteria 1–5 (`gp-qa` PASS).
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: CI on the PR; the owner's merge of this PR, and the owner's word for the hosted push of `0102` — before it, preflight P1, P4–P7 (`gp-security`'s list; P2, P3, P8 done); after it, P7 and P9, the NOTICE list pasted below, and the product logins' backends terminated only if P7 shows temporary objects owned by a `goproceed_*` role (a hosted action, the owner's).
-- Final state and reason: verifying.
+- Next bounded action and owner (as of the commit; since done — rows 18–21): CI on the PR; the owner's merge of this PR, and the owner's word for the hosted push of `0102` — before it, preflight P1, P4–P7 (`gp-security`'s list; P2, P3, P8 done); after it, P7 and P9, the NOTICE list pasted below, and the product logins' backends terminated only if P7 shows temporary objects owned by a `goproceed_*` role (a hosted action, the owner's).
+- Final state and reason: done — #133 merged, CI green, `0102` on `goproceed-staging` with the predicted grant-back list.
 
 ## Appendix — roles `0102` granted TEMPORARY back to (local, 2026-09-24)
 
-`anon`, `authenticated`, `authenticator`, `pgbouncer`, `service_role`, `supabase_auth_admin`, `supabase_etl_admin`, `supabase_functions_admin`, `supabase_privileged_role`, `supabase_read_only_user`, `supabase_realtime_admin`, `supabase_replication_admin`, `supabase_storage_admin`. `postgres` and `dashboard_user` held it directly and are unchanged; `supabase_admin` is a superuser. On `goproceed-staging`, preflight P3 (read-only, 2026-09-24) predicts 12: the same less `supabase_functions_admin` (absent there). `cli_login_postgres` loses TEMP deliberately (it works as `postgres`); `postgres` and `dashboard_user` hold it directly. The hosted push's NOTICE list is to be pasted here.
+`anon`, `authenticated`, `authenticator`, `pgbouncer`, `service_role`, `supabase_auth_admin`, `supabase_etl_admin`, `supabase_functions_admin`, `supabase_privileged_role`, `supabase_read_only_user`, `supabase_realtime_admin`, `supabase_replication_admin`, `supabase_storage_admin`. `postgres` and `dashboard_user` held it directly and are unchanged; `supabase_admin` is a superuser. On `goproceed-staging`, preflight P3 (read-only, 2026-09-24) predicts 12: the same less `supabase_functions_admin` (absent there). `cli_login_postgres` loses TEMP deliberately (it works as `postgres`); `postgres` and `dashboard_user` hold it directly. After the push (2026-09-24, 14:54 UTC) the hosted ACL's direct TEMP holders are exactly those 12 — `anon`, `authenticated`, `authenticator`, `pgbouncer`, `service_role`, `supabase_auth_admin`, `supabase_etl_admin`, `supabase_privileged_role`, `supabase_read_only_user`, `supabase_realtime_admin`, `supabase_replication_admin`, `supabase_storage_admin` — plus `postgres` and `dashboard_user` (read through the connector; the CLI does not print NOTICE lines).
