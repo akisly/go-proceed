@@ -1,5 +1,6 @@
 /**
- * Emits the tailwind-merge class-group override, derived from the token source.
+ * Emits the tailwind-merge class-group extension, derived from the token source
+ * (an `override` until 2026-09-24; ADR-015 keeps stock Tailwind whole).
  *
  * WHY THIS IS A GENERATOR AND NOT A HAND-WRITTEN CONFIG
  * ----------------------------------------------------

@@ -23,7 +23,7 @@ eighteen stock namespaces cleared, so that only this system's roles compiled.
 A stock class then compiled to *nothing*, silently. The cost showed up as
 BL-047: no role meant «a dialog», so `Dialog`'s `max-w-md` default, the login
 column's `max-w-sm`, two empty states and the shell error ran full width, and
-five other screens carried spacing-scale workarounds (`max-w-112`,
+seven other files carried spacing-scale workarounds (`max-w-112`,
 `max-w-96`) with long comments explaining why `max-w-md` could not be used.
 
 ## Decision
@@ -39,10 +39,17 @@ five other screens carried spacing-scale workarounds (`max-w-112`,
    classes stay recognised and collapse against the roles of the same group
    (`text-sm text-data` → `text-data`; `max-w-md max-w-content` →
    `max-w-content`).
-4. **A component still names a role.** What changes is enforcement: a stock
-   class is no longer a build error. Choosing the role is a review rule
-   (`gp-ui-reviewer`), and this system's own ramp steps stay unreachable as
-   utilities (`primitive-leak.test.ts` still refuses a raw `var(--gp-neutral-*)`).
+4. **Stock utilities are free, colours included; the role is preferred where
+   one exists.** No test refuses a stock colour or size (owner: «Полностью
+   свободно»); preferring the role is a review rule (`gp-ui-reviewer`). This
+   system's own ramp steps stay unreachable as utilities
+   (`primitive-leak.test.ts` still refuses a raw `var(--gp-neutral-*)`).
+5. **One unit per breakpoint and container scale.** Tailwind orders
+   breakpoints by unit before value, so the stock `sm`…`2xl` breakpoints and
+   `3xs`…`7xl` containers are restated in px (rem × 16) beside the px roles.
+6. **Stock infinite loops stay out.** `animate-spin|ping|pulse|bounce` compile
+   now; `motion-audit` refuses them like any perpetual animation outside the
+   named loops.
 
 ## Consequences
 
@@ -52,7 +59,10 @@ five other screens carried spacing-scale workarounds (`max-w-112`,
   «resolves to nothing» carry a dated correction; root `AGENTS.md` rule 1
   says the same.
 - A stock colour (`bg-red-500`) or size (`text-sm`) can now reach a screen
-  unnoticed by the build; the contrast suite measures roles only.
+  unnoticed by the build; the contrast suite measures roles only. Tailwind's
+  `neutral`, `green`, `amber` and `violet` palettes share names with this
+  system's ramps: `bg-neutral-200` is Tailwind's cool neutral.
+- The kitchen sink's `max-w-xl` / `max-w-2xl` come alive too (576px, 672px).
 - `packages/testing/src/stock-tailwind.test.ts` fails if the theme clears a
   stock namespace again.
 
@@ -72,7 +82,13 @@ coordinator explained why `max-w-sm`/`max-w-md` compiled to nothing:
 - «наши токены должны переписать существующие, или быть дополнением к уже тем
   что есть» — decision 2's override-or-add rule.
 
-The owner ruled on those words, not on this text. Decisions 3 and 4 are the
-coordinator's detail of the ruling, and the owner's merge ratifies them with
+- «Полностью свободно» — decision 4, asked after `gp-ui-reviewer` (U3) proposed
+  a test refusing stock colours in components; the option read «Никаких
+  запретов: стандартные цвета можно использовать, выбор роли — только на
+  ревью».
+
+The owner ruled on those words, not on this text. Decisions 3, 5 and 6 are
+the coordinator's detail of the ruling (from `gp-reviewer` R1/R2 and
+`gp-ui-reviewer` U1/U2), and the owner's merge is asked to ratify them with
 the rest. The coordinator wrote this section and the Status to transcribe the
 ruling (`docs/README.md` «ADR lifecycle and approval»).

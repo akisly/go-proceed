@@ -4,9 +4,9 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-09-13
+**Last reviewed:** 2026-09-24
 
-**Related decisions:** None yet. The rulings this procedure enforces are D1–D7
+**Related decisions:** [ADR-015](../decisions/ADR-015-stock-tailwind-under-the-tokens.md) (2026-09-24: stock Tailwind stays whole). The rulings this procedure enforces are D1–D7
 in the [rewrite plan](./2026-08-19-design-system-rewrite-plan.md) §3, which need
 an ADR before Phase 3.
 
@@ -37,10 +37,10 @@ Three layers. **A component names a ROLE, never a value.** `bg-canvas`, not
 `bg-neutral-25`, and never `bg-[#ECE9DF]`. Roles live in
 `packages/tokens/src/tokens.json`, reach CSS through seven generators, and reach
 Tailwind through `@theme inline`. Ramp steps are deliberately unreachable as
-utilities — `bg-neutral-200` does not compile — and a raw `var(--gp-neutral-200)`
+utilities — `bg-neutral-200` does not compile *[until 2026-09-24; it now compiles to stock Tailwind's cool neutral, not this system's warm one]* — and a raw `var(--gp-neutral-200)`
 fails a test. Everything else in this document follows from that sentence.
 
-*[2026-09-24, DEV-073, owner: «Tailwind работал нормально, а уже на нем накатывались наши токены». The theme no longer clears Tailwind's stock namespaces: stock utilities (`max-w-md`, `sm:`/`lg:`, `text-sm`, `shadow-md`, the stock palette) compile, and a role overrides a stock name it shares (`md`, `font-medium`, `leading-tight`, `ease-out`). This system's own ramp steps are still not utilities, and a component still names a role; what changed is that a stock class is no longer a build error, so the rows below marked «does not compile» / «resolves to nothing» now describe a review rule, not the build. `cx()` extends stock tailwind-merge instead of overriding it.]*
+*[2026-09-24, DEV-073, owner: «Tailwind работал нормально, а уже на нем накатывались наши токены». The theme no longer clears Tailwind's stock namespaces: stock utilities (`max-w-md`, `sm:`/`lg:`, `text-sm`, `shadow-md`, the stock palette) compile, and a role overrides a stock name it shares (`md`, `font-medium`, `leading-tight`, `ease-out`). This system's own ramp steps are still not utilities, but stock palettes share their names: `bg-neutral-200`, `bg-green-100` are Tailwind's colours now. The owner left stock utilities free, colours included («Полностью свободно»); preferring the role where one exists is a review rule (`gp-ui-reviewer`), and a stock utility is expected where no role names the dimension (container widths, spacing). The rows below marked «does not compile» / «resolves to nothing» now describe that review rule, not the build. `cx()` extends stock tailwind-merge instead of overriding it. Stock breakpoints and container sizes are restated in px beside the px roles, because Tailwind orders breakpoints by unit before value; stock `animate-spin|ping|pulse|bounce` are infinite loops, and `motion-audit` refuses them.]*
 
 ---
 

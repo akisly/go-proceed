@@ -100,7 +100,8 @@ export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
        * `aspect-square`/`aspect-[4/3]` "compile to nothing" because
        * `packages/ui/src/theme.generated.css` clears `--aspect-*: initial`,
        * was WRONG and is retracted, not merely replaced. `--aspect-*:
-       * initial` is real, but the inference from it was not: `aspect-square`
+       * initial` was real then (the theme cleared it until 2026-09-24,
+       * ADR-015), but the inference from it was not: `aspect-square`
        * is a STATIC utility (`aspect-ratio: 1`, no theme lookup) and
        * `aspect-[4/3]` is an ARBITRARY VALUE (the ratio comes from the
        * bracket, not a theme variable) — neither reads the cleared

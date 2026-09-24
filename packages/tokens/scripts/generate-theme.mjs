@@ -42,6 +42,30 @@ import {
 const src = readSource();
 const outDir = process.env.TOKENS_OUT_DIR ?? join(repoRoot, "packages/ui/src");
 
+/**
+ * Stock Tailwind 4.3.3's breakpoints and container sizes, restated in PX.
+ * Tailwind orders breakpoints by UNIT before value (`px` before `rem`), so
+ * with stock `sm`/`lg` in rem beside the roles' px `md`/`wide`, every `sm:`,
+ * `lg:`, `xl:` rule would be emitted AFTER `md:`/`wide:` and win at every
+ * desk width. One unit keeps the cascade in width order. The values are the
+ * stock rem × 16; `stock-tailwind.test.ts` checks them against the installed
+ * `tailwindcss/theme.css`. A role of the same name (`md`) replaces the stock
+ * one below.
+ */
+const STOCK_IN_PX = {
+  breakpoint: { sm: "640px", md: "768px", lg: "1024px", xl: "1280px", "2xl": "1536px" },
+  container: {
+    "3xs": "256px", "2xs": "288px", xs: "320px", sm: "384px", md: "448px", lg: "512px",
+    xl: "576px", "2xl": "672px", "3xl": "768px", "4xl": "896px", "5xl": "1024px",
+    "6xl": "1152px", "7xl": "1280px",
+  },
+};
+const withStock = (ns, roles) => {
+  const merged = { ...STOCK_IN_PX[ns] };
+  for (const [n, v] of roles) merged[n] = v;
+  return Object.entries(merged);
+};
+
 
 const L = [
   ...BANNER("generate-theme.mjs", "this file"),
@@ -55,8 +79,8 @@ const L = [
   "   container queries, which cannot read a custom property. */",
   "@theme static {",
   `  --spacing: ${src.primitive.space.base.value};`,
-  ...scale(src.primitive.breakpoint).map(([n, v]) => `  --breakpoint-${n}: ${v};`),
-  ...scale(src.primitive.container).map(([n, v]) => `  --container-${n}: ${v};`),
+  ...withStock("breakpoint", scale(src.primitive.breakpoint)).map(([n, v]) => `  --breakpoint-${n}: ${v};`),
+  ...withStock("container", scale(src.primitive.container)).map(([n, v]) => `  --container-${n}: ${v};`),
   "}",
   "",
   "/* 3 — roles. `inline` so the utility carries the role variable itself and",
@@ -85,8 +109,9 @@ for (const [n] of shadowTokens(src.shadow)) L.push(`  --shadow-${n}: var(--gp-sh
 L.push("  /* motion */");
 for (const [n] of scale(src.primitive.ease)) L.push(`  --ease-${n}: var(--gp-ease-${n});`);
 
-L.push("  /* colour — SEMANTIC ROLES ONLY. No ramp step is reachable as a utility:",
-       "     `bg-neutral-200` does not exist and must not. */");
+L.push("  /* colour — the semantic roles. This system's ramps are not utilities; since",
+       "     2026-09-24 stock Tailwind's palette is (ADR-015), so `bg-neutral-200` is",
+       "     Tailwind's cool neutral, not this system's warm one. */");
 for (const [, t] of Object.entries(src.semantic.color)) {
   if (!t.tw) continue;
   L.push(`  --color-${t.tw}: var(--gp-${roleOf(src, t)});`);

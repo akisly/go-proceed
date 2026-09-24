@@ -201,9 +201,10 @@ describe("the semantic layer is well formed", () => {
   });
 
   it("no primitive ramp step is reachable as a Tailwind utility", () => {
-    // The whole point of the three-layer split: a component names a role. If a
-    // ramp step ever appears in the @theme block, `bg-neutral-200` starts
-    // working and the layer stops being enforceable by anything but review.
+    // The three-layer split: a component names a role, and none of THIS
+    // system's ramp steps is emitted into @theme. Since 2026-09-24 (ADR-015)
+    // `bg-neutral-200` compiles anyway — to stock Tailwind's cool neutral,
+    // which shares the name, not to `--gp-neutral-200`.
     const theme = readFileSync(
       join(repoRoot, "packages/ui/src/theme.generated.css"), "utf8");
     const ramps = [...new Set(Object.keys(src.primitive.color)

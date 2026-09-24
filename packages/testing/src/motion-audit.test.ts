@@ -64,6 +64,8 @@ describe("motion audit — the rules actually fire", () => {
     writeFileSync(join(root, "apps/landing/violations.tsx"), [
       `import { motion } from ${JSON.stringify("motion/react")};`,
       `export const X = () => <motion.div className={${JSON.stringify("transition" + "-all")}} />;`,
+      // Stock Tailwind's own infinite loops compile since ADR-015 (DEV-073).
+      `export const Y = () => <span className={${JSON.stringify("animate" + "-pulse")}} />;`,
     ].join("\n"));
 
     writeFileSync(join(root, "apps/landing/allowed.css"), [
@@ -84,6 +86,7 @@ describe("motion audit — the rules actually fire", () => {
   it("rule 2 — a layout property", () => has("layout property"));
   it("rule 3 — ease-in", () => has("stalls the first frame"));
   it("rule 4 — perpetual animation outside the named loops", () => has("outside the named loops"));
+  it("rule 4 — a stock Tailwind infinite loop (animate-spin/ping/pulse/bounce)", () => has("stock Tailwind loop"));
   it("rule 4 — the five named loops are not findings", () => {
     expect(audit(root).filter((f) => f.includes("allowed.css"))).toEqual([]);
   });

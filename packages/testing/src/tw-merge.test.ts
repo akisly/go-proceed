@@ -20,7 +20,7 @@ const repoRoot = join(import.meta.dirname, "..", "..", "..");
 describe("tailwind-merge is taught this theme", () => {
   it("stock tailwind-merge still eats the font size — the trap is real", () => {
     // If this ever starts passing, tailwind-merge learned to handle custom
-    // theme namespaces and the override may be reconsidered. Until then it is
+    // theme namespaces and the extension may be reconsidered. Until then it is
     // load-bearing.
     expect(twMerge("text-data text-ink")).toBe("text-ink");
   });

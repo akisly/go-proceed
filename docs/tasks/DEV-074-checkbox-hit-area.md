@@ -38,8 +38,10 @@
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| U5 | minor | `Checkbox.tsx` | the 16px box sat 4px (desk) / 14px (touch) in from the column edge | Coordinator | Fixed: `-mx-1 touch:-mx-3.5`; §6: painted left edge equals the column edge at 1440 and 390 (DEV-073 row 4) |
+| R7 | low | `Checkbox.tsx` | an unnamed `group` let any ancestor `.group` with `data-state="checked"` paint the box | Coordinator | Fixed: `group/checkbox` with `group-data-[state=checked]/checkbox:` and `group-aria-invalid/checkbox:`; compiled rule `:where(.group\/checkbox)[data-state=checked] *` |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: one rework after the first review (not a round); every change is a stated fix above.
 
 ## What is not true after this task
 
@@ -56,9 +58,8 @@ Rework count and hypothesis changes: none yet.
 
 ## Sources
 
-- Tailwind CSS v4 theme variables (`@theme`, namespace reset with `--ns-*: initial`), https://tailwindcss.com/docs/theme (installed `tailwindcss` in `packages/ui`; accessed 2026-09-24); the behaviour — a class whose namespace key is missing emits no rule — is measured in this repository (DEV-035-era comments, and the built CSS in row 3).
-- tailwind-merge `extendTailwindMerge({ extend })` vs `override` (installed 3.6.0, its README).
 - WCAG 2.2 2.5.8 Target Size (Minimum) 24×24 CSS px and 2.5.5 Target Size (Enhanced) 44×44, https://www.w3.org/TR/WCAG22/ (accessed 2026-09-24).
+- Radix Checkbox (installed `radix-ui`), structure read in `node_modules`: the Indicator renders inside the Root's context.
 
 ## Completion / handoff
 

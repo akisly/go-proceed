@@ -23,16 +23,24 @@ import { cx } from "./cn";
  * Radix root — the `<button>` a pointer hits and the harness measures — is
  * 24px at the desk (`--gp-control-target-desk`, WCAG 2.2 2.5.8) and the 44px
  * floor under `touch:`; the 16px box is an inner span, so desk density does
- * not change. The root is transparent; state reaches the box through
- * `group-data-[state=…]`, and `peer` stays on the root for a sibling label.
+ * not change. The root is transparent; state reaches the box through a NAMED
+ * group (`group/checkbox`), so an ancestor `.group` carrying its own
+ * `data-state` cannot paint it, and `peer` stays on the root for a sibling
+ * label. A negative inline margin (`-mx-1`, `touch:-mx-3.5`) cancels the hit
+ * area's horizontal inset, so the painted box sits on the column edge like the
+ * inputs above it; the hit area then overlaps the label beside it, which
+ * toggles the same control. Vertical placement is the parent's: `Field`'s
+ * horizontal orientation centres the control on its content. A caller's
+ * `className` styles the hit area, not the box.
  */
 export function Checkbox({ className, ...rest }: ComponentProps<typeof CheckboxPrimitive.Root>) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cx(
-        "group peer inline-grid shrink-0 place-items-center rounded-control",
+        "group/checkbox peer inline-grid shrink-0 place-items-center rounded-control",
         "size-(--gp-control-target-desk) touch:size-(--gp-control-height-touch)",
+        "-mx-1 touch:-mx-3.5",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
@@ -43,9 +51,9 @@ export function Checkbox({ className, ...rest }: ComponentProps<typeof CheckboxP
         className={cx(
           "grid size-4 place-content-center rounded-control border border-line-strong",
           "transition-colors duration-fast ease-out",
-          "group-aria-invalid:border-status-blocked-fg",
-          "group-data-[state=checked]:border-action group-data-[state=checked]:bg-action",
-          "group-data-[state=checked]:text-action-fg",
+          "group-aria-invalid/checkbox:border-status-blocked-fg",
+          "group-data-[state=checked]/checkbox:border-action group-data-[state=checked]/checkbox:bg-action",
+          "group-data-[state=checked]/checkbox:text-action-fg",
         )}
       >
         <CheckboxPrimitive.Indicator
