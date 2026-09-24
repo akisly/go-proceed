@@ -230,8 +230,8 @@ const OLD_ROLE_RE = /\baktflow_(app_login|app|service_login|service|worker)\b|ak
  * than one exemption stated out loud.
  *
  * It is deliberately a single file and not a `scripts/` directory rule:
- * `set-local-app-password.mjs` and `validate_package.py` live there too and are
- * live code with no business naming a pre-rename role.
+ * `set-local-app-password.mjs` lives there too and is live code with no
+ * business naming a pre-rename role.
  */
 const ROLE_RULE_DEFINITION = "scripts/validate-canonical-docs.mjs";
 

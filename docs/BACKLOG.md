@@ -91,7 +91,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-060](#bl-060) | P3 | open | Final-review minors: documents and configuration |
 | [BL-061](#bl-061) | P2 | open | vitest 3.2.4 → 4 |
 | [BL-062](#bl-062) | P2 | open | Three TypeScript versions in one workspace |
-| [BL-063](#bl-063) | P2 | open | `scripts/validate_package.py` is orphaned |
+| [BL-063](#bl-063) | P2 | scheduled → DEV-062 | `scripts/validate_package.py` is orphaned |
 | [BL-064](#bl-064) | P2 | open | vertical-m1 steps 7 and 8 went red once and never again |
 | [BL-065](#bl-065) | P2 | open | A page render costs about three auth round trips and two self-fetch hops |
 | [BL-066](#bl-066) | P3 | open | `turbo-ignore` is deprecated |
@@ -905,7 +905,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-063"></a>
 ### BL-063 — P2 — `scripts/validate_package.py` is orphaned
 
-- **State:** open
+- **State:** scheduled → DEV-062
 - **Legacy cite:** `TODOS.md` «`scripts/validate_package.py` is orphaned: its subject was deleted»
 - **Why:** about 2,400 lines that assert a deleted prototype; dead code that looks alive. Delete it and record what stopped being enforced, or retarget it at `apps/app` if its assertions still describe the product.
 - **Evidence:** tracked (`git ls-files scripts/validate_package.py`); invoked by nothing, only described in `Makefile` and `ci.yml` comments.

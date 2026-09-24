@@ -411,7 +411,7 @@ jobs:
   # it at: `validate_package.py` reads prototype's App.jsx, its pages, its
   # qa-results.json and its styles.css in 29 places. Retargeting that script at
   # the real apps is a rewrite, not a path fix, and it is recorded in TODOS.md
-  # as its own slice.
+  # as its own slice. [2026-09-24, DEV-062: the script is deleted (BL-063).]
   #
   # What this job actually guarded, and where each half lives now:
   #   - `validate-canonical` (the doc/role guard) already runs in `verify`
