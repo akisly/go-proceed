@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a `project_access.revoke` that names `project.view` (a removal) answers with `remaining` beside `revoked`: the external review links the member issued on the project that are still `active` and unexpired — `grantId`, `requirementOccurrenceId`, `version`, `expiresAt`, `exchanged`, `decidesEvidence`, never the recipient's address — and `telegramGroupBound`, whether the project has a connected Telegram group. The office can then retire each link with `external_grants.revoke_reissue`, which needs the id and version no route lists. Nothing cascades. A revoke that keeps `project.view` answers as before.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-24.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a `/v1` response contract change on an existing command, with an ADR amendment: `gp-architect` (cluster design) → owner ruling → failing test → contract and route → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -93,4 +93,4 @@ Rework count and hypothesis changes: none (first review; fixes limited to the st
 - Verified scope: criteria 1–3.
 - Remaining risks / blocked requirements: «What is not true after this task»; the cluster suites (DEV-053).
 - Next bounded action and owner: the coordinator's cluster run at DEV-053; push and merge are the owner's.
-- Final state and reason: verifying until the cluster's final run.
+- Final state and reason: done — merged in #123 (`406f5efe`, 2026-09-24) with the cluster's final run passing; `0098`–`0100` on staging since 2026-09-24 12:03 UTC.
