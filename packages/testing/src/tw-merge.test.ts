@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extendTailwindMerge, twMerge } from "tailwind-merge";
-import { TW_MERGE_OVERRIDE } from "../../ui/src/tw-merge.generated";
+import { TW_MERGE_EXTEND } from "../../ui/src/tw-merge.generated";
 
 /**
  * v1 recorded this trap in prose: "tailwind-merge has to be taught this theme.
@@ -13,7 +13,7 @@ import { TW_MERGE_OVERRIDE } from "../../ui/src/tw-merge.generated";
  * directions: that stock tailwind-merge really still breaks these pairs (so the
  * config is not cargo cult), and that the taught instance does not.
  */
-const cn = extendTailwindMerge({ override: TW_MERGE_OVERRIDE });
+const cn = extendTailwindMerge({ extend: TW_MERGE_EXTEND });
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
@@ -40,6 +40,19 @@ describe("tailwind-merge is taught this theme", () => {
     expect(cn("tracking-tight tracking-wide")).toBe("tracking-wide");
     expect(cn("leading-snug leading-relaxed")).toBe("leading-relaxed");
     expect(cn("font-display font-sans")).toBe("font-sans");
+  });
+
+  it("keeps stock Tailwind working beside the roles (owner, 2026-09-24)", () => {
+    // Stock sizes are sizes, not colours, so they survive a colour role…
+    expect(cn("text-sm text-ink")).toBe("text-sm text-ink");
+    // …and collapse against a role from the same namespace, last wins.
+    expect(cn("text-sm text-data")).toBe("text-data");
+    expect(cn("text-data text-sm")).toBe("text-sm");
+    expect(cn("rounded-md rounded-panel")).toBe("rounded-panel");
+    expect(cn("shadow-md shadow-raised")).toBe("shadow-raised");
+    expect(cn("font-light font-medium")).toBe("font-medium");
+    expect(cn("max-w-md max-w-content")).toBe("max-w-content");
+    expect(cn("bg-red-500 bg-canvas")).toBe("bg-canvas");
   });
 
   it("lets a caller override a component's own class", () => {

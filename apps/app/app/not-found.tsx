@@ -18,7 +18,7 @@ import { Button } from "@goproceed/ui/components";
 export default function NotFound() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-canvas p-6">
-      <div className="flex max-w-112 flex-col items-start gap-4">
+      <div className="flex max-w-md flex-col items-start gap-4">
         <h1 className="text-h2 font-semibold text-ink">Сторінку не знайдено</h1>
         <p className="text-body text-ink-muted">
           Такої адреси в кабінеті немає — можливо, посилання застаріло.

@@ -1,6 +1,6 @@
 import clsx, { type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
-import { TW_MERGE_OVERRIDE } from "../tw-merge.generated";
+import { TW_MERGE_EXTEND } from "../tw-merge.generated";
 
 /**
  * Class merge for every component in this package.
@@ -18,7 +18,9 @@ import { TW_MERGE_OVERRIDE } from "../tw-merge.generated";
  * `packages/testing/src/tw-merge.test.ts` asserts the exact pairs rather than
  * asserting that a config exists.
  */
-export const cn = extendTailwindMerge({ override: TW_MERGE_OVERRIDE });
+// `extend`, not `override`: stock Tailwind stays whole (2026-09-24), so the
+// stock scale must stay known and the roles are added to it.
+export const cn = extendTailwindMerge({ extend: TW_MERGE_EXTEND });
 
 /** `cx` composes conditionals; `cn` resolves conflicts. Most components want both. */
 export function cx(...inputs: ClassValue[]): string {

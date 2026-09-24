@@ -40,6 +40,8 @@ Tailwind through `@theme inline`. Ramp steps are deliberately unreachable as
 utilities — `bg-neutral-200` does not compile — and a raw `var(--gp-neutral-200)`
 fails a test. Everything else in this document follows from that sentence.
 
+*[2026-09-24, DEV-073, owner: «Tailwind работал нормально, а уже на нем накатывались наши токены». The theme no longer clears Tailwind's stock namespaces: stock utilities (`max-w-md`, `sm:`/`lg:`, `text-sm`, `shadow-md`, the stock palette) compile, and a role overrides a stock name it shares (`md`, `font-medium`, `leading-tight`, `ease-out`). This system's own ramp steps are still not utilities, and a component still names a role; what changed is that a stock class is no longer a build error, so the rows below marked «does not compile» / «resolves to nothing» now describe a review rule, not the build. `cx()` extends stock tailwind-merge instead of overriding it.]*
+
 ---
 
 ## 2. The loop
@@ -138,8 +140,8 @@ nothing, fails a test, or silently drops a class.
 |---|---|---|
 | `bg-[#ECE9DF]`, `bg-neutral-25` | `bg-canvas` | Does not compile; the ramp is not in the utility namespace |
 | `var(--gp-neutral-600)` | `var(--gp-text-muted)` | `primitive-leak.test.ts` fails |
-| `text-sm`, `text-lg` | `text-data`, `text-h3` | Stock namespace is cleared; resolves to nothing |
-| `lg:`, `xl:`, `sm:` | `md:`, `wide:`, `rail-icons:` | A typo fails loudly instead of silently targeting a width this design never reasons about |
+| `text-sm`, `text-lg` | `text-data`, `text-h3` | Stock namespace is cleared; resolves to nothing *[2026-09-24: compiles to the stock size now; use the role]* |
+| `lg:`, `xl:`, `sm:` | `md:`, `wide:`, `rail-icons:` | A typo fails loudly instead of silently targeting a width this design never reasons about *[2026-09-24: stock breakpoints compile now; the design still reasons about `md` and `wide`]* |
 | `h-11`, `h-9` on a control | `h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch)` | `component-contract.test.ts` fails; the literal stops tracking the token |
 | `shadow-md`, a shadow on a panel | nothing — use `border border-line` (a dashboard panel gets `shadow-raised` from `Panel` itself since DEV-035) | Structure is border-led. Folio ships 180 borders to 8 shadows |
 | a gradient, glow or glass written as a VALUE | a named `@utility` built from roles with `color-mix` | DEV-029. `media-tint-*`, `media-glow-*`, `.landing-stage`, `.landing-glass` are the pattern. A gradient in a component is a colour no role names, no test measures and no theme reaches |

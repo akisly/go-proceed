@@ -5,13 +5,14 @@
  *
  * THREE BLOCKS, AND WHY EACH IS THE SHAPE IT IS
  * ---------------------------------------------
- * 1. `@theme { --ns-*: initial }` clears every stock namespace. There is no
- *    `text-sm`, no `lg:`, no `shadow-md`, no `bg-blue-500`. If a utility
- *    resolves to nothing, that is the system working: this product defines one
- *    type scale and two breakpoints, and a utility that resolves to anything
- *    else is drift, not flexibility. `--spacing` is the one thing deliberately
- *    NOT cleared — its 0.25rem base IS the 4px grid, so the dynamic p- and gap-
- *    scales are already correct.
+ * 1. Stock Tailwind stays whole (owner, 2026-09-24, DEV-073): nothing it
+ *    ships is cleared, and the roles below ride on top of it — a role with a
+ *    stock name (`md` breakpoint, `font-medium`, `leading-tight`, `ease-out`)
+ *    overrides the stock value, and every other role is added beside the
+ *    stock scale. Until that day this block cleared eighteen namespaces with
+ *    `--ns-*: initial`, so `max-w-md` compiled to nothing and every `Dialog`
+ *    ran full width (BL-047). Roles are still what components name; stock
+ *    utilities are available, not preferred.
  *
  * 2. `@theme static { … literals }` for the three namespaces that cannot take a
  *    `var()`: breakpoints and container sizes end up inside media and container
@@ -41,22 +42,14 @@ import {
 const src = readSource();
 const outDir = process.env.TOKENS_OUT_DIR ?? join(repoRoot, "packages/ui/src");
 
-/** Stock namespaces cleared. `--spacing` is absent on purpose — see the header. */
-const CLEARED = [
-  "color", "font", "text", "font-weight", "leading", "tracking", "radius",
-  "shadow", "inset-shadow", "drop-shadow", "text-shadow", "breakpoint",
-  "container", "ease", "animate", "blur", "perspective", "aspect",
-];
 
 const L = [
   ...BANNER("generate-theme.mjs", "this file"),
   "",
   '@import "./tokens.generated.css";',
   "",
-  "/* 1 — clear the stock namespace. Nothing Tailwind ships is reachable. */",
-  "@theme {",
-  ...CLEARED.map((ns) => `  --${ns}-*: initial;`),
-  "}",
+  "/* 1 — stock Tailwind stays whole; the roles below add to it or override",
+  "   a stock name they share (owner, 2026-09-24). */",
   "",
   "/* 2 — literals. Breakpoints and container sizes land inside media and",
   "   container queries, which cannot read a custom property. */",

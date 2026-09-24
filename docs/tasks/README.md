@@ -87,3 +87,5 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-067](DEV-067-typescript-6.md) | done | BL-062: one TypeScript, 6.0.3, in the whole workspace; packages that use Node APIs declare `@types/node` |
 | [DEV-068](DEV-068-lockfile-react-guard.md) | done | BL-083: one `@types/react`/`@types/react-dom` via overrides, `apps/mobile` `react-dom` 19.2.3, and a CI lockfile check |
 | [DEV-069](DEV-069-vitest-5.md) | done | BL-061: vitest 3.2.4 → 5.0.1 with Vite 8.0.13; `vitest.workspace.ts` → `test.projects` |
+| [DEV-073](DEV-073-stock-tailwind-under-tokens.md) | implementing | BL-047: stock Tailwind stays whole and the tokens ride on top (ADR-015); `max-w-md` compiles again, so dialogs, the login column and the empty states take their width |
+| [DEV-074](DEV-074-checkbox-hit-area.md) | implementing | BL-048: `Checkbox`'s hit area is 24px at the desk and 44px on touch around a 16px box |

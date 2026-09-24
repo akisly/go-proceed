@@ -107,31 +107,9 @@ export function SignOutDialog({
       }}
     >
       <DialogContent
-        // `max-w-96`, NOT `max-w-sm` — WHICH COMPILES TO NOTHING HERE.
-        // `packages/ui/src/theme.generated.css:21` clears the whole default
-        // container namespace (`--container-*: initial`) and defines exactly
-        // three roles: `measure` (680px), `content` (1240px), `nav` (880px).
-        // So `max-w-sm` emits NO rule in the dash stylesheet — verified by
-        // grepping the built chunk, the same way the Georgia bug was — and
-        // the 384px this dialog had was borrowed from the field client's
-        // pre-token `app/globals.css`. Until 2026-09-05, a dedicated
-        // `app/dash/dash-theme.css` warned this cross-stylesheet coupling was
-        // out of scope. That file was deleted in the migration to a single
-        // entry point. `max-w-96` is the SPACING scale, which this theme keeps
-        // intact, and resolves to the same 384px on the dash stylesheet's own
-        // terms.
-        //
-        // None of the three container roles means "a confirm dialog", so this
-        // is a missing role (§3.3 question 2) and it is filed in the task
-        // report rather than invented here — together with the FOUR other call
-        // sites the same gap already affects: `shell-error.tsx` (`max-w-sm`),
-        // `no-workspace-empty-state.tsx` and `no-projects-empty-state.tsx`
-        // (`max-w-md`), and `packages/ui/src/components/Dialog.tsx:49`'s own
-        // `max-w-md` default — which means every dashboard dialog is
-        // full-width unless its caller overrides it. (`app/(auth)/login/page.tsx`
-        // also writes `max-w-sm` and is NOT one of them: it is a field-client
-        // route, and `globals.css` does emit that utility.)
-        className="max-w-96"
+        // `max-w-sm`, stock Tailwind's 384px (the theme keeps the stock scale
+        // since 2026-09-24, DEV-073, BL-047).
+        className="max-w-sm"
         // FOCUS GOES SOMEWHERE DELIBERATE WHEN THIS CLOSES. Radix's modal
         // content ships `onCloseAutoFocus: composeEventHandlers(props..., (e)
         // => { e.preventDefault(); context.triggerRef.current?.focus(); })`

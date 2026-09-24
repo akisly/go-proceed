@@ -22,13 +22,10 @@ import { EmptyState } from "@goproceed/ui/components";
  *
  * THE WRAPPER MATCHES EVERY OTHER TOP-LEVEL `EmptyState` IN THIS DASH
  * (`no-projects-empty-state.tsx`, `no-workspace-empty-state.tsx`,
- * `no-assignments-empty-state.tsx`): `mx-auto max-w-112 py-16`. The route's own
+ * `no-assignments-empty-state.tsx`): `mx-auto max-w-md py-16`. The route's own
  * `max-w-content p-6` wrapper is a different measurement doing a different job
  * — it is the page's column, 1240px wide, and an empty state stretched across
- * it reads as a paragraph rather than as a notice. `max-w-112`, never
- * `max-w-md`, for the reason `no-assignments-empty-state.tsx`'s header
- * measures at length: this theme clears `--container-*`, so `max-w-md` emits no
- * CSS at all on a dash route.
+ * it reads as a paragraph rather than as a notice.
  *
  * Catalogued as `dash.assignment_create.no_baseline_title` /
  * `dash.assignment_create.no_baseline_body`.
@@ -36,7 +33,7 @@ import { EmptyState } from "@goproceed/ui/components";
 export function NoBaselineEmptyState() {
   return (
     <EmptyState
-      className="mx-auto max-w-112 py-16"
+      className="mx-auto max-w-md py-16"
       title="У проєкті ще немає опублікованої версії договору"
       description="Доручення створюють на рядок кошторису, тому спершу потрібна опублікована версія договору з рядками."
     />

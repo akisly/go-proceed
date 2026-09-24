@@ -281,7 +281,7 @@ export default function ComponentSink() {
           </Panel>
         </Case>
 
-        <Case n="13" name="Label + Checkbox + Select" rule="Три контролі, яких бракувало першій справжній формі. Жоден із них не малює власне кільце фокуса — воно одне на весь продукт і живе в base.css. Checkbox поки НЕ дотягує до 44px на дотик: це записано в TODOS.md, а не приховано тут.">
+        <Case n="13" name="Label + Checkbox + Select" rule="Три контролі, яких бракувало першій справжній формі. Жоден із них не малює власне кільце фокуса — воно одне на весь продукт і живе в base.css. Checkbox: зона натискання 24px на десктопі й 44px на дотик, квадратик 16px — лише малюнок.">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <Checkbox id="sink-checkbox" />

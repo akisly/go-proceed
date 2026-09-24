@@ -489,6 +489,7 @@ export const component = {
   "control-height-touch": "44px",
   "control-height-desk": "36px",
   "control-height-desk-sm": "32px",
+  "control-target-desk": "24px",
   "header-height-app": "56px",
   "header-height-marketing": "58px",
   "register-row-padding-y": "10px",
