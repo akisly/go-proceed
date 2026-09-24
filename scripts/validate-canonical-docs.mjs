@@ -855,51 +855,99 @@ const RLS_WRITE_ORDER = ["INSERT", "UPDATE", "DELETE"];
 
 /**
  * The write gaps DEV-076 filed on 2026-09-24 (owner: «widen now, in stages»):
- * every covered pair holding a write then, measured on `goproceed-staging`. A
- * write gap is accepted only for a key on this list. Stages remove keys as
- * they cite tests; a key is never added, so a write granted later arrives
- * covered.
+ * every covered pair holding a write then, measured on `goproceed-staging`,
+ * with the writes it held. A write gap is accepted only for a key on this
+ * list, and only for writes within that day's (gp-security S2): a write
+ * granted later, on a new pair or an old one, arrives covered. Every key must
+ * still be a gap row, so a stage that covers or revokes a pair removes its key,
+ * and a later re-grant cannot return as a gap. Keys are never added.
  */
-export const RLS_WRITE_GAP_BASELINE = Object.freeze([
-  "public.audit_events goproceed_app", "public.blocked_reasons goproceed_service",
-  "public.capture_events goproceed_app", "public.capture_events goproceed_service",
-  "public.communication_attachments goproceed_service", "public.communication_delivery_attempts goproceed_service",
-  "public.communication_message_events goproceed_service", "public.communication_messages goproceed_service",
-  "public.contract_version_rule_bindings goproceed_app", "public.contract_versions goproceed_app",
-  "public.contracts goproceed_app", "public.external_access_grants goproceed_app",
-  "public.external_decision_batches goproceed_app", "public.external_sessions goproceed_app",
-  "public.idempotency_records goproceed_app", "public.import_batches goproceed_app",
-  "public.import_files goproceed_app", "public.import_row_results goproceed_app", "public.invitations goproceed_app",
-  "public.legal_entities goproceed_app", "public.locations goproceed_app", "public.memberships goproceed_app",
-  "public.organizations goproceed_app", "public.own_legal_entity_profiles goproceed_app",
-  "public.parties goproceed_app", "public.party_contacts goproceed_app", "public.party_legal_profiles goproceed_app",
-  "public.progress_entries goproceed_app", "public.project_access_grants goproceed_app",
-  "public.project_field_channels goproceed_app", "public.project_parties goproceed_app",
-  "public.project_responsibility_assignment_ends goproceed_app",
-  "public.project_responsibility_assignments goproceed_app",
-  "public.project_sourced_requirement_items goproceed_app", "public.projects goproceed_app",
-  "public.readiness_projection goproceed_service", "public.requirement_evidence_decision_heads goproceed_app",
-  "public.requirement_evidence_decisions goproceed_app", "public.requirement_exception_heads goproceed_app",
-  "public.requirement_exceptions goproceed_app", "public.requirement_library_items goproceed_app",
-  "public.requirement_occurrences goproceed_app", "public.requirement_rule_versions goproceed_app",
-  "public.requirement_template_versions goproceed_app", "public.source_amount_resolutions goproceed_app",
-  "public.stage_closure_occurrences goproceed_app", "public.stage_closures goproceed_app",
-  "public.statutory_act_version_quantities goproceed_app", "public.statutory_act_version_signatories goproceed_app",
-  "public.statutory_act_versions goproceed_app", "public.statutory_acts goproceed_app",
-  "public.telegram_binding_intents goproceed_service", "public.telegram_chat_bindings goproceed_service",
-  "public.telegram_media_groups goproceed_service", "public.telegram_member_link_intents goproceed_service",
-  "public.telegram_member_links goproceed_service", "public.telegram_requirement_choice_sessions goproceed_service",
-  "public.telegram_requirement_choices goproceed_service", "public.transaction_outbox goproceed_app",
-  "public.unit_definitions goproceed_app", "public.upload_intents goproceed_app",
-  "public.valuation_allocations goproceed_app", "public.work_assignments goproceed_app",
-  "public.work_items goproceed_app", "public.work_stages goproceed_app",
-]);
+export const RLS_WRITE_GAP_BASELINE = Object.freeze({
+  "public.audit_events goproceed_app": "INSERT",
+  "public.blocked_reasons goproceed_service": "INSERT|UPDATE|DELETE",
+  "public.capture_events goproceed_app": "INSERT",
+  "public.capture_events goproceed_service": "INSERT",
+  "public.communication_attachments goproceed_service": "INSERT|UPDATE",
+  "public.communication_delivery_attempts goproceed_service": "INSERT",
+  "public.communication_message_events goproceed_service": "INSERT",
+  "public.communication_messages goproceed_service": "INSERT|UPDATE",
+  "public.contract_version_rule_bindings goproceed_app": "INSERT",
+  "public.contract_versions goproceed_app": "INSERT|UPDATE",
+  "public.contracts goproceed_app": "INSERT|UPDATE",
+  "public.external_access_grants goproceed_app": "INSERT|UPDATE",
+  "public.external_decision_batches goproceed_app": "INSERT",
+  "public.external_sessions goproceed_app": "INSERT|UPDATE",
+  "public.idempotency_records goproceed_app": "INSERT",
+  "public.import_batches goproceed_app": "INSERT|UPDATE",
+  "public.import_files goproceed_app": "INSERT",
+  "public.import_row_results goproceed_app": "INSERT",
+  "public.invitations goproceed_app": "INSERT|UPDATE",
+  "public.legal_entities goproceed_app": "INSERT",
+  "public.locations goproceed_app": "INSERT|UPDATE",
+  "public.memberships goproceed_app": "INSERT|UPDATE",
+  "public.organizations goproceed_app": "INSERT",
+  "public.own_legal_entity_profiles goproceed_app": "INSERT",
+  "public.parties goproceed_app": "INSERT|UPDATE",
+  "public.party_contacts goproceed_app": "INSERT|UPDATE",
+  "public.party_legal_profiles goproceed_app": "INSERT|UPDATE",
+  "public.progress_entries goproceed_app": "INSERT",
+  "public.project_access_grants goproceed_app": "INSERT|UPDATE(revoked_at version)",
+  "public.project_field_channels goproceed_app": "INSERT|UPDATE",
+  "public.project_parties goproceed_app": "INSERT|UPDATE",
+  "public.project_responsibility_assignment_ends goproceed_app": "INSERT",
+  "public.project_responsibility_assignments goproceed_app": "INSERT",
+  "public.project_sourced_requirement_items goproceed_app": "INSERT",
+  "public.projects goproceed_app": "INSERT|UPDATE",
+  "public.readiness_projection goproceed_service": "INSERT|UPDATE|DELETE",
+  "public.requirement_evidence_decision_heads goproceed_app": "INSERT|UPDATE",
+  "public.requirement_evidence_decisions goproceed_app": "INSERT",
+  "public.requirement_exception_heads goproceed_app": "INSERT|UPDATE",
+  "public.requirement_exceptions goproceed_app": "INSERT",
+  "public.requirement_library_items goproceed_app": "INSERT",
+  "public.requirement_occurrences goproceed_app": "INSERT",
+  "public.requirement_rule_versions goproceed_app": "INSERT",
+  "public.requirement_template_versions goproceed_app": "INSERT|UPDATE",
+  "public.source_amount_resolutions goproceed_app": "INSERT",
+  "public.stage_closure_occurrences goproceed_app": "INSERT",
+  "public.stage_closures goproceed_app": "INSERT",
+  "public.statutory_act_version_quantities goproceed_app": "INSERT|UPDATE|DELETE",
+  "public.statutory_act_version_signatories goproceed_app": "INSERT|UPDATE|DELETE",
+  "public.statutory_act_versions goproceed_app": "INSERT|UPDATE",
+  "public.statutory_acts goproceed_app": "INSERT",
+  "public.telegram_binding_intents goproceed_service": "INSERT|UPDATE",
+  "public.telegram_chat_bindings goproceed_service": "INSERT|UPDATE",
+  "public.telegram_media_groups goproceed_service": "INSERT|UPDATE",
+  "public.telegram_member_link_intents goproceed_service": "INSERT|UPDATE",
+  "public.telegram_member_links goproceed_service": "INSERT|UPDATE",
+  "public.telegram_requirement_choice_sessions goproceed_service": "INSERT|UPDATE",
+  "public.telegram_requirement_choices goproceed_service": "INSERT",
+  "public.transaction_outbox goproceed_app": "INSERT",
+  "public.unit_definitions goproceed_app": "INSERT|UPDATE",
+  "public.upload_intents goproceed_app": "INSERT",
+  "public.valuation_allocations goproceed_app": "INSERT",
+  "public.work_assignments goproceed_app": "INSERT|UPDATE",
+  "public.work_items goproceed_app": "INSERT|UPDATE|DELETE",
+  "public.work_stages goproceed_app": "INSERT|UPDATE",
+});
 
 /**
  * The write registry against the read registry, the backlog and the cited test
  * sources. What each pair actually holds is `rls-coverage.test.ts`'s to check
  * against a database; this checks what a file can.
  */
+/** `INSERT|UPDATE(a b)` → Map(verb → null for the whole table, or the set of columns). */
+function rlsWriteGrants(privileges) {
+  return new Map(privileges.split("|").map((token) => token.match(RLS_WRITE_PRIVILEGE))
+    .filter(Boolean).map((m) => [m[1], m[2] ? new Set(m[2].split(" ")) : null]));
+}
+
+/** Whether every write of `inner` is within `outer`: a verb outer holds whole, or columns outer holds. */
+function rlsWritesWithin(inner, outer) {
+  const o = rlsWriteGrants(outer);
+  return [...rlsWriteGrants(inner)].every(([verb, cols]) => o.has(verb)
+    && (o.get(verb) === null || (cols !== null && [...cols].every((c) => o.get(verb).has(c)))));
+}
+
 export function rlsWriteCoverageErrors({ csvText, readCsvText, sources, backlogIds, baseline = RLS_WRITE_GAP_BASELINE }) {
   const where = RLS_WRITE_COVERAGE_CSV;
   const errors = [];
@@ -907,9 +955,10 @@ export function rlsWriteCoverageErrors({ csvText, readCsvText, sources, backlogI
   if (!header || header.join(",") !== RLS_WRITE_HEADER) return [`${where}: header must be ${RLS_WRITE_HEADER}`];
   const [readHeader, ...readRows] = rlsCsvRecords(readCsvText);
   const rc = (readHeader ?? []).reduce((m, c, i) => m.set(c, i), new Map());
-  const coveredModule = new Map(readRows.filter((f) => f[rc.get("classification")] === "covered")
-    .map((f) => [`${f[rc.get("schema")]}.${f[rc.get("relation")]} ${f[rc.get("principal")]}`, f[rc.get("module")]]));
-  const allowedGaps = new Set(baseline);
+  const readRow = new Map(readRows.filter((f) => ["covered", "gap"].includes(f[rc.get("classification")]))
+    .map((f) => [`${f[rc.get("schema")]}.${f[rc.get("relation")]} ${f[rc.get("principal")]}`, Object.fromEntries([...rc].map(([c, i]) => [c, f[i]]))]));
+  const allowedGaps = new Map(Object.entries(baseline));
+  const gapKeys = new Set();
   const cols = RLS_WRITE_HEADER.split(",");
   const seen = new Set();
   rows.forEach((fields, index) => {
@@ -920,8 +969,12 @@ export function rlsWriteCoverageErrors({ csvText, readCsvText, sources, backlogI
     const key = `${rel} ${r.principal}`;
     if (seen.has(key)) errors.push(`${at}: ${key} appears twice`);
     seen.add(key);
-    if (!coveredModule.has(key)) errors.push(`${at} (${key}): not a covered row of ${RLS_COVERAGE_CSV}; the read minimum comes first`);
-    else if (coveredModule.get(key) !== r.module) errors.push(`${at} (${key}): module ${r.module} differs from ${RLS_COVERAGE_CSV}'s ${coveredModule.get(key)}`);
+    const read = readRow.get(key);
+    if (!read) errors.push(`${at} (${key}): not a covered or gap row of ${RLS_COVERAGE_CSV}; the read row comes first`);
+    else if (read.module !== r.module) errors.push(`${at} (${key}): module ${r.module} differs from ${RLS_COVERAGE_CSV}'s ${read.module}`);
+    else if (read.classification === "gap" && (r.classification !== "gap" || r.backlog_id !== read.backlog_id)) {
+      errors.push(`${at} (${key}): its read row is a gap (${read.backlog_id}), so its write row is a gap on the same backlog id`);
+    }
     const verbs = (r.privileges ?? "").split("|").map((token) => token.match(RLS_WRITE_PRIVILEGE));
     if (!r.privileges || verbs.some((m) => !m)) {
       errors.push(`${at} (${key}): privileges must be INSERT, UPDATE and DELETE joined by |, each whole or VERB(col col): ${r.privileges}`);
@@ -939,13 +992,24 @@ export function rlsWriteCoverageErrors({ csvText, readCsvText, sources, backlogI
       else if (!/^BL-\d{3}$/.test(r.backlog_id) || !backlogIds.has(r.backlog_id)) errors.push(`${at} (${key}): ${r.backlog_id} is not an entry in docs/BACKLOG.md`);
       if (!r.reason) errors.push(`${at} (${key}): gap needs a reason`);
       if (r.negative_test) errors.push(`${at} (${key}): a gap cites no test; classify it covered`);
+      gapKeys.add(key);
+      if (read?.classification === "gap") return;
       if (!allowedGaps.has(key)) errors.push(`${at}: ${key} is not on the DEV-076 write-gap baseline and cannot arrive as a gap; cite its write-denial test`);
+      else if (r.privileges && !rlsWritesWithin(r.privileges, allowedGaps.get(key))) {
+        errors.push(`${at}: ${key} holds ${r.privileges}, beyond the baseline's ${allowedGaps.get(key)}; a write granted after DEV-076 arrives covered`);
+      }
       return;
     }
     if (r.classification !== "covered") { errors.push(`${at} (${key}): unknown classification ${r.classification}`); return; }
     if (r.backlog_id) errors.push(`${at} (${key}): covered takes no backlog_id`);
+    if (read && r.negative_test && [read.positive_test, read.negative_test].includes(r.negative_test)) {
+      errors.push(`${at} (${key}): negative_test cites the read row's own test, which proves no write denial`);
+    }
     errors.push(...rlsCitationErrors({ citation: r.negative_test, label: `${at} (${key}) negative_test`, missing: `${at} (${key}): covered needs a negative_test`, relation: r.relation, rel, sources }));
   });
+  for (const key of [...allowedGaps.keys()].filter((k) => !gapKeys.has(k)).sort()) {
+    errors.push(`${where}: ${key} is on the DEV-076 write-gap baseline but is not a gap row; remove it from RLS_WRITE_GAP_BASELINE`);
+  }
   return errors;
 }
 
@@ -2544,6 +2608,7 @@ function selfTest() {
       'import { describe, expect, it } from "vitest";',
       'describe("isolation", () => {',
       '  it("a member reads own rows", async () => { expect(1).toBe(1); });',
+      '  it("another workspace writes nothing", async () => { expect(0).toBe(0); });',
       '  it("another workspace reads nothing", async () => {',
       '    expect(0).toBe(0);',
       '  }, 300_000);',
@@ -2707,14 +2772,26 @@ function selfTest() {
     // DEV-076: the write registry.
     const WH = "schema,relation,principal,module,privileges,classification,negative_test,backlog_id,reason";
     const readCsv = [H, ...rows].join("\n") + "\n";
-    const wbase = { readCsvText: readCsv, sources: base.sources, backlogIds: base.backlogIds, baseline: ["public.projects goproceed_app"] };
+    const wbase = { readCsvText: readCsv, sources: base.sources, backlogIds: base.backlogIds, baseline: { "public.projects goproceed_app": "INSERT|UPDATE(revoked_at version)" } };
+    const W = cite("isolation", "another workspace writes nothing");
     const wcov = (rs, over = {}) => rlsWriteCoverageErrors({ ...wbase, ...over, csvText: [WH, ...rs].join("\n") + "\n" });
     const wgap = "public,projects,goproceed_app,execution,INSERT|UPDATE(revoked_at version),gap,,BL-001,no write denial yet";
     const wcovered = (neg, priv = "INSERT|UPDATE|DELETE") => `public,projects,goproceed_app,execution,${priv},covered,${neg},,`;
     if (wcov([wgap]).length !== 0) t.push(`rls write coverage (agreeing gap: ${wcov([wgap]).join(" | ")})`);
-    if (wcov([wcovered(N)]).length !== 0) t.push(`rls write coverage (agreeing covered: ${wcov([wcovered(N)]).join(" | ")})`);
-    if (!says(wcov([wgap], { baseline: [] }), "not on the DEV-076 write-gap baseline")) t.push("rls write coverage (gap outside the baseline)");
-    if (!says(wcov([wgap.replace(",projects,", ",work_items,")]), "not a covered row of")) t.push("rls write coverage (key not covered in the read registry)");
+    if (wcov([wcovered(W)], { baseline: {} }).length !== 0) t.push(`rls write coverage (agreeing covered: ${wcov([wcovered(W)], { baseline: {} }).join(" | ")})`);
+    if (!says(wcov([wgap], { baseline: {} }), "not on the DEV-076 write-gap baseline")) t.push("rls write coverage (gap outside the baseline)");
+    if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "INSERT|UPDATE(revoked_at version)|DELETE")]), "beyond the baseline's")) t.push("rls write coverage (a verb beyond the baseline)");
+    if (!says(wcov([wgap.replace("UPDATE(revoked_at version)", "UPDATE")]), "beyond the baseline's")) t.push("rls write coverage (a whole-table UPDATE beyond a column baseline)");
+    if (!says(wcov([wgap.replace("UPDATE(revoked_at version)", "UPDATE(id revoked_at version)")]), "beyond the baseline's")) t.push("rls write coverage (a column beyond the baseline)");
+    if (wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "UPDATE(version)")]).length !== 0) t.push("rls write coverage (a narrower gap within the baseline)");
+    if (!says(wcov([wcovered(W)]), "is on the DEV-076 write-gap baseline but is not a gap row")) t.push("rls write coverage (baseline key covered but not removed)");
+    if (!says(wcov([]), "is on the DEV-076 write-gap baseline but is not a gap row")) t.push("rls write coverage (baseline key with no row)");
+    if (!says(wcov([wcovered(N)], { baseline: {} }), "cites the read row's own test")) t.push("rls write coverage (citing the read negative)");
+    if (!says(wcov([wcovered(P)], { baseline: {} }), "cites the read row's own test")) t.push("rls write coverage (citing the read positive)");
+    const wgapRead = "public,work_items,goproceed_app,execution,INSERT,gap,,BL-001,no read, no write";
+    if (wcov([wgap, wgapRead.replace("no read, no write", "x")]).length !== 0) t.push(`rls write coverage (write gap on a read gap: ${wcov([wgap, wgapRead.replace("no read, no write", "x")]).join(" | ")})`);
+    if (!says(wcov([wgap, `public,work_items,goproceed_app,execution,INSERT,covered,${W},,`]), "so its write row is a gap on the same backlog id")) t.push("rls write coverage (covered write on a read gap)");
+    if (!says(wcov([wgap.replace(",projects,", ",ghost,")]), "not a covered or gap row of")) t.push("rls write coverage (key with no read row)");
     if (!says(wcov([wgap.replace(",execution,", ",operational,")]), "differs from")) t.push("rls write coverage (module differs)");
     if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "INSERT|WRITE")]), "privileges must be")) t.push("rls write coverage (unknown verb)");
     if (!says(wcov([wgap.replace("INSERT|UPDATE(revoked_at version)", "UPDATE|INSERT")]), "in the order INSERT, UPDATE, DELETE")) t.push("rls write coverage (verbs out of order)");
@@ -2724,10 +2801,10 @@ function selfTest() {
     if (!says(wcov([wgap.replace(",BL-001,", ",BL-999,")]), "BL-999 is not an entry")) t.push("rls write coverage (unknown backlog id)");
     if (!says(wcov([wgap.replace(",no write denial yet", ",")]), "gap needs a reason")) t.push("rls write coverage (gap without a reason)");
     if (!says(wcov([wgap.replace(",gap,,", `,gap,${N},`)]), "a gap cites no test")) t.push("rls write coverage (gap citing a test)");
-    if (!says(wcov([wcovered("")]), "covered needs a negative_test")) t.push("rls write coverage (covered without a test)");
-    if (!says(wcov([wcovered(cite("isolation", "no such test"))]), "no test «isolation» › «no such test»")) t.push("rls write coverage (missing cited test)");
-    if (!says(wcov([wcovered(cite("isolation", "skipped read"))]), "it.skip")) t.push("rls write coverage (skipped cited test)");
-    if (!says(wcov([wcovered(N).replace(",,", ",BL-001,")]), "covered takes no backlog_id")) t.push("rls write coverage (covered with a backlog id)");
+    if (!says(wcov([wcovered("")], { baseline: {} }), "covered needs a negative_test")) t.push("rls write coverage (covered without a test)");
+    if (!says(wcov([wcovered(cite("isolation", "no such test"))], { baseline: {} }), "no test «isolation» › «no such test»")) t.push("rls write coverage (missing cited test)");
+    if (!says(wcov([wcovered(cite("isolation", "skipped read"))], { baseline: {} }), "it.skip")) t.push("rls write coverage (skipped cited test)");
+    if (!says(wcov([wcovered(W).replace(",,", ",BL-001,")], { baseline: {} }), "covered takes no backlog_id")) t.push("rls write coverage (covered with a backlog id)");
     if (!says(wcov([wgap, wgap]), "appears twice")) t.push("rls write coverage (duplicate key)");
     if (!says(wcov([wgap.replace(",gap,", ",maybe,")]), "unknown classification maybe")) t.push("rls write coverage (unknown classification)");
     if (!says(rlsWriteCoverageErrors({ ...wbase, csvText: "schema,relation\n" }), "header must be")) t.push("rls write coverage (bad header)");

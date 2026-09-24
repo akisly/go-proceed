@@ -217,8 +217,8 @@ export function compareCoverage(rows: CoverageRow[], exposed: ExposedPair[], inS
 // --------------------------------------------------------------------------
 
 /**
- * `technical/database/rls-write-coverage.csv` holds one row per `covered` row
- * of the read registry whose principal holds INSERT, UPDATE or DELETE, whole or
+ * `technical/database/rls-write-coverage.csv` holds one row per `covered` or
+ * `gap` row of the read registry whose principal holds INSERT, UPDATE or DELETE, whole or
  * on some columns: the write it holds, and the test proving a member of
  * another workspace cannot write there — or a gap with its backlog entry.
  * `privileges` is `INSERT|UPDATE|DELETE` in that order; a column-only grant is
@@ -244,14 +244,14 @@ export interface WriteCoverageRow {
 export interface WritePrivilege { schema: string; relation: string; principal: string; privileges: string }
 
 export interface WriteCoverageComparison {
-  /** Covered pairs holding a write with no row in the write registry. */
+  /** Covered or gap read pairs holding a write with no row in the write registry. */
   unclassified: string[];
   /** Write-registry rows whose pair holds no write. */
   stale: string[];
   /** Rows whose `privileges` differ from what the database grants: `key: registry → database`. */
   mismatched: string[];
-  /** Write-registry rows with no `covered` row of the same key and module in the read registry. */
-  notCovered: string[];
+  /** Write-registry rows with no `covered` or `gap` row of the same key and module in the read registry. */
+  noReadRow: string[];
 }
 
 const WRITE_REGISTRY_URL = new URL("../../../technical/database/rls-write-coverage.csv", import.meta.url);
@@ -287,10 +287,12 @@ export const WRITE_PRIVILEGES_SQL = `
   verbs as (
     select pairs.schema, pairs.relation, pairs.principal, v.ord, v.verb,
            has_table_privilege(pairs.principal, pairs.rel, v.verb) as whole,
-           (select string_agg(a.attname, ' ' order by a.attname)
-              from pg_attribute a
-             where a.attrelid = pairs.rel and a.attnum > 0 and not a.attisdropped and v.verb <> 'DELETE'
-               and has_column_privilege(pairs.principal, pairs.rel, a.attname, v.verb)) as cols
+           -- DELETE has no column form, and has_column_privilege refuses it.
+           case when v.verb = 'DELETE' then null else
+             (select string_agg(a.attname, ' ' order by a.attname)
+                from pg_attribute a
+               where a.attrelid = pairs.rel and a.attnum > 0 and not a.attisdropped
+                 and has_column_privilege(pairs.principal, pairs.rel, a.attname, v.verb)) end as cols
       from pairs cross join (values (1, 'INSERT'), (2, 'UPDATE'), (3, 'DELETE')) as v(ord, verb)
      where pairs.rel is not null
   )
@@ -302,16 +304,20 @@ export const WRITE_PRIVILEGES_SQL = `
    order by 1, 2, 3`;
 
 /**
- * Any of the five principals holding TRUNCATE or TRIGGER on an in-scope
- * relation ($1): row level security does not apply to TRUNCATE, and a trigger
- * its holder creates runs with its own rights.
+ * Any of the five principals holding a table-wide privilege on an in-scope
+ * relation ($1): TRUNCATE and REFERENCES are not subject to row security (a
+ * foreign key's check bypasses RLS, so a REFERENCES holder can probe whether
+ * another workspace's key exists); a trigger its holder creates runs inside
+ * every other principal's writes as the session that fires it; MAINTAIN
+ * (PostgreSQL 17) allows LOCK, REFRESH and REINDEX. Column REFERENCES counts.
  */
-export const TRUNCATE_OR_TRIGGER_SQL = `
+export const TABLE_WIDE_PRIVILEGES_SQL = `
   with rels as (${IN_SCOPE_RELS})
   select r.nspname || '.' || r.relname as name, p as principal
     from rels r cross join unnest($1::text[]) as p
    where exists (select 1 from pg_roles where rolname = p)
-     and (has_table_privilege(p, r.oid, 'TRUNCATE') or has_table_privilege(p, r.oid, 'TRIGGER'))
+     and (has_table_privilege(p, r.oid, 'TRUNCATE, TRIGGER, REFERENCES, MAINTAIN')
+          or has_any_column_privilege(p, r.oid, 'REFERENCES'))
    order by 1, 2`;
 
 export function compareWriteCoverage(
@@ -321,12 +327,12 @@ export function compareWriteCoverage(
   const sorted = (xs: Iterable<string>) => [...new Set(xs)].sort();
   const registry = new Map(writeRows.map((r) => [key(r), r]));
   const granted = new Map(measured.map((m) => [key(m), m.privileges]));
-  const covered = new Map(readRows.filter((r) => r.classification === "covered").map((r) => [key(r), r.module]));
+  const read = new Map(readRows.filter((r) => r.classification === "covered" || r.classification === "gap").map((r) => [key(r), r.module]));
   return {
     unclassified: sorted([...granted.keys()].filter((k) => !registry.has(k))),
     stale: sorted([...registry.keys()].filter((k) => !granted.has(k))),
     mismatched: sorted([...registry].filter(([k, r]) => granted.has(k) && granted.get(k) !== r.privileges)
       .map(([k, r]) => `${k}: ${r.privileges} → ${granted.get(k)}`)),
-    notCovered: sorted([...registry].filter(([k, r]) => covered.get(k) !== r.module).map(([k]) => k)),
+    noReadRow: sorted([...registry].filter(([k, r]) => read.get(k) !== r.module).map(([k]) => k)),
   };
 }

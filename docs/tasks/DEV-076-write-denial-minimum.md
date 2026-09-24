@@ -40,7 +40,7 @@
 - Required acceptance criteria:
   - AC-1: the write registry names every covered pair holding a write, with the privileges it holds (a column-only grant as `VERB(col col)`), and the database test compares both ways (`unclassified`, `stale`, `mismatched`, `notCovered`).
   - AC-2: a probe proves the comparison reports a column-level UPDATE grant on a covered table that holds no write.
-  - AC-3: no principal holds TRUNCATE or TRIGGER on an in-scope relation, and a probe proves the query reports one.
+  - AC-3: no principal holds TRUNCATE, TRIGGER, REFERENCES or MAINTAIN on an in-scope relation, and a probe proves the query reports each (widened by S4).
   - AC-4: the validator accepts a write gap only for a key on the pinned DEV-076 baseline. It refuses:
     - a key that is not covered in the read registry, or a different module;
     - a malformed or misordered `privileges`;
@@ -78,13 +78,25 @@
 | 2 | Coordinator | Read-only on `goproceed-staging` at `0102` as `postgres`, with the query `WRITE_PRIVILEGES_SQL` now holds, over the 76 covered pairs: 65 pairs hold a write — INSERT 65, UPDATE 35 (one column-only: `project_access_grants` `UPDATE(revoked_at version)`), DELETE 5. By module: workspace_access 14, communication 11, contract_baseline 10, requirements 9, execution 6, statutory 4, evidence 3, external_review 3, operational 3, projection 2. No principal holds TRUNCATE or TRIGGER on any in-scope relation | Connector results, 2026-09-24 | Implement |
 | 3 | Coordinator | Implemented:<br>• `rls-coverage.ts`: `WRITE_COVERAGE_COLUMNS`, `parseWriteCoverageCsv`, `readWriteCoverageRegistry`, `WRITE_PRIVILEGES_SQL`, `TRUNCATE_OR_TRIGGER_SQL`, `compareWriteCoverage`.<br>• `rls-coverage.test.ts`: five fixture cases; database cases «the write-holding covered pairs equal the write registry, both ways» and «no principal holds TRUNCATE or TRIGGER», each with a rolled-back probe (a column UPDATE on `evidence_objects`; a TRUNCATE on a covered table).<br>• `rls-write-coverage.csv`: 65 gap rows.<br>• The validator: `rlsCitationErrors` extracted from `rlsCoverageErrors` unchanged in behaviour (its self-tests pass), `rlsWriteCoverageErrors` with a 65-key `RLS_WRITE_GAP_BASELINE`, and 21 self-tests.<br>• BL-164 … BL-173 (P1); BL-099 scheduled → DEV-076.<br>• The minimum restated in `test-strategy.md` §4, `tenancy-and-security.md`, `production-readiness.md` §11, `version-0.1.md` (a dated annotation to the gate 11 *Limits*), the runbook §5.11 and INV-060 | `git diff 0fa1aec6` | Checks |
 | 4 | Coordinator | Checks:<br>• `pnpm turbo run typecheck` 10/10.<br>• The fixture cases of `rls-coverage.test.ts` 11 passed (the 20 database cases filtered out: no local database — Docker's daemon is not running in this container).<br>• `pnpm validate:canonical-docs` OK. Mutation: disabling the baseline check makes the validator fail «rls write coverage (gap outside the baseline)».<br>• The database comparison without a database: `WRITE_PRIVILEGES_SQL` rendered with the 76 covered pairs and run read-only on `goproceed-staging` returned the 65 rows, and `compareWriteCoverage` over them was empty against the CSV and 65 `unclassified` against an empty registry. The same test on CI's migrated database is the first run against a database built from the migrations | Session output; connector result | gp-reviewer, gp-security |
+| 5 | gp-reviewer | PASS WITH FINDINGS: R1 major (the ratchet pins keys, not writes), R2–R4 minor, R5–R6 nit (below). It verified the extracted helper, the SQL, the probes, the counts (65 rows; UPDATE 35, DELETE 5, one column-only), the catalogs and the docs | Subagent report (session) | Fixes |
+| 6 | gp-security | PASS WITH FINDINGS: S1 and S2 major, S3–S5 minor, S6 nit (below). It confirmed the four PostgreSQL statements from knowledge, without re-fetching the pages. It found that ON CONFLICT, MERGE, RETURNING and COPY FROM add no write path beyond the verbs, and that the extracted helper behaves as before | Subagent report (session) | Fixes |
+| 7 | Coordinator | Read-only on `goproceed-staging`: no principal holds TRUNCATE, TRIGGER, REFERENCES (table or column) or MAINTAIN on any in-scope relation. Fixes applied as stated below; the validator and its self-tests pass. Three mutations, each killed by the new self-tests: dropping the within-baseline check, dropping the every-key-is-a-gap check, and dropping the refusal of the read row's own test. `typecheck` 10/10; fixture cases 11 passed | Connector result; session output | Re-check, gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1 | major | gp-security; test-strategy §4, BL-164 … BL-173 | An UPDATE or DELETE probe written with a `WHERE` is answered by the read policy alone, so a permissive UPDATE or DELETE `USING` passes | Coordinator | Fixed: the probe reads no column — no `WHERE`, a constant `SET`, no `RETURNING` — runs in a rolled-back transaction, and reads back the other workspace's rows as admin. Stated in both places |
+| S2 / R1 / R2 | major | gp-security, gp-reviewer; `RLS_WRITE_GAP_BASELINE`, `writes()` | The baseline pinned keys, not writes; it covered only covered read pairs; and a key a stage covered or revoked could return as a gap | Coordinator | Fixed: the baseline is `key → privileges`, and a gap's writes must lie within it (a verb, a whole-table verb over a column one, a new column: each refused). Every baseline key must still be a gap row. The database query also runs over read-gap pairs, whose writes are accepted only as gaps on the read row's backlog id. Nine new self-tests |
+| S3 | minor | gp-security; the INSERT probe | The other workspace's tenant key alone is refused by the tenant-key policy, so the probe does not find a missing composite FK | Coordinator | Fixed in the wording: an INSERT carrying the own tenant key with the other workspace's parent id, refused by the policy (42501) or the composite FK (23503); `DISABLE TRIGGER USER`, not `ALL` and not `replica` |
+| S4 | minor | gp-security; `TRUNCATE_OR_TRIGGER_SQL` | REFERENCES and MAINTAIN were not asserted | Coordinator | Fixed: `TABLE_WIDE_PRIVILEGES_SQL` covers TRUNCATE, TRIGGER, REFERENCES (table and column) and MAINTAIN. The probe grants each one in turn. None is held on staging (row 7) |
+| S5 / R4 | minor | gp-security, gp-reviewer; `rlsWriteCoverageErrors` | A write row could cite the read row's own test | Coordinator | Fixed: refused, with self-tests for the positive and the negative. BL-172 notes the consequence for `audit_events` and `transaction_outbox` |
+| S6 | nit | gp-security; the query's comment | TRIGGER's risk was described backwards | Coordinator | Fixed: a trigger runs inside other principals' writes, as the session that fires it |
+| R3 | minor | gp-reviewer; the TRUNCATE probe | The probe exercised only one branch of the query | Coordinator | Fixed by S4's per-privilege probe |
+| R5 | nit | gp-reviewer; `WRITE_PRIVILEGES_SQL` | The DELETE guard relied on evaluation order | Coordinator | Fixed: `case when v.verb = 'DELETE' then null else … end` |
+| R6 | nit | gp-reviewer; the test file and Sources | `writes()` shadowed `covered()`, and a Sources sentence was garbled | Coordinator | Fixed: the local is `read`, and the sentence is rewritten |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: none. Every change after the first review is a stated fix; no QA FAIL so far.
 
 ## What is not true after this task
 
@@ -100,22 +112,21 @@ Rework count and hypothesis changes: none yet.
 
 ## Sources
 
-- PostgreSQL 17, `CREATE POLICY`, https://www.postgresql.org/docs/17/sql-createpolicy.html. The hosted server runs 17.6.
-  - DEV-014 read this page on 2026-09-16 and recorded that `ALL` policies apply to both the selection side and the modification side, and that `WITH CHECK` is enforced before other constraints.
-  - From this container on 2026-09-24 the page was **not re-read**: the egress proxy blocks `www.postgresql.org` («EGRESS_BLOCKED»).
-  - This task relies on three further statements from the same pages, taken from gp-architect's reading and not re-read here:
-    - a policy without `WITH CHECK` uses its `USING` expression for new rows;
-    - row security does not apply to `TRUNCATE`;
-    - BEFORE triggers run before `WITH CHECK`.
-
-    Each is for gp-security to confirm or challenge. The TRUNCATE assertion stands whatever the page says, because it only requires that no principal holds the privilege.
-- PostgreSQL 17, «System Information Functions» (`has_table_privilege`, `has_column_privilege`). Their behaviour was observed on `goproceed-staging` rather than read: the column-only grant `0096:31` makes before this change reads as `UPDATE(revoked_at version)`.
+- PostgreSQL 17, `CREATE POLICY` (https://www.postgresql.org/docs/17/sql-createpolicy.html) and «Row Security Policies» (https://www.postgresql.org/docs/17/ddl-rowsecurity.html). The hosted server runs 17.6.
+  - DEV-014 read the first page on 2026-09-16: `ALL` policies apply to both the selection side and the modification side, and `WITH CHECK` is enforced before other constraints.
+  - From this container on 2026-09-24 neither page could be read: the egress proxy blocks `www.postgresql.org` («EGRESS_BLOCKED»).
+  - This task relies on four statements from those pages. They were confirmed by gp-security from its knowledge (row 6), **not re-fetched**:
+    - a policy without `WITH CHECK` uses its `USING` expression for new rows (UPDATE and ALL policies; an INSERT policy takes only `WITH CHECK`);
+    - row security does not apply to whole-table operations «such as TRUNCATE and REFERENCES»;
+    - `WITH CHECK` is enforced after BEFORE triggers fire;
+    - an UPDATE or DELETE that reads a column (in `WHERE` or `RETURNING`) also applies the SELECT policies to the existing row.
+- PostgreSQL 17, «System Information Functions» (`has_table_privilege`, `has_column_privilege`). Their behaviour was observed on `goproceed-staging` rather than read: the column-only grant that `0096:31` makes reads as `UPDATE(revoked_at version)`.
 
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
 - Review independence: pending.
-- Verified scope: rows 1–4.
+- Verified scope: rows 1–7.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-reviewer` and `gp-security`, then `gp-qa`.
+- Next bounded action and owner: gp-security re-checks S1 and S2; then `gp-qa`.
 - Final state and reason: reviewing.

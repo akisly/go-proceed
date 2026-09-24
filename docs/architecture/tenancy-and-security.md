@@ -1058,8 +1058,8 @@ needs a cross-workspace write denial proved by the policy (not a trigger), with
 the move of an own row into another workspace refused wherever the tenant key
 or a parent column is updatable. `technical/database/rls-write-coverage.csv`
 names the 65 such pairs; all are gaps (BL-164 to BL-173), due before real
-customer data. No principal holds `TRUNCATE` or `TRIGGER` on an in-scope
-relation, and `rls-coverage.test.ts` checks it.]*
+customer data. No principal holds `TRUNCATE`, `TRIGGER`, `REFERENCES` or
+`MAINTAIN` on an in-scope relation, and `rls-coverage.test.ts` checks it.]*
 
 Every exposed table/function/storage path and command needs positive and
 negative tests for:

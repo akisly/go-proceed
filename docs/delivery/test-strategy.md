@@ -264,14 +264,22 @@ artifact the first time it is pasted into a bug report.
   `technical/database/rls-write-coverage.csv` with the write it holds. Per
   privilege: an `INSERT` carrying the other workspace's tenant key and parent
   ids refused by the policy, beside the same statement succeeding in the own
-  workspace; an `UPDATE` and a `DELETE` of the other workspace's row affecting
-  no row, read back unchanged as admin; and, where the principal can update
-  the tenant key or a parent column, its own row refused when moved into the
-  other workspace. A trigger's refusal does not count. The 65 rows that held a
-  write on that day are gaps, BL-164 … BL-173, due before real customer data;
-  a write gap is accepted only for a key on the validator's pinned baseline, so
-  a write granted later arrives covered. No principal may hold `TRUNCATE` or
-  `TRIGGER` on an in-scope relation. Every other
+  workspace, and one carrying the own tenant key with the other workspace's
+  parent id refused by the policy or the composite foreign key; an `UPDATE`
+  and a `DELETE` that read no column (no `WHERE`, a constant `SET`, no
+  `RETURNING` — a `WHERE` would be answered by the read policy alone), rolled
+  back, with the other workspace's rows read back unchanged as admin; and,
+  where the principal can update the tenant key or a parent column, its own
+  row refused when moved into the other workspace. A trigger's refusal does
+  not count (`DISABLE TRIGGER USER` for the assertion, or the unused grant
+  revoked). A write row may not cite its read row's own test. The 65 rows that
+  held a write on that day are gaps, BL-164 … BL-173, due before real customer
+  data. The validator pins each gap to the writes it held that day and requires
+  every pinned key to still be a gap row, so a write granted later — a new
+  pair, or a new verb or column on an old one — arrives covered, and a key a
+  stage covers leaves the baseline. A read-gap pair's writes are registered as
+  gaps on the same backlog entry. No principal may hold `TRUNCATE`, `TRIGGER`,
+  `REFERENCES` or `MAINTAIN` on an in-scope relation. Every other
   row of the `tenancy-and-security.md` test list, `SECURITY DEFINER` functions,
   storage paths, sequences and other schemas stay proved by review.
   `pnpm validate:canonical-docs` checks the registry against the migrations and
