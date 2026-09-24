@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError, loadMyAssignments, type Fetcher } from "./load-assignments";
 
-// Inlined from @goproceed/contracts (not a mobile app dependency) — same
+// Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
+// importing the types is a backlog entry) — same
 // shape `./assignments.ts` and its own test inline.
 interface ProjectListRow {
   projectId: string;

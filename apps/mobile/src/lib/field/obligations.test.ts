@@ -3,19 +3,20 @@ import { buildObligationScreen, COVERAGE_MESSAGE } from "./obligations";
 import { DOVIDKOVYI_DISCLAIMER_TEXT } from "./disclaimer";
 
 /**
- * PORT of apps/app/src/lib/field/obligations.test.ts — byte-identical
- * assertions. `buildObligationScreen` is the whole of the obligation
+ * Ported from apps/app/src/lib/field/obligations.test.ts, deleted with the
+ * field PWA (DEV-035); these assertions are the only copy now. `buildObligationScreen` is the whole of the obligation
  * screen's decision layer — `src/screens/assignment.tsx` is a dumb consumer
  * of what this file proves. Node-only vitest, no RN/jsdom.
  */
 
-// Inlined from @goproceed/contracts (not a mobile app dependency) — same
+// Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
+// importing the types is a backlog entry) — same
 // shapes `./obligations.ts` inlines, kept in sync with it by hand.
 interface NormativeCitation {
   text: string;
   // Kept in sync BY HAND with `packages/contracts/src/requirement-library.ts`'s
-  // `verificationTag` — this app has no dependency on `@goproceed/contracts` to
-  // import it from (see the file header). Widened to three values by migration
+  // `verificationTag` — inlined here rather than imported from
+  // `@goproceed/contracts` (a backlog entry). Widened to three values by migration
   // 0059/ADR-010: `PROJECT_DOCUMENTATION` names an origin (a workspace's own
   // робоча документація), not a verification strength, and is never a
   // downgrade target or source for the other two.

@@ -1,6 +1,8 @@
-// PORT of apps/app/src/lib/field/assignments.ts — byte-identical logic and copy. Transitional duplication under ADR-009: the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files.
+// Ported from apps/app/src/lib/field/assignments.ts, which DEV-035 deleted with the field PWA
+// (2026-09-23): this copy is the only one now, so fix bugs here.
 
-// Inlined from @goproceed/contracts (not a mobile app dependency)
+// Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
+// importing the types is a backlog entry)
 interface ProjectListRow {
   projectId: string;
   workspaceId: string;

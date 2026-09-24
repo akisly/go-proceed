@@ -636,6 +636,8 @@ the honest fallback: a direct string replacement on the one `index.html` a
 `lang="en"` pattern it targets is absent, rather than shipping the wrong
 `<html lang>` silently.
 
+*[2026-09-24, DEV-057: `apps/mobile/public/` and its icons are deleted, as are `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png`; the web export this section describes was retired by ADR-013 on 2026-09-23.]*
+
 **Installable (2026-08-21).** `apps/mobile/public/manifest.webmanifest` —
 name «GoProceed — польовий клієнт», `short_name` "GoProceed", `lang: "uk"`,
 `display: "standalone"` — plus `icons/icon-192.png`, `icon-512.png`, and a

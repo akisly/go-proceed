@@ -5,7 +5,8 @@ import {
   NO_PROJECTS_MESSAGE, rowSubtitle, type ProjectAssignments,
 } from "./assignments";
 
-// Inlined from @goproceed/contracts (not a mobile app dependency)
+// Inlined from @goproceed/contracts by hand (a dependency since DEV-042;
+// importing the types is a backlog entry)
 interface ProjectListRow {
   projectId: string;
   workspaceId: string;
