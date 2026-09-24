@@ -45,6 +45,7 @@
 | 2026-09-24 | The queue card shows the requirement | Owner's choice in this session |
 | 2026-09-24 | Discard timeouts; stuck intents are released by the server purge cron | Owner's choice in this session |
 | 2026-09-24 | Accepted for the beta: the stale-`authenticate` race; libsodium verified by sha256 without minisign — the minisign half was overtaken the same day by [DEV-056](DEV-056-sodium-minisign.md), which added the signature check | Owner's choice in this session |
+| 2026-09-24 | The four remaining NOT RUN criteria (a hold resolved by the server, the received-anyway notice, «Стираємо…» signed in, S-08) are deferred to BL-160, to run before field phones are used in a pilot | Owner's choice in this session, after the signed-in pass |
 
 ## Progress and decisions
 
@@ -142,7 +143,7 @@ Rework count and hypothesis changes: 0 failed rounds (no QA FAIL, no new blocker
 ## What is not true after this task
 
 - **iOS photo upload crashes (pre-existing, DEV-042).** The vault's `VaultInputStream` crashes CFNetwork (row 12); a separate task fixes it. Until then no iOS photo reaches the server, and a pending photo re-sends and crashes at each launch. Fixed by DEV-070 (PR #138), which this branch does not carry; row 13 ran on a merge of both.
-- **Signed-in paths ran on 2026-09-24 (row 13), except three.** A hold resolved against staging, the received-anyway notice and «Стираємо…» with a real session were not exercised; see the NOT RUN row. The pass ran on a build that also carries DEV-070 (PR #138), because the iOS upload crash it found blocks any send on iOS without it.
+- **Signed-in paths ran on 2026-09-24 (row 13), except three.** A hold resolved against staging, the received-anyway notice and «Стираємо…» with a real session were not exercised; the owner deferred them, with S-08, to [BL-160](../BACKLOG.md#bl-160). The pass ran on a build that also carries DEV-070 (PR #138), because the iOS upload crash it found blocks any send on iOS without it.
 - **The hold waits on the server.** A held photo disappears only once the server expires its intent: 24 h plus the next purge cron, observed only while the app is open and online. The user cannot cancel a hold. A held photo whose `available` receipt does not match cannot be resolved; the card shows the problem.
 - **Offline sign-out does not revoke the server session.** The refresh token is deleted from the phone but stays valid on the server; hosted session limits need the Supabase Pro plan and were not inspected. An online sign-out whose request times out also becomes local-only, with no copy saying so.
 - **The S-03 residual.** A sign-in inside auth-js's pending-refresh window can still be overwritten ([BL-159](../BACKLOG.md#bl-159)).
@@ -164,8 +165,8 @@ Rework count and hypothesis changes: 0 failed rounds (no QA FAIL, no new blocker
 | A vault that cannot open: the error card, confirmation, wipe, in-process reopen; R3 (Android keeps a corrupt journal); S-07 (a corrupt index reaches the error state) | Yes | final commit | rows 5, 7, 9, 11; screenshots (`a16-final-after-wipe.png` on the final JavaScript) | PASS | the iOS post-wipe screenshots predate the final login notice (row 7); the Android reshoot covers it |
 | UI gate (`docs/design/02-building-ui.md` §5) | Yes | final commit | `dev058-gate.txt`: motion-audit clean, typecheck 10/10, landing build, tokens unchanged | PASS | step 3 NOT RUN: `@goproceed/testing` resets the local database (owner confirmation); this change touches no database, contract or catalog those suites read |
 | Signed-in paths: offline sign-out on the Android emulator, the reinstall reset with a real session (iOS), the queue card and its label, the held item (UI, native refusal, sign-out and sign-in), the profile's held state | Yes | `155baa98` + DEV-070 (`test/dev061-with-070`) | row 13 | PASS | simulator and emulator, staging; one owner account |
-| Signed-in paths still open: a hold resolved against staging, the received-anyway notice, «Стираємо…» with a real session | Yes | — | — | NOT RUN | the hold resolves only when its intent expires (24 h); the other two need a transfer that the server completes after a discard, and a vault fault with a real session |
-| A failed reinstall reset shows its own card and is retried (S-08) | Yes | — | code review only | NOT RUN | not-provable-locally: it needs a keychain or disk fault injected on a device or simulator |
+| Signed-in paths still open: a hold resolved against staging, the received-anyway notice, «Стираємо…» with a real session | Yes | — | — | NOT RUN — deferred to [BL-160](../BACKLOG.md#bl-160) (owner) | the hold resolves only when its intent expires (24 h); the other two need a transfer that the server completes after a discard, and a vault fault with a real session |
+| A failed reinstall reset shows its own card and is retried (S-08) | Yes | — | code review only | NOT RUN — deferred to [BL-160](../BACKLOG.md#bl-160) (owner) | not-provable-locally: it needs a keychain or disk fault injected on a device or simulator |
 
 ## Sources
 
