@@ -6,7 +6,7 @@
   - No user-visible change.
   - The 9 `requirements` rows of `technical/database/rls-write-coverage.csv` become `covered`. Each cites a test in `packages/testing/src/requirements-write-rls.test.ts` showing an owner of one workspace cannot insert, update or move rows into another, in the shape the DEV-076 minimum sets.
   - No migration: every write grant is used by a route.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is `gp-architect` → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`. `gp-security` joins because the tests prove RLS.
@@ -71,6 +71,8 @@ No new owner decision was needed: every grant has a product writer, so nothing i
 | 7 | Coordinator | S1 and S2: BL-182 rewritten. It is raised to P1 and tied to BL-171's two-workspace external fixture. It cites the m5 refusals that already exist, names what stays untested, and carries S2's route hardening (the external decision route's head read and advance filtered by workspace and occurrence). S3 is written into BL-182's test. S4 → BL-184 and S5 → BL-185 (P3). S6: DA-217 and DA-219 name the SECURITY DEFINER writers of an archive and a retirement. S7 not applied: the closure world seeds no location, and no route writes `location_id` | `git diff` | gp-reviewer |
 | 8 | gp-reviewer | PASS, no blocker or major. Every probe fails for the right reason, the fixture cannot produce a false pass, the minimum holds on every row, 29 = 11 + 8 + 3 + 7 checks out, and the catalogs agree. Findings R1–R7 (below) | Subagent report (session), on `536c5b8a` | Fixes |
 | 9 | Coordinator | R1 was already correct after row 7's rewrite (BL-182 cites row 4). R2: BL-182 adds the external tenant-key probes, whose only refusal is the FK, and the choice of policy predicate or accepted FK-only confinement; it also folds in `audit_insert_external` and `outbox_insert_external`. R3: AC-2 and row 4 reworded. R4: header and `confined` comment. R5: INV-001 names every covered table. R6: DA-223 and DA-224 are `bff_external`, and DA-217 … DA-220 are `active_workspace_member`. R7: INV-015's stale template wording noted in BL-183 | `git diff` | gp-qa |
+| 10 | gp-qa | AC-1 … AC-5 PASS on `2850c18a`; every finding fix confirmed.<br>• Its own sweep: 29 of 29 killed, each failing only its own table's case, with the policies' md5 unchanged.<br>• Positive control: granting DELETE on `requirement_exceptions` fails the registry comparison.<br>• A narrower project-only drop on `re_insert`, keeping the capability, is killed for the right reason (23503 in place of 42501).<br>• Five suites 54 of 54, none skipped.<br>• It notes that row 5's «BL-182 (P2 …)» predates row 7's raise to P1 | Subagent report (session) | CI log |
+| 11 | Coordinator | PR #156 CI green on `2850c18a` (run 36130142727: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database:<br>• `requirements-write-rls.test.ts` 9 of 9;<br>• `rls-coverage.test.ts` 31 of 31;<br>• `requirements-rls.test.ts` 1 of 1.<br>Merged in #156 (`8584c6f6`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -104,6 +106,11 @@ Rework count and hypothesis changes: no round (review findings fixed before QA).
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 each row cites one test meeting the minimum | Yes | `2850c18a` | gp-qa: five files 54 of 54, none skipped; CI: the new file 9 of 9 (rows 10, 11) | PASS | Member plane only (BL-182) |
+| AC-2 every listed mutation fails a test | Yes | `2850c18a` | 29 of 29 killed, confirmed independently by gp-qa; a narrower project-only mutant also killed (rows 4, 10) | PASS | Local 17.6 stack |
+| AC-3 the registry, the baseline, the DA rows, INV-060 | Yes | `2850c18a` | the privileges observed match; the positive control fails the comparison; the comparison 31 of 31 on CI (rows 10, 11) | PASS | |
+| AC-4 validator and typecheck | Yes | `2850c18a` | `pnpm validate:canonical-docs` OK; `pnpm turbo run typecheck` 10 of 10 (also with `--force`) | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `2850c18a` | run 36130142727: `verify` and `app-qa` success | PASS | |
 
 ## Sources
 
@@ -112,8 +119,8 @@ Rework count and hypothesis changes: no round (review findings fixed before QA).
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–9.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` also independent.
+- Verified scope: rows 1–11.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the final revision.
-- Final state and reason: implementing.
+- Next bounded action and owner: BL-168 is the next stage; BL-182 (P1) goes with BL-171.
+- Final state and reason: done — every required criterion PASS; #156 merged with CI green (row 11).
