@@ -8,7 +8,7 @@
   - Migration `0108` does two things:
     - it binds `capture_events.work_assignment_id` to its workspace's assignment through a composite foreign key (BL-105);
     - it narrows both tables' INSERT grants to the columns their writers write.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that adds a constraint and narrows grants, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is `gp-architect` → owner decisions → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -55,6 +55,7 @@
 | 2026-09-25 | BL-105: add the composite foreign key on `capture_events` in `0108`, folding BL-105 into this stage | Owner's answer in the session («Add the FK in 0108») |
 | 2026-09-25 | Narrow both evidence INSERT grants to the columns production writes, in `0108` | Owner's answer in the session («Narrow in 0108») |
 | 2026-09-25 | `ce_insert`'s intent-less device arm: keep it and test it | Owner's answer in the session («Keep, test it») |
+| 2026-09-25 | S1 deferred to BL-197 (P3) and S4 left unchanged, as items for the owner's backlog rather than this stage's scope (gp-qa N1) | Coordinator, under the owner's standing order to close each stage and take the next |
 | 2026-09-24 | The DEV-076 rulings apply; P1 | [DEV-076](DEV-076-write-denial-minimum.md) |
 
 ## Plan
@@ -79,6 +80,8 @@
 | 8 | Coordinator | Fixes: S1 filed as BL-197, with `0108`'s comment and DA-113 qualified; S2, the afterAll count now runs before the drop; S3 recorded in BL-101; S6, `0108` sets `lock_timeout = '5s'` for the hosted apply (after `0095`). 3 of 3 pass; the validator passes | Session output | gp-reviewer |
 | 9 | gp-reviewer | PASS, no blocker or major. Every probe fails for the reason it asserts, with exactly one key broken per mixed row; the grants match the writers column for column; the key cannot reject a production row; the 7 survivors are unobservable. Findings R1–R6 (below) | Subagent report (session), on `afb52a86` | Fixes |
 | 10 | Coordinator | R1 was already fixed as S2. R2: DA-114 stays `normative` with a dated note. R3: the function refusal asserted by its message. R4: row 5 and AC-2 worded. R5: `0108`'s rollback note completed. R6: `0108`'s header scoped to the goproceed principals. 3 of 3 pass; typecheck and the validator pass | Session output | gp-qa |
+| 11 | gp-qa | AC-1 … AC-4 PASS on `74ccd9aa`; every finding fix confirmed.<br>• `evidence-write-rls` 3 of 3; citations match the titles exactly.<br>• Its own sweep: 16 of 23 with the same 7 survivors; three kills spot-checked for their reason.<br>• `0108` in the database: the key, exactly the 11 and 22 column grants, and no whole-table INSERT for any role but postgres. The registry strings are byte-equal to `WRITE_PRIVILEGES_SQL`'s output. Eight self-check controls and the preflight fire, each rolled back.<br>• The neighbouring suites pass: `evidence-service-rls`, `m2-policy-gaps`, `m2-binding-hardening`, `m2-service-principal`, `privileges`, `rls-coverage`, `m5-external-rls`, `evidence-rls`.<br>• N1: the S1 and S4 deferrals are not in the decisions table. N2: `set local` takes effect only inside a transaction, as in `0095`. N3: only one withdrawn column per table is probed; the self-check and the registry cover the rest | Subagent report (session) | CI |
+| 12 | Coordinator | PR #164 CI green on `74ccd9aa` (run 36152075963: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database:<br>• `evidence-write-rls` 3 of 3, `evidence-service-rls` 2, `m2-binding-hardening` 36, `m2-policy-gaps` 4, `rls-coverage` 31;<br>• the app's evidence suites, all green: `telegram-evidence` 22, `external-evidence` 12, `evidence-purge` 24, `evidence-purge-route` 14, `evidence-storage` 24, `evidence-read` 6, among others.<br>Merged in #164 (`ddaa9675`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -96,6 +99,9 @@
 | R4 | nit | Row 5, AC-2 | A survivor's reason incomplete; «the capability inverted» over-claimed | Coordinator | Fixed |
 | R5 | nit | `0108`'s rollback note | Missed the relationship row, INV-060, BL-105 | Coordinator | Fixed |
 | R6 | info | `0108`'s header | Holds for the goproceed principals only | Coordinator | Fixed |
+| N1 | info | This record | The S1 and S4 deferrals had no decision row | Coordinator | Fixed: a decision row |
+| N2 | info | `0108`'s `set local lock_timeout` | Only inside a transaction | — | No action: as `0095`; a hand apply uses `-1` |
+| N3 | info | The column probes | One withdrawn column each | — | No action: the self-check and the registry cover the rest |
 
 Rework count and hypothesis changes: none.
 
@@ -112,6 +118,11 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 each row cites one test meeting the minimum, on both planes | Yes | `74ccd9aa` | gp-qa 3 of 3 on the real logins, citations exact; CI 3 of 3 (rows 11, 12) | PASS | |
+| AC-2 every listed mutation fails a test, or is stated unobservable | Yes | `74ccd9aa` | 16 of 23 killed, the same from gp-qa's own sweep; the 7 survivors stated (rows 5, 11) | PASS | Local 17.6 stack |
+| AC-3 `0108`, the registry, the baseline, the DA rows, INV-001, INV-060 | Yes | `74ccd9aa` | gp-qa's database checks, controls and byte-equal registry strings; the comparison 31 of 31 locally and on CI (rows 11, 12) | PASS | |
+| AC-4 validator and typecheck | Yes | `74ccd9aa` | validator OK; `@goproceed/testing` typecheck exit 0 | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `74ccd9aa` | run 36152075963: `verify` and `app-qa` success | PASS | |
 
 ## Sources
 
@@ -120,8 +131,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–10.
+- Review independence: `gp-architect`, `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
+- Verified scope: rows 1–12.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa`.
-- Final state and reason: implementing.
+- Next bounded action and owner: BL-171 with BL-182 is the next stage. Pushing `0103` … `0108` to staging is the owner's.
+- Final state and reason: done — every required criterion PASS; #164 merged with CI green (row 12).
