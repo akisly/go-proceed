@@ -215,6 +215,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-184](#bl-184) | P3 | open | An external decision's access grant is not pinned to its session's grant |
 | [BL-185](#bl-185) | P3 | open | A decision or exception head's pointer is not constrained to the tip of its lineage |
 | [BL-186](#bl-186) | P3 | open | The application role's UPDATE on `work_stages` is whole-table where the closures route sets three columns |
+| [BL-187](#bl-187) | P3 | open | `app.stage_key_is_admissible` answers for any workspace's assignment without a membership check |
+| [BL-188](#bl-188) | P3 | open | The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only |
+| [BL-189](#bl-189) | P3 | open | An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2241,4 +2244,47 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-081's `gp-architect`, 2026-09-25. `goproceed_app` holds UPDATE on every column of `work_stages` (0045). The only product writer, the closures route, locks a stage and sets `status`, `version` and `updated_at`. Its cross-workspace confinement is tested (DEV-081). `ws_update` admits only an open stage becoming closed, and the stage guard admits only a +1 version step. A column grant would turn the tenant-key moves into privilege refusals. The pattern is BL-175, BL-178 and BL-183. Ranked by DEV-081.
 - **Evidence:** `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql`; `apps/app/app/v1/stages/[stageId]/closures/route.ts`; DA-229.
 - **Depends on:** the owner; a migration (`gp-architect`, `gp-security`).
+- **Deadline:** none recorded.
+
+<a id="bl-187"></a>
+### BL-187 — P3 — `app.stage_key_is_admissible` answers for any workspace's assignment without a membership check
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-security` (S3), 2026-09-25.
+  - **The gap.** `app.stage_key_is_admissible(workspace, assignment, key)` (0051) is SECURITY DEFINER and executable by `goproceed_app`. It checks neither membership nor capability. So a caller running SQL on the BFF connection who knows B's workspace and assignment ids can test stage keys against B's bound baseline, a cross-tenant boolean oracle.
+  - **What its header says.** The header bounds the disclosure to a workspace the caller is an active member of, which the function does not enforce.
+  - **The fix.** Require `app.has_project_capability(workspace, the assignment's project, array['assignments.manage'])` inside the function and answer false otherwise. The test: a member of A calling it with B's ids gets the same answer for every key.
+  - **Ranking.** Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0051_the_stage_nobody_agreed_to.sql` (the function and its grant).
+- **Depends on:** a migration (`gp-architect`, `gp-security`).
+- **Deadline:** none recorded.
+
+<a id="bl-188"></a>
+### BL-188 — P3 — The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-security` (S4), 2026-09-25.
+  - **The existence oracle.** `app.open_allocation_head` and `app.assert_reservation_invariant` (0017) look the root progress entry up and raise «unknown root progress entry» before they authorise. The two messages tell a caller whether a (workspace, root) pair exists in another tenant.
+  - **The grant.** Their EXECUTE is revoked from `public` only, with no explicit revoke from `anon` and `authenticated` as `agents/COMMON.md` requires. 0009's default privileges probably cover it, but nothing asserts it.
+  - **The search path.** The pinned search path is BL-146.
+  - **The fix.** Authorise on the workspace first, or answer one message for both cases; revoke EXECUTE from `anon` and `authenticated`; assert both with `has_function_privilege`.
+  - **Ranking.** Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0017_allocation_head_definer_authz.sql`; DA-230.
+- **Depends on:** a migration (`gp-architect`, `gp-security`); BL-146.
+- **Deadline:** none recorded.
+
+<a id="bl-189"></a>
+### BL-189 — P3 — An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-security` (S6), 2026-09-25.
+  - **The gap.** `va_insert`'s admitted arm (0046) lets a holder of `stage_closures.close` and `project.view` insert an admitted allocation naming any existing closure of the entry's assignment, at any later time. A closure's members, by contrast, are tied to its own transaction by `guard_closure_member_window`.
+  - **Its bounds.** The composite foreign keys keep it inside one workspace, and `funded_within_lineage` caps the funded quantity at COMMIT. It is outside the cross-workspace minimum.
+  - **The fix.** An xmin window like the member window.
+  - **Ranking.** Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0046_the_carve_moves_to_admission.sql` (`va_insert`); `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql` (`guard_closure_member_window`).
+- **Depends on:** `gp-architect`.
 - **Deadline:** none recorded.

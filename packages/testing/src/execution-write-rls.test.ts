@@ -165,8 +165,11 @@ async function probe(body: (p: Probe) => Promise<void>, disableTriggersOn: strin
           await c.query("rollback to savepoint probe");
           await c.query("reset role");
           const { code, message, constraint } = e as { code?: string; message?: string; constraint?: string };
-          const reason = /row-level security policy/.test(message ?? "") ? "policy"
-            : /permission denied/.test(message ?? "") ? "privilege" : "other";
+          // Only a new row's WITH CHECK refusal counts as `policy`: a SELECT
+          // policy's «(USING expression)» refusal of a moved row is the DEV-077
+          // C1 masking, and counts as `other` (gp-security DEV-081 S2).
+          const reason = /^new row violates row-level security policy for table "[^"]+"$/.test(message ?? "") ? "policy"
+            : /^permission denied for table /.test(message ?? "") ? "privilege" : "other";
           return { rowCount: null, code: code ?? "unknown", reason, constraint: constraint ?? null };
         }
       },
@@ -359,12 +362,14 @@ describe("execution cross-workspace write denial", () => {
     expect(await insertOutcomes(root, (s) => r(s), [
       r(A, { project: B.project }),
       r(A, { assignment: B.otherAssignment }),
+      r(A, { item: B.workItem }),
       r(A, { member: B.member }),
     ]))
       .toEqual([
         refusedByPolicy,
         refusedByPolicy,
         byForeignKey("progress_entries_workspace_id_project_id_work_assignment_i_fkey"),
+        byForeignKey("progress_entries_workspace_id_work_item_id_fkey"),
         byForeignKey("progress_entries_workspace_id_recorded_by_member_id_fkey"),
         inserted,
       ]);
@@ -478,6 +483,7 @@ describe("execution cross-workspace write denial", () => {
       decided(A, { project: B.project }),
       decided(A, { closure: closures.get(WS_B)! }),
       decided(A, { decision: B.DA1 }),
+      decided(A, { occurrence: B.blockingA, decision: A.DA1 }),
       waived(A, B.EB1),
     ], ["stage_closure_occurrences"], prelude))
       .toEqual([
@@ -485,6 +491,7 @@ describe("execution cross-workspace write denial", () => {
         refusedByPolicy,
         byForeignKey("stage_closure_occurrences_closure_fkey"),
         byForeignKey("stage_closure_occurrences_decision_fkey"),
+        byForeignKey("stage_closure_occurrences_occurrence_fkey"),
         byForeignKey("stage_closure_occurrences_exception_fkey"),
         inserted,
       ]);

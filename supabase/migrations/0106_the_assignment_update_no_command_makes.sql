@@ -36,7 +36,7 @@ do $$
 declare
   role_name text;
 begin
-  foreach role_name in array array['goproceed_app', 'goproceed_service'] loop
+  for role_name in select rolname from pg_roles where rolname like 'goproceed\_%' loop
     if has_any_column_privilege(role_name, 'public.work_assignments', 'UPDATE') then
       raise exception '0106: % still holds UPDATE on work_assignments', role_name;
     end if;

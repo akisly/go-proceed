@@ -18,10 +18,10 @@
   - `supabase/migrations/0106_the_assignment_update_no_command_makes.sql` (new);
   - `packages/testing/src/execution-write-rls.test.ts` (new);
   - `technical/database/rls-write-coverage.csv`;
-  - `technical/data-access-surface.csv`: DA-122 corrected; DA-225 … DA-229 new;
+  - `technical/data-access-surface.csv`: DA-122 corrected; DA-225 … DA-230 new;
   - `technical/database/invariant-catalog.csv` (INV-001, INV-060);
   - `scripts/validate-canonical-docs.mjs` (`RLS_WRITE_GAP_BASELINE` only);
-  - `docs/BACKLOG.md` (BL-168; BL-186 new), `docs/STATUS.md` (migrations row), this record, and `docs/tasks/README.md`.
+  - `docs/BACKLOG.md` (BL-168; BL-186 … BL-189 new), `docs/STATUS.md` (migrations row), this record, and `docs/tasks/README.md`.
 - Read context:
   - [DEV-076](DEV-076-write-denial-minimum.md) … [DEV-080](DEV-080-requirements-write-denial.md);
   - `packages/testing/src/execution-rls.test.ts`, `m3-closure-fixture.ts`;
@@ -69,11 +69,20 @@
 | 4 | Coordinator | The test file: 6 cases on DEV-080's harness, with `insertOutcomes` taking an admin prelude. The multi-FK probes were run with a placeholder first. Each named constraint is the intended parent's:<br>• the assignment's work item → `…_contract_id_contr_fkey`, and its template → `…_requirement_template_version_fkey`;<br>• the stage's assignment → `…_work_assignment_id_con_fkey`;<br>• the entry's assignment → `…_work_assignment_i_fkey`, and its root → `progress_entries_root_is_root_fkey`;<br>• the allocation's contract → `…_contract_id__fkey`.<br>My own first allocation probe used an ambiguous parameter (42P08) and was corrected. Local run: 6 of 6 | Session output | Mutations |
 | 5 | Coordinator | 32 mutations, each applied to one policy and restored from its `pg_policies` text; the policies' md5 (ordered by table and policy) was identical before and after. 31 fail their own table's case:<br>• `WITH CHECK (true)` on the 6 INSERT policies and `ws_update`;<br>• `USING (true)` on `ws_update`;<br>• both arms of `pe_insert`;<br>• the status and capability of `ws_insert` and of both clauses of `ws_update`, each dropped, inverted or made `true`;<br>• `va_insert`'s view conjunct, its EXISTS, the EXISTS's `p.id` match and the admitted arm's `admitted_by_closure_id IS NOT NULL`;<br>• the project scope dropped from the 8 capability-on-project WITH CHECKs.<br>One survivor, which cannot be observed across workspaces: `admitted_by_closure_id IS NULL` dropped from `va_insert`'s unadmitted arm. It changes the outcome only for an actor lacking `stage_closures.close` in their own workspace, and the owner holds it; capability scope within one workspace is outside the minimum.<br>Also stated rather than run, for the same reason: `va_insert`'s `p.workspace_id` comparison, its admitted-arm capability, and the USING project drop of `ws_update` | `scratchpad/dev081-mutate.out`, `dev081-mutate-extra.out` | Catalogs |
 | 6 | Coordinator | Catalogs and docs:<br>• the write registry: 6 rows `covered`, with `work_assignments` now `INSERT`;<br>• the 6 keys removed from the baseline;<br>• DA-122 corrected: `SELECT|INSERT`, `bff`, and the mobile projection that does not exist removed;<br>• DA-225 … DA-229 added for the 5 tables that had no row;<br>• INV-001 and INV-060 cite the file;<br>• the `STATUS.md` migrations marker is `0106`;<br>• BL-168 scheduled; BL-186 (P3, the whole-table `work_stages` UPDATE) filed.<br>The validator passes | `git diff` | Reviews |
+| 7 | gp-security | PASS, no blocker or major. `0106` closes an untested in-workspace edit path and breaks no flow: FK checks run as the owner, the one joined lock is `OF b`, and the m3 fixture updates as admin. The tests prove confinement: the admin preludes strengthen them, and no deferred trigger carries a cross-workspace guarantee alone. `va_insert`'s `p.workspace_id` comparison cannot be observed, and FKs back it. Findings S1–S7 (below) | Subagent report (session), on `d2c8def8` | Fixes |
+| 8 | Coordinator | Fixes:<br>• S1: the entry's work item → `progress_entries_workspace_id_work_item_id_fkey`; the member's occurrence → `stage_closure_occurrences_occurrence_fkey`, both observed and then named.<br>• S2: `policy` now means only a new row's WITH CHECK refusal, and `privilege` only «permission denied for table».<br>• S5: DA-230 for `progress_allocation_heads`.<br>• S7: `0106`'s self-check covers every `goproceed_*` role; it passes, and a column UPDATE granted to `goproceed_worker` fires it.<br>• S3, S4, S6: filed as BL-187, BL-188 and BL-189 (P3).<br>6 of 6 pass | Session output | gp-reviewer |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1 | low | The entry and member probes | The cited title named an item probe that did not exist; the occurrence override was unused | Coordinator | Fixed: both probes added, FK named (row 8) |
+| S2 | low | The refusal classifier | A SELECT policy's refusal or a function's «permission denied» would have counted | Coordinator | Fixed: anchored patterns |
+| S3 | low | `app.stage_key_is_admissible` (0051) | A cross-tenant boolean oracle; predates DEV-081 | Owner | Deferred to BL-187 (P3) |
+| S4 | low | The allocation-head definers (0017) | An existence oracle, and EXECUTE revoked from PUBLIC only; predates DEV-081 | Owner | Deferred to BL-188 (P3) |
+| S5 | low | `progress_allocation_heads` | No DA row | Coordinator | Fixed: DA-230 |
+| S6 | info | `va_insert`'s admitted arm | No transaction window, within one workspace | Owner | Deferred to BL-189 (P3) |
+| S7 | nit | `0106`'s self-check | Covered two roles | Coordinator | Fixed: every `goproceed_*` role |
 
 Rework count and hypothesis changes: none.
 
@@ -83,7 +92,7 @@ Rework count and hypothesis changes: none.
 - The other 15 write rows (BL-169 … BL-173) are still gaps.
 - Capability scope within one workspace (a member without the close or progress capabilities) is outside the cross-workspace minimum.
 - The three deferred constraint triggers are exercised by the m3 suites, not here.
-- BL-186 (P3) stays open.
+- BL-186 … BL-189 (P3) stay open.
 
 ## Acceptance evidence
 
@@ -97,8 +106,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect` ran as an independent native subagent; `gp-reviewer`, `gp-security` and `gp-qa` are pending.
-- Verified scope: rows 1–6.
+- Review independence: `gp-architect` and `gp-security` ran as independent native subagents; `gp-reviewer` and `gp-qa` are pending.
+- Verified scope: rows 1–8.
 - Remaining risks / blocked requirements: «What is not true after this task».
 - Next bounded action and owner: `gp-reviewer` and `gp-security`.
 - Final state and reason: implementing.
