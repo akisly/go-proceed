@@ -32,8 +32,8 @@ import {
  *     foreign key (23503, named, INV-001), or by the policy for the project.
  *
  * The actor is the owner of A throughout, declaring A. The rules world grants six
- * project capabilities, the closure world the two decide capabilities, and this
- * file `assignments.manage`, so every policy here admits A's own rows and a
+ * project capabilities, the closure world its four (the two decide capabilities
+ * among them), and this file `assignments.manage`, so every policy here admits A's own rows and a
  * refusal of B's ids cannot come from a missing grant. The external-session
  * policies on decisions and their heads are false on the member plane (no
  * session is resolved while an actor is set) and are outside this minimum.
@@ -206,10 +206,9 @@ async function insertOutcomes(
 
 /**
  * A statement reading no column (an UPDATE or a DELETE), run as the owner of A:
- * its outcome, the `key` of A's rows it changed or removed (a head has no id; it
- * is keyed by its occurrence) (so an inverted draft
- * condition, changing the published row instead, fails too), and whether B's
- * rows read back unchanged.
+ * its outcome, the `key` of A's rows it changed or removed (a head has no id and
+ * is keyed by its occurrence), so a policy admitting the wrong row of A fails
+ * too, and whether B's rows read back unchanged.
  */
 async function confined(table: string, sql: string, disable: string[] = [], key = "id"):
 Promise<{ outcome: Outcome; aChanged: string[]; bUnchanged: boolean }> {

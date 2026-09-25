@@ -37,7 +37,7 @@
     - `WITH CHECK (true)` on every INSERT and UPDATE policy, the external ones included;
     - `USING (true)` on every UPDATE policy;
     - each arm of `rrv_insert` made `true`, and its status arm inverted;
-    - the project scope dropped from every capability-on-project policy.
+    - the project scope dropped from the WITH CHECK of every capability-on-project policy.
   - AC-3: the write registry, the baseline, DA-123, DA-217 … DA-224 and INV-060 agree with the database, and the database comparison in `rls-coverage.test.ts` passes.
   - AC-4: the validator and `typecheck` pass.
   - AC-5: CI green on the pull request.
@@ -65,10 +65,12 @@ No new owner decision was needed: every grant has a product writer, so nothing i
 | 1 | Coordinator | Dumped the 9 tables' policies, triggers, grants, column grants, constraints and columns from the local stack at `0105` | `scratchpad/dev080-policies.txt` | gp-architect |
 | 2 | gp-architect | The plan:<br>• the capability each policy asks for, all held by the owner once the closure world's four and `assignments.manage` are added;<br>• per-table parent chains and FK names;<br>• the guards to disable: the reference-image guards on INSERT, which read under the actor's RLS, and the template and head guards on UPDATE;<br>• the unit-free slots the fixture leaves: an unmaterialised stage, an occurrence with a decision and an exception but no head, and a non-Додаток source for the library control;<br>• heads have no `id`, so `confined` takes a key;<br>• every grant used by a route; DA-123 drifted and 8 tables have no row | Subagent report (session) | Implement |
 | 3 | Coordinator | The test file: 9 cases on DEV-079's probe, with `confined` keyed per table. Each multi-FK probe was run first with a placeholder, and the constraint that answered was named. Each named constraint is the intended parent's:<br>• the occurrence's rule → `requirement_occurrences_from_binding_fkey`, and its image → `ro_reference_image_fkey`;<br>• a decision head's decision → `…_outcome_fkey`, and its occurrence → `…_occurrence_fkey`;<br>• an exception head's occurrence → `…_occurrence_fkey`.<br>Local run: 9 of 9 pass | Session output | Mutations |
-| 4 | Coordinator | 29 mutations, each applied to one policy and restored from its `pg_policies` text; the policies' md5 (now ordered by table and policy, per DEV-079's QA) was identical before and after. All 29 fail their own table's case:<br>• `WITH CHECK (true)` on the 11 INSERT policies (the two external ones included) and the 4 UPDATE policies;<br>• `USING (true)` on the 4 UPDATE policies;<br>• `rrv_insert`'s role arm and status arm each made `true`, and the status inverted;<br>• the project scope replaced by active membership on the 7 capability-on-project policies (`ro`, `red`, `redh`, `re`, `reh` insert, `redh` and `reh` update).<br>Equivalent, stated rather than run: the same project drop in the USING of the two head update policies (A's rows are the same set, and B's stay out by membership), and a single conjunct dropped from an external policy, which is false on the member plane. For the external plane, `m5-external-schema.test.ts` kills two of those conjuncts (a decision on a sibling occurrence; an observer's head); the rest, `redh_external_update` and every cross-workspace target, are BL-182 | `scratchpad/dev080-mutate.out` | Catalogs |
+| 4 | Coordinator | 29 mutations, each applied to one policy and restored from its `pg_policies` text; the policies' md5 (now ordered by table and policy, per DEV-079's QA) was identical before and after. All 29 fail their own table's case:<br>• `WITH CHECK (true)` on the 11 INSERT policies (the two external ones included) and the 4 UPDATE policies;<br>• `USING (true)` on the 4 UPDATE policies;<br>• `rrv_insert`'s role arm and status arm each made `true`, and the status inverted;<br>• the project scope replaced by active membership on the 7 capability-on-project policies (`ro`, `red`, `redh`, `re`, `reh` insert, `redh` and `reh` update).<br>Stated rather than run:<br>• the same project drop in the USING of the two head update policies. These survivors cannot be observed across workspaces: A's rows are the same set and B's stay out by membership. Within one workspace the mutation would widen, which is outside the minimum (gp-reviewer R3).<br>• a single conjunct dropped from an external policy, which is false on the member plane. For the external plane, `m5-external-schema.test.ts` kills two of those conjuncts (a decision on a sibling occurrence; an observer's head); the rest, `redh_external_update` and every cross-workspace target, are BL-182 | `scratchpad/dev080-mutate.out` | Catalogs |
 | 5 | Coordinator | Catalogs and docs:<br>• the write registry: 9 rows `covered`;<br>• the 9 keys removed from the baseline;<br>• DA-123 corrected to `SELECT|INSERT` and `bff` (it listed an UPDATE never granted);<br>• DA-217 … DA-224 added for the 8 tables that had no row;<br>• INV-001 and INV-060 cite the file;<br>• BL-167 scheduled;<br>• BL-182 (P2, the external-plane write probe) and BL-183 (P3, the whole-table UPDATE grants) filed.<br>The validator passes | `git diff` | Reviews |
 | 6 | gp-security | PASS, no blocker or major. No probe can pass for the wrong reason:<br>• a trigger's error is P0001, not a policy refusal;<br>• the external policies are false with an actor set;<br>• the helpers are bound to the actor, with a pinned search path;<br>• the DA rows match the grants.<br>Findings S1–S7 (below) | Subagent report (session), on `536c5b8a` | Fixes |
 | 7 | Coordinator | S1 and S2: BL-182 rewritten. It is raised to P1 and tied to BL-171's two-workspace external fixture. It cites the m5 refusals that already exist, names what stays untested, and carries S2's route hardening (the external decision route's head read and advance filtered by workspace and occurrence). S3 is written into BL-182's test. S4 → BL-184 and S5 → BL-185 (P3). S6: DA-217 and DA-219 name the SECURITY DEFINER writers of an archive and a retirement. S7 not applied: the closure world seeds no location, and no route writes `location_id` | `git diff` | gp-reviewer |
+| 8 | gp-reviewer | PASS, no blocker or major. Every probe fails for the right reason, the fixture cannot produce a false pass, the minimum holds on every row, 29 = 11 + 8 + 3 + 7 checks out, and the catalogs agree. Findings R1–R7 (below) | Subagent report (session), on `536c5b8a` | Fixes |
+| 9 | Coordinator | R1 was already correct after row 7's rewrite (BL-182 cites row 4). R2: BL-182 adds the external tenant-key probes, whose only refusal is the FK, and the choice of policy predicate or accepted FK-only confinement; it also folds in `audit_insert_external` and `outbox_insert_external`. R3: AC-2 and row 4 reworded. R4: header and `confined` comment. R5: INV-001 names every covered table. R6: DA-223 and DA-224 are `bff_external`, and DA-217 … DA-220 are `active_workspace_member`. R7: INV-015's stale template wording noted in BL-183 | `git diff` | gp-qa |
 
 ## Findings and rework
 
@@ -81,8 +83,15 @@ No new owner decision was needed: every grant has a product writer, so nothing i
 | S5 | info | `guard_requirement_head` | A head's pointer is not constrained to its lineage's tip (within a workspace; unverified) | Owner | Deferred to BL-185 (P3) |
 | S6 | low | DA-217, DA-219 | The definers that archive and retire were unnamed | Coordinator | Fixed |
 | S7 | info | occurrences probe | `location_id` has no mixed probe | Coordinator | Not applied: no location in the fixture, no route writes it; the FK is tenant-composite |
+| R1 | minor | BL-182 evidence | Cited row 5 for the external mutants | Coordinator | Already row 4 after row 7's rewrite |
+| R2 | minor | BL-182's planned test | The external policies do not read the tenant key; only the FK refuses B's key on the session's own occurrence | Coordinator; owner for the predicate | Written into BL-182, with the predicate choice and the two other external inserts |
+| R3 | minor | AC-2, row 4 | The USING project-drop mutants were called equivalent; they survive, unobservable across workspaces | Coordinator | Reworded |
+| R4 | nit | test header, `confined` comment | «the two decide capabilities»; a garbled parenthetical | Coordinator | Fixed |
+| R5 | nit | INV-001 | Named only some of the covered tables | Coordinator | Fixed |
+| R6 | nit | DA-217 … DA-224 | Consumer and policy family | Coordinator | Fixed |
+| R7 | nit | INV-015 | Stale for templates (predates DEV-080) | Owner | Noted in BL-183 |
 
-Rework count and hypothesis changes: none.
+Rework count and hypothesis changes: no round (review findings fixed before QA).
 
 ## What is not true after this task
 
@@ -103,8 +112,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect` and `gp-security` ran as independent native subagents; `gp-reviewer` and `gp-qa` are pending.
-- Verified scope: rows 1–7.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
+- Verified scope: rows 1–9.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-reviewer` and `gp-security`.
+- Next bounded action and owner: `gp-qa` on the final revision.
 - Final state and reason: implementing.
