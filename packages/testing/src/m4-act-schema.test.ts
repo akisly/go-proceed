@@ -855,10 +855,11 @@ describe("grants — route by route, so an unused grant is visible", () => {
     // The grant that would let a frozen version disappear if the guard were
     // ever lost.
     expect(held.has("statutory_act_versions:DELETE")).toBe(false);
+    // 0107 (DEV-083) withdrew UPDATE and DELETE on the content: compose only
+    // inserts it, and no command edits a draft.
     for (const t of ["statutory_act_version_quantities", "statutory_act_version_signatories"]) {
-      for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
-        expect(held.has(`${t}:${p}`), `${t}:${p}`).toBe(true);
-      }
+      for (const p of ["SELECT", "INSERT"]) expect(held.has(`${t}:${p}`), `${t}:${p}`).toBe(true);
+      for (const p of ["UPDATE", "DELETE"]) expect(held.has(`${t}:${p}`), `${t}:${p}`).toBe(false);
     }
   });
 

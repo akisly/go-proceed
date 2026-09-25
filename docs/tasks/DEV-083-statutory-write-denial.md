@@ -19,6 +19,7 @@
 - Owning module and allowed edit paths:
   - `supabase/migrations/0107_the_act_content_no_command_edits.sql` (new);
   - `packages/testing/src/statutory-write-rls.test.ts` (new);
+  - `packages/testing/src/m4-act-schema.test.ts` (its grant assertion for the content tables, which 0107 changes);
   - `technical/database/rls-write-coverage.csv`;
   - `technical/data-access-surface.csv`: DA-231 … DA-234, new;
   - `technical/database/invariant-catalog.csv` (INV-001, INV-015, INV-060);
@@ -74,6 +75,7 @@
 | 4 | Coordinator | The test file: 4 cases on DEV-081's harness. Changes to the harness: `confined` takes constant parameters, and a prelude inserts each side's second act (and its empty v1) inside the probe as the INSERT controls' parents. Each side's fixture: the act world; a second closure C2 with no act; act1 with v1 frozen by a committed freeze and v2, its draft correction, each with a quantity line and the two signatories. Each named constraint is the intended parent's. Local run: 4 of 4 | Session output | Mutations |
 | 5 | Coordinator | 28 mutations, each applied to one policy and restored from its `pg_policies` text; the policies' md5 was identical before and after.<br>• **First sweep: 23 of 28.** It found a masking my own harness made: the probed act and version INSERTs were the fixture's statements, which end in `RETURNING id`. A RETURNING applies the SELECT policy to the new row, and its refusal reads exactly like the INSERT policy's, so `WITH CHECK (true)` and the project drop on `sa_insert`, and the capability made `true` and the project drop on `sav_insert`, survived.<br>• **The fix:** the file probes the two statements without their RETURNING.<br>• **Second sweep: 27 of 28**, each failing only its own table's case:<br>&nbsp;&nbsp;– `WITH CHECK (true)`, the capability inverted and the project scope dropped, on `sa_insert`, `savq_insert` and `savs_insert`;<br>&nbsp;&nbsp;– on `sav_insert`, those three plus its draft arm made `true` or inverted;<br>&nbsp;&nbsp;– on `sav_update`: `USING (true)`, `WITH CHECK (true)`, each clause's status arm made `true` or inverted, WITH CHECK's narrowed to `draft`, each capability made `true` or inverted, and WITH CHECK's project scope dropped.<br>One survivor, which cannot be observed across workspaces: the project scope dropped from `sav_update`'s USING. A's rows are in A's project, and B's fall away on the workspace | `scratchpad/dev083-mutate.out`, `dev083-mutate-2.out` | Catalogs |
 | 6 | Coordinator | Catalogs and docs:<br>• the write registry: 4 rows `covered`, with the content tables now `INSERT`;<br>• the 4 keys removed from the baseline;<br>• DA-231 … DA-234 added, for the 4 tables that had no row;<br>• INV-001 and INV-060 cite the file; INV-015's enforcement names the version UPDATE the freeze needs and `0107`;<br>• the `STATUS.md` migrations marker is `0107`;<br>• BL-169 scheduled; BL-193 (the version UPDATE's narrowing), BL-194 (no status arm on the content INSERT policies) and BL-195 (the entity and relationship catalogs) filed, P3.<br>The validator, `typecheck` and `rls-coverage.test.ts` 31 of 31 pass. The earlier write suites use RETURNING only in admin fixtures, never in a probed statement | `git diff` | Reviews |
+| 7 | Coordinator | The suites that touch these tables and do not reset, run one at a time against the local database at `0107`: `m4-act-rls` 12 of 12, `m5-external-rls` 10 of 10, `m5-external-schema` 42 of 42. `m4-act-schema` failed 1 of 58 on its grant assertion, which pinned UPDATE and DELETE on the content tables. It now asserts SELECT and INSERT held and UPDATE and DELETE withheld, and passes 58 of 58 | Session output | Reviews |
 
 ## Findings and rework
 
@@ -104,7 +106,7 @@ Rework count and hypothesis changes: none.
 
 - Changed / inspected files: see «Owning module».
 - Review independence: `gp-architect` ran as an independent native subagent; `gp-reviewer`, `gp-security` and `gp-qa` are pending.
-- Verified scope: rows 1–6.
+- Verified scope: rows 1–7.
 - Remaining risks / blocked requirements: «What is not true after this task».
 - Next bounded action and owner: `gp-reviewer` and `gp-security`.
 - Final state and reason: implementing.
