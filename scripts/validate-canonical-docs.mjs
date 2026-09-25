@@ -863,14 +863,9 @@ const RLS_WRITE_ORDER = ["INSERT", "UPDATE", "DELETE"];
  * and a later re-grant cannot return as a gap. Keys are never added.
  */
 export const RLS_WRITE_GAP_BASELINE = Object.freeze({
-  "public.audit_events goproceed_app": "INSERT",
   "public.blocked_reasons goproceed_service": "INSERT|UPDATE|DELETE",
-  "public.external_access_grants goproceed_app": "INSERT|UPDATE",
-  "public.external_decision_batches goproceed_app": "INSERT",
-  "public.external_sessions goproceed_app": "INSERT|UPDATE",
   "public.idempotency_records goproceed_app": "INSERT",
   "public.readiness_projection goproceed_service": "INSERT|UPDATE|DELETE",
-  "public.transaction_outbox goproceed_app": "INSERT",
 });
 
 /**

@@ -64,7 +64,10 @@ export const dynamic = "force-dynamic";
  *
  * ───────────────────────────────────────────────────────────────────────────
  * INV-007'S REPLAY IS UNREACHABLE, AND THE UNIQUE KEY UNDER IT IS NOT
- * — recorded 2026-08-08, still open
+ * — recorded 2026-08-08. [2026-09-25, DEV-085 R9: superseded. 0055's
+ * edb_external_select_lineage lets a rotated session read its lineage's
+ * receipt, and m5-external.int.test.ts's INV-007 case replays it. The text
+ * below is kept as the record of 2026-08-08.]
  *
  * WHAT IS TRUE. `external_decision_batches_idempotency_key` is unique over
  * (workspace, grant, key) and `packages/testing/src/m5-external-schema.test.ts`
@@ -195,10 +198,15 @@ export const POST = externalCommandRoute(
           // sends back as `expectedVersion`. A decision exists (this branch read
           // it), so its head exists; if it does not, the lineage is broken and
           // this must say so rather than invent a number for it.
+          //
+          // DEV-085 (BL-182 S2): the lineage is named by its workspace and
+          // occurrence too, as the member route names it, so the statement does
+          // not lean on RLS for what it reads — this is the internet-facing
+          // plane.
           const head = await tx.query(
             `select version from public.requirement_evidence_decision_heads
-              where approver_role = $1`,
-            [p.approver_role as string]);
+              where workspace_id = $1 and requirement_occurrence_id = $2 and approver_role = $3`,
+            [scope.workspaceId, scope.occurrenceId, p.approver_role as string]);
           if (head.rows.length !== 1) {
             throw new Error(
               `replayed receipt ${p.receipt_id} has ${head.rows.length} heads for role `
@@ -266,8 +274,8 @@ export const POST = externalCommandRoute(
              from public.requirement_evidence_decision_heads h
              left join public.requirement_evidence_decisions d
                on d.workspace_id = h.workspace_id and d.id = h.current_decision_id
-            where h.approver_role = $1`,
-          [approverRole]);
+            where h.workspace_id = $1 and h.requirement_occurrence_id = $2 and h.approver_role = $3`,
+          [scope.workspaceId, scope.occurrenceId, approverRole]);
         const head = headRow.rows[0] as
           | { version: string | number; current_decision_id: string | null;
               current_outcome: string | null; decision_no: string | number | null }
@@ -343,11 +351,12 @@ export const POST = externalCommandRoute(
         if (head) {
           const advanced = await tx.query(
             `update public.requirement_evidence_decision_heads
-                set current_decision_id = $1, current_outcome = $2,
+                set current_decision_id = $4, current_outcome = $5,
                     version = version + 1, updated_at = now()
-              where approver_role = $3 and version = $4
+              where workspace_id = $1 and requirement_occurrence_id = $2
+                and approver_role = $3 and version = $6
               returning version`,
-            [decisionId, a.body.outcome, approverRole, headVersion]);
+            [scope.workspaceId, scope.occurrenceId, approverRole, decisionId, a.body.outcome, headVersion]);
           if (advanced.rows.length === 0) {
             throw conflict("Рішення щодо цієї вимоги щойно змінилися.");
           }

@@ -76,6 +76,7 @@ interface Outcome {
 }
 
 const refusedByPolicy: Outcome = { rowCount: null, code: "42501", reason: "policy", constraint: null };
+const refusedByPrivilege: Outcome = { rowCount: null, code: "42501", reason: "privilege", constraint: null };
 const inserted: Outcome = { rowCount: 1, code: null, reason: null, constraint: null };
 const changed = (rowCount: number): Outcome => ({ rowCount, code: null, reason: null, constraint: null });
 const byForeignKey = (constraint: string): Outcome => ({ rowCount: null, code: "23503", reason: "other", constraint });
@@ -447,6 +448,9 @@ describe("requirements cross-workspace write denial", () => {
       "update public.requirement_evidence_decision_heads set version = 424242",
       ["requirement_evidence_decision_heads"], "requirement_occurrence_id"))
       .toEqual({ outcome: changed(1), aChanged: [A.blockingA], bUnchanged: true });
+    // 0109 (DEV-085) narrowed the UPDATE to the four columns the routes set: the
+    // tenant key and the occurrence are refused by privilege; the pointer, which
+    // stays writable, by its composite foreign key.
     expect(await moveOutcomes("requirement_evidence_decision_heads", [
       ["update public.requirement_evidence_decision_heads set workspace_id = $1, project_id = $2, requirement_occurrence_id = $3, current_decision_id = $4",
         [WS_B, B.project, B.blockingB, B.DB1]],
@@ -456,10 +460,10 @@ describe("requirements cross-workspace write denial", () => {
     ], ["requirement_evidence_decision_heads"]))
       .toEqual({
         outcomes: [
-          refusedByPolicy,
+          refusedByPrivilege,
           byForeignKey("requirement_evidence_decision_heads_outcome_fkey"),
-          byForeignKey("requirement_evidence_decision_heads_occurrence_fkey"),
-          refusedByPolicy,
+          refusedByPrivilege,
+          refusedByPrivilege,
         ],
         bUnchanged: true,
       });
