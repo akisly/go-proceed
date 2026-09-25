@@ -394,7 +394,10 @@ settled it stands unchanged and settles the next disagreement the same way.
       ANOTHER WORKSPACE; on the service plane, the declared workspace reaching
       the row and another or none refused; and for the two insert-only tables, a
       refused insert in place of a read denial. Cross-workspace **write** denial
-      is outside it (BL-099), so is capability enforcement inside a workspace,
+      is outside it (BL-099) *[2026-09-24, [DEV-076](../tasks/DEV-076-write-denial-minimum.md):
+      the owner widened the minimum to it after closure, without reopening this
+      gate; the 65 write rows are gaps BL-164 … BL-173, due before real customer
+      data]*, so is capability enforcement inside a workspace,
       and so is the external-session insert branch (`audit_insert_external`,
       `outbox_insert_external`), which no test exercises. The matrix's other
       rows — unauthenticated and wrong-role denial, composite-reference

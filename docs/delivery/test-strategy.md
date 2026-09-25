@@ -258,7 +258,31 @@ artifact the first time it is pasted into a bug report.
   minimum only: an authorised same-workspace read (or, without `SELECT`, a
   write) and a read denial to an active member of another workspace, or on the
   service plane the declared workspace reaching the row and another or no
-  declared workspace refused. Cross-workspace write denial (BL-099), every other
+  declared workspace refused. **From 2026-09-24 (owner; [DEV-076](../tasks/DEV-076-write-denial-minimum.md))
+  a covered row whose principal holds `INSERT`, `UPDATE` or `DELETE`, whole or
+  on some columns, also needs a cross-workspace write denial**, registered in
+  `technical/database/rls-write-coverage.csv` with the write it holds. Per
+  privilege: an `INSERT` carrying the other workspace's tenant key and parent
+  ids refused by the policy, beside the same statement succeeding in the own
+  workspace, and one carrying the own tenant key with the other workspace's
+  parent id refused by the policy or the composite foreign key; an `UPDATE`
+  and a `DELETE` that read no column (no `WHERE`, a constant `SET`, no
+  `RETURNING` — a `WHERE` would be answered by the read policy alone), rolled
+  back, succeeding with a row count equal to the own-workspace rows it may
+  change (at least one: a statement that fails proves nothing), with the other
+  workspace's rows read back unchanged as admin; and,
+  where the principal can update the tenant key or a parent column, its own
+  row refused when moved into the other workspace. A trigger's refusal does
+  not count (`DISABLE TRIGGER USER` for the assertion, or the unused grant
+  revoked). A write row may not cite its read row's own test. The 65 rows that
+  held a write on that day are gaps, BL-164 … BL-173, due before real customer
+  data. The validator pins each gap to the writes it held that day and requires
+  every pinned key to still be a gap row, so a write granted later — a new
+  pair, or a new verb or column on an old one — arrives covered, and a key a
+  stage covers leaves the baseline. A read-gap pair's writes are registered as
+  gaps on the same backlog entry, and only within the baseline too, so a pair
+  first filed as a read gap after DEV-076 must cover its writes. No principal may hold `TRUNCATE`, `TRIGGER`,
+  `REFERENCES` or `MAINTAIN` on an in-scope relation. Every other
   row of the `tenancy-and-security.md` test list, `SECURITY DEFINER` functions,
   storage paths, sequences and other schemas stay proved by review.
   `pnpm validate:canonical-docs` checks the registry against the migrations and
@@ -285,7 +309,8 @@ artifact the first time it is pasted into a bug report.
   `transaction_outbox`), a read denial proves nothing, because every member
   read fails at the grant; the negative is the other workspace's active member
   refused an insert into A, beside its own permitted insert. This does not make
-  write denial part of the minimum elsewhere (BL-099). That negative covers
+  write denial part of the minimum elsewhere (BL-099). *[2026-09-24, DEV-076:
+  it is now, for every covered row holding a write; see above.]* That negative covers
   members only: the external-session insert branches (`audit_insert_external`,
   `outbox_insert_external`) are exercised by no test yet.]*
 - This is also M0 gate 11 in
