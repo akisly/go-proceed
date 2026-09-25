@@ -202,6 +202,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-171](#bl-171) | P1 | open | 3 external_review registry rows lack a cross-workspace write-denial test |
 | [BL-172](#bl-172) | P1 | open | 3 operational registry rows lack a cross-workspace write-denial test |
 | [BL-173](#bl-173) | P1 | open | 2 projection registry rows lack a cross-workspace write-denial test |
+| [BL-174](#bl-174) | P3 | open | Any signed-in actor can make itself owner of an organization that has no memberships |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2072,3 +2073,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 2 `gap` rows for module `projection` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment (owner, 2026-09-24).
+
+<a id="bl-174"></a>
+### BL-174 — P3 — Any signed-in actor can make itself owner of an organization that has no memberships
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-077's `gp-security` (S4), 2026-09-25. `org_insert` admits any signed-in actor with an id the actor chooses (`0004`), and `m_insert` admits an `owner` membership for the actor in any organization that has no members yet (`app.org_has_members`). Through the product this is not reachable: the BFF generates the id and creates the organization and its owner in one transaction (`apps/app/app/v1/organizations/route.ts`, `workspaces/route.ts`). At the database level, an organization left without members (a seed, an admin script, a failed half of that transaction) can be claimed by any actor. Ranked by DEV-077.
+- **Evidence:** the `m_insert` and `org_insert` policies (`technical/database/…` dump in DEV-077 row 1); `packages/testing/src/workspace-access-write-rls.test.ts` «memberships» and «organizations» cases, whose controls rely on this path.
+- **Depends on:** a design choice (`gp-architect`): confine `m_insert` to an organization created in the same transaction, or assert that no memberless organization exists.
+- **Deadline:** none recorded.

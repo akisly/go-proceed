@@ -14,10 +14,11 @@
 -- The owner ruled on 2026-09-24 that an unused write grant is revoked rather
 -- than tested, and on 2026-09-25 that this one is.
 --
--- Nothing in apps/, packages/ or scripts/ updates memberships or takes a row
--- lock on them (grep for UPDATE, FOR UPDATE / SHARE, ON CONFLICT DO UPDATE and
--- MERGE, DEV-077); the functions that change a membership are SECURITY DEFINER
--- and run with their owner's rights, not goproceed_app's. goproceed_service
+-- Nothing in apps/, packages/, scripts/ or supabase/functions/ updates
+-- memberships or takes a row lock on them (grep for UPDATE, FOR UPDATE / SHARE,
+-- ON CONFLICT DO UPDATE and MERGE, DEV-077). In supabase/migrations/ the only
+-- row locks on memberships are inside two SECURITY DEFINER functions (0062,
+-- 0085), which run with their owner's rights, not goproceed_app's. goproceed_service
 -- reached the grant through its membership in goproceed_app and loses it too.
 --
 -- The 0039 precedent: remove the false affordance rather than build the

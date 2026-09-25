@@ -55,7 +55,11 @@ interface Side {
   invitation: string; contact: string; projectParty: string; assignment: string;
 }
 
-interface Outcome { rowCount: number | null; code: string | null }
+/**
+ * `reason` separates the two refusals SQLSTATE 42501 names (gp-security DEV-077 S2):
+ * `policy` — «new row violates row-level security policy»; `privilege` — «permission denied».
+ */
+interface Outcome { rowCount: number | null; code: string | null; reason: "policy" | "privilege" | "other" | null }
 
 let admin: Client;
 let A: Side;
@@ -145,11 +149,14 @@ async function probe(body: (p: Probe) => Promise<void>, disableTriggersOn?: stri
           const r = await c.query(sql, params);
           await c.query("release savepoint probe");
           await c.query("reset role");
-          return { rowCount: r.rowCount, code: null };
+          return { rowCount: r.rowCount, code: null, reason: null };
         } catch (e) {
           await c.query("rollback to savepoint probe");
           await c.query("reset role");
-          return { rowCount: null, code: (e as { code?: string }).code ?? "unknown" };
+          const { code, message } = e as { code?: string; message?: string };
+          const reason = /row-level security policy/.test(message ?? "") ? "policy"
+            : /permission denied/.test(message ?? "") ? "privilege" : "other";
+          return { rowCount: null, code: code ?? "unknown", reason };
         }
       },
       async admin(sql, params = []) {
@@ -179,7 +186,7 @@ async function countOf(p: Probe, table: string, tenant: string, ws: string): Pro
 async function updateReadsNoColumn(
   table: string, set: string, tenant = "workspace_id", disable?: string,
 ): Promise<{ outcome: Outcome; own: number; before: string[]; after: string[] }> {
-  let result = { outcome: { rowCount: null, code: null } as Outcome, own: -1, before: [] as string[], after: [] as string[] };
+  let result = { outcome: { rowCount: null, code: null, reason: null } as Outcome, own: -1, before: [] as string[], after: [] as string[] };
   await probe(async (p) => {
     const own = await countOf(p, table, tenant, WS_A);
     const before = await snapshot(p, table, tenant, WS_B);
@@ -218,39 +225,41 @@ describe("workspace_access cross-workspace write denial", () => {
     await probe(async (p) => {
       const hash = (tag: string) => createHash("sha256").update(`dev077:probe:${tag}`).digest("hex");
       const insert = "insert into public.invitations (workspace_id, email, role, token_hash, expires_at, invited_by, accepted_membership_id) values ($1, $2, 'member', $3, now() + interval '1 day', $4, $5)";
-      expect(await p.as(insert, [WS_B, "probe-b@fixture.test", hash("b"), USER_A, null])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, "probe-b@fixture.test", hash("b"), USER_A, null])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, "probe-mixed@fixture.test", hash("mixed"), USER_A, B.member]))
         .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, "probe-a@fixture.test", hash("a"), USER_A, null])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, "probe-a@fixture.test", hash("a"), USER_A, null])).toEqual({ rowCount: 1, code: null, reason: null });
       expect(await p.as("update public.invitations set workspace_id = $1", [WS_B]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
+      expect(await p.as("update public.invitations set accepted_membership_id = $1", [B.member]))
+        .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
     });
     const u = await updateReadsNoColumn("invitations", "updated_at = now()");
     expect(u.own).toBeGreaterThanOrEqual(1);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
   });
 
   it("legal_entities: an owner of A cannot insert a legal entity into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.legal_entities (organization_id, legal_name) values ($1, 'Приклад-Юрособа-проба')";
-      expect(await p.as(insert, [WS_B])).toEqual({ rowCount: null, code: "42501" });
-      expect(await p.as(insert, [WS_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_B])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
+      expect(await p.as(insert, [WS_A])).toEqual({ rowCount: 1, code: null, reason: null });
     });
   });
 
   it("memberships: an owner of A cannot join B, and no member can update a membership", async () => {
     await probe(async (p) => {
       const insert = "insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'owner', 'active')";
-      expect(await p.as(insert, [WS_B, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       // The control: the bootstrap membership of a workspace the actor has just created (m_insert
       // admits an owner row only where the workspace has no members yet; A already has one).
       const fresh = randomUUID();
       expect(await p.as("insert into public.organizations (id, legal_name, display_name) values ($1, 'Приклад-C', 'Приклад-C')", [fresh]))
-        .toEqual({ rowCount: 1, code: null });
-      expect(await p.as(insert, [fresh, USER_A])).toEqual({ rowCount: 1, code: null });
+        .toEqual({ rowCount: 1, code: null, reason: null });
+      expect(await p.as(insert, [fresh, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
       // 0103: the UPDATE grant is gone, so an UPDATE is refused at the privilege, own rows included.
-      expect(await p.as("update public.memberships set role = 'owner'")).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as("update public.memberships set role = 'owner'")).toEqual({ rowCount: null, code: "42501", reason: "privilege" });
     });
   });
 
@@ -259,11 +268,11 @@ describe("workspace_access cross-workspace write denial", () => {
     // key, the absent UPDATE grant behind ON CONFLICT DO UPDATE, and the composite foreign key.
     await probe(async (p) => {
       const insert = "insert into public.organizations (id, legal_name, display_name, default_own_party_id) values ($1, 'Приклад-проба', 'Приклад-проба', $2)";
-      expect(await p.as(insert, [WS_B, null])).toEqual({ rowCount: null, code: "23505" });
+      expect(await p.as(insert, [WS_B, null])).toEqual({ rowCount: null, code: "23505", reason: "other" });
       expect(await p.as(`${insert} on conflict (id) do update set display_name = 'Приклад-захоплено'`, [WS_B, null]))
-        .toEqual({ rowCount: null, code: "42501" });
-      expect(await p.as(insert, [randomUUID(), B.x])).toEqual({ rowCount: null, code: "23503" });
-      expect(await p.as(insert, [randomUUID(), null])).toEqual({ rowCount: 1, code: null });
+        .toEqual({ rowCount: null, code: "42501", reason: "privilege" });
+      expect(await p.as(insert, [randomUUID(), B.x])).toEqual({ rowCount: null, code: "23503", reason: "other" });
+      expect(await p.as(insert, [randomUUID(), null])).toEqual({ rowCount: 1, code: null, reason: null });
       expect(await p.admin<{ d: string }>("select display_name as d from public.organizations where id = $1", [WS_B]))
         .toEqual([{ d: "Приклад-Простір-B" }]);
     });
@@ -272,78 +281,78 @@ describe("workspace_access cross-workspace write denial", () => {
   it("own_legal_entity_profiles: an owner of A cannot insert B's own legal entity", async () => {
     await probe(async (p) => {
       const insert = "insert into public.own_legal_entity_profiles (workspace_id, party_id, created_by) values ($1, $2, $3)";
-      expect(await p.as(insert, [WS_B, B.y, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.y, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, B.y, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.y, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.y, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
     });
   });
 
   it("parties: an owner of A cannot insert, update or move a party into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.parties (workspace_id, display_name, created_by) values ($1, 'Приклад-проба', $2)";
-      expect(await p.as(insert, [WS_B, USER_A])).toEqual({ rowCount: null, code: "42501" });
-      expect(await p.as(insert, [WS_A, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_B, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
+      expect(await p.as(insert, [WS_A, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
       expect(await p.as("update public.parties set workspace_id = $1", [WS_B]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
     });
     const u = await updateReadsNoColumn("parties", "display_name = 'Приклад-проба'");
     expect(u.own).toBeGreaterThanOrEqual(1);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
   });
 
   it("party_contacts: an owner of A cannot insert, update or move a contact into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.party_contacts (workspace_id, party_id, full_name, created_by) values ($1, $2, 'Приклад-проба', $3)";
-      expect(await p.as(insert, [WS_B, B.x, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.x, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, B.x, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.x, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.x, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
       expect(await p.as("update public.party_contacts set workspace_id = $1, party_id = $2", [WS_B, B.x]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as("update public.party_contacts set party_id = $1", [B.x]))
         .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
     });
     const u = await updateReadsNoColumn("party_contacts", "role_title = 'Приклад-проба'");
     expect(u.own).toBeGreaterThanOrEqual(1);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
   });
 
   it("party_legal_profiles: an owner of A cannot insert, update or move a legal profile into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.party_legal_profiles (workspace_id, party_id, official_name, updated_by) values ($1, $2, 'Приклад-проба ТОВ', $3)";
-      expect(await p.as(insert, [WS_B, B.z, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.z, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, B.z, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.z, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.z, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
       // Both profiles, the own legal entity's (the CASE's owner branch) and Y's (its ELSE branch).
       expect(await p.as("update public.party_legal_profiles set workspace_id = $1, party_id = $2", [WS_B, B.z]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
       // A parent column alone is the composite foreign key's to refuse; one row, so the unique key cannot answer first.
       expect(await p.as("update public.party_legal_profiles set party_id = $1 where party_id = $2", [B.z, A.y]))
         .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
     });
     const u = await updateReadsNoColumn("party_legal_profiles", "tax_status = 'Приклад-проба'");
     expect(u.own).toBeGreaterThanOrEqual(1);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
   });
 
   it("project_access_grants: an owner of A cannot grant on B's project or change B's grants", async () => {
     await probe(async (p) => {
       const insert = "insert into public.project_access_grants (workspace_id, project_id, member_id, capability, granted_by) values ($1, $2, $3, 'contracts.edit', $4)";
-      expect(await p.as(insert, [WS_B, B.p1, B.member, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.p1, B.member, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       // The bootstrap branch (a project with no grants yet) admits only the actor's own membership in that workspace.
       const p3 = await p.admin<{ id: string }>(
         "insert into public.projects (workspace_id, name, created_by) values ($1, 'Приклад-Обʼєкт-B-3', $2) returning id", [WS_B, USER_B]);
-      expect(await p.as(insert, [WS_B, p3[0]!.id, B.member, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, p3[0]!.id, B.member, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, A.p1, B.member, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
       expect(await p.as(insert, [WS_A, B.p1, A.member, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.p1, A.member, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.p1, A.member, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
     });
     // UPDATE is granted on (revoked_at, version) only, neither of which carries a key: no move-out.
-    const u = await updateReadsNoColumn("project_access_grants", "version = 1", "workspace_id", "project_access_grants");
+    const u = await updateReadsNoColumn("project_access_grants", "version = 424242", "workspace_id", "project_access_grants");
     expect(u.own).toBe(4);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
     expect(await triggersEnabled("project_access_grants")).toEqual(["O"]);
   });
@@ -351,19 +360,21 @@ describe("workspace_access cross-workspace write denial", () => {
   it("project_field_channels: an owner of A cannot open, update, move or lock a channel into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.project_field_channels (workspace_id, project_id, channel, locked_at, locked_by_member_id) values ($1, $2, 'telegram', $3, $4)";
-      expect(await p.as(insert, [WS_B, B.p2, null, null])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.p2, null, null])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, A.p2, new Date(), B.member])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.p2, null, null])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.p2, null, null])).toEqual({ rowCount: 1, code: null, reason: null });
     });
     await probe(async (p) => {
       expect(await p.as("update public.project_field_channels set workspace_id = $1, project_id = $2", [WS_B, B.p2]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as("update public.project_field_channels set locked_at = now(), locked_by_member_id = $1", [B.member]))
         .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
+      expect(await p.as("update public.project_field_channels set project_id = $1", [B.p2]))
+        .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
     }, "project_field_channels");
-    const u = await updateReadsNoColumn("project_field_channels", "version = 1", "workspace_id", "project_field_channels");
+    const u = await updateReadsNoColumn("project_field_channels", "version = 424242", "workspace_id", "project_field_channels");
     expect(u.own).toBeGreaterThanOrEqual(1);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
     expect(await triggersEnabled("project_field_channels")).toEqual(["O"]);
   });
@@ -371,49 +382,51 @@ describe("workspace_access cross-workspace write denial", () => {
   it("project_parties: an owner of A cannot insert, update or move a project party into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.project_parties (workspace_id, project_id, party_id, relationship, created_by) values ($1, $2, $3, 'designer', $4)";
-      expect(await p.as(insert, [WS_B, B.p1, B.x, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.p1, B.x, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, A.p1, B.x, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.p1, A.x, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.p1, A.x, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
       expect(await p.as("update public.project_parties set workspace_id = $1, project_id = $2, party_id = $3", [WS_B, B.p1, B.x]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as("update public.project_parties set party_id = $1", [B.x]))
+        .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
+      expect(await p.as("update public.project_parties set project_id = $1", [B.p1]))
         .toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
     });
     const u = await updateReadsNoColumn("project_parties", "note = 'Приклад-проба'");
     expect(u.own).toBeGreaterThanOrEqual(1);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
   });
 
   it("project_responsibility_assignment_ends: an owner of A cannot end B's assignment", async () => {
     await probe(async (p) => {
       const insert = "insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by) values ($1, $2, $3, $4)";
-      expect(await p.as(insert, [WS_B, B.p1, B.assignment, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.p1, B.assignment, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, A.p1, B.assignment, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.p1, A.assignment, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.p1, A.assignment, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
     });
   });
 
   it("project_responsibility_assignments: an owner of A cannot assign on B's project or to B's member", async () => {
     await probe(async (p) => {
       const insert = "insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by) values ($1, $2, $3, 'evidence_recorder', $4)";
-      expect(await p.as(insert, [WS_B, B.p1, B.member, USER_A])).toEqual({ rowCount: null, code: "42501" });
+      expect(await p.as(insert, [WS_B, B.p1, B.member, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.as(insert, [WS_A, A.p1, B.member, USER_A])).toMatchObject({ code: expect.stringMatching(/^(42501|23503)$/) });
-      expect(await p.as(insert, [WS_A, A.p1, A.member, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_A, A.p1, A.member, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
     });
   });
 
   it("projects: an owner of A cannot insert, update or move a project into B", async () => {
     await probe(async (p) => {
       const insert = "insert into public.projects (workspace_id, name, created_by) values ($1, 'Приклад-Обʼєкт-проба', $2)";
-      expect(await p.as(insert, [WS_B, USER_A])).toEqual({ rowCount: null, code: "42501" });
-      expect(await p.as(insert, [WS_A, USER_A])).toEqual({ rowCount: 1, code: null });
+      expect(await p.as(insert, [WS_B, USER_A])).toEqual({ rowCount: null, code: "42501", reason: "policy" });
+      expect(await p.as(insert, [WS_A, USER_A])).toEqual({ rowCount: 1, code: null, reason: null });
       expect(await p.as("update public.projects set workspace_id = $1", [WS_B]))
-        .toEqual({ rowCount: null, code: "42501" });
+        .toEqual({ rowCount: null, code: "42501", reason: "policy" });
     });
     const u = await updateReadsNoColumn("projects", "description = 'Приклад-проба'");
     expect(u.own).toBe(2);
-    expect(u.outcome).toEqual({ rowCount: u.own, code: null });
+    expect(u.outcome).toEqual({ rowCount: u.own, code: null, reason: null });
     expect(u.after).toEqual(u.before);
   });
 });
