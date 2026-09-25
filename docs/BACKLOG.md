@@ -133,7 +133,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-102](#bl-102) | P1 | closed → DEV-017 | The service plane's capture-event insert ignores the workspace it declares, and its caller declares none |
 | [BL-103](#bl-103) | P2 | closed → DEV-020 | A repeat of an idempotent command replays its stored response before membership is checked |
 | [BL-104](#bl-104) | P1 | closed → DEV-019 | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
-| [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
+| [BL-105](#bl-105) | P3 | scheduled → DEV-084 | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
 | [BL-106](#bl-106) | P3 | closed → DEV-055 | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
@@ -198,7 +198,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-167](#bl-167) | P1 | closed → DEV-080 | 9 requirements registry rows lack a cross-workspace write-denial test |
 | [BL-168](#bl-168) | P1 | closed → DEV-081 | 6 execution registry rows lack a cross-workspace write-denial test |
 | [BL-169](#bl-169) | P1 | closed → DEV-083 | 4 statutory registry rows lack a cross-workspace write-denial test |
-| [BL-170](#bl-170) | P1 | open | 3 evidence registry rows lack a cross-workspace write-denial test |
+| [BL-170](#bl-170) | P1 | scheduled → DEV-084 | 3 evidence registry rows lack a cross-workspace write-denial test |
 | [BL-171](#bl-171) | P1 | open | 3 external_review registry rows lack a cross-workspace write-denial test |
 | [BL-172](#bl-172) | P1 | open | 3 operational registry rows lack a cross-workspace write-denial test |
 | [BL-173](#bl-173) | P1 | open | 2 projection registry rows lack a cross-workspace write-denial test |
@@ -224,6 +224,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-193](#bl-193) | P3 | open | The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns |
 | [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
+| [BL-196](#bl-196) | P3 | open | An upload intent may name any member of its workspace as its creator |
+| [BL-197](#bl-197) | P3 | open | An upload intent's kept columns are unconstrained in value: a negative quota reservation, or a bucket and key outside the evidence bucket for the purge to delete |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1318,6 +1320,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-014's `gp-architect` design (O-1). `withServiceTx` (`packages/database/src/tx.ts`) keeps the caller's `app.actor_user_id`, and `goproceed_service` inherits the `to goproceed_app` policies, which combine with its own by `OR`. On the tables both planes can read (`communication_messages`, `communication_message_events`, `communication_attachments`, `telegram_chat_bindings`, `telegram_media_groups`), an actor entitled to workspace A therefore reads A's rows through a service transaction that declared workspace B. This is not a cross-tenant leak, because the actor is entitled to A, but `adoptServiceWorkspace`'s comment («confines every subsequent statement to this workspace») holds only with an empty actor. DEV-014's service-plane tests use an empty actor, so they prove the service policy and not this path. The callers that keep the actor, found by DEV-014's `gp-security` (S1-02): `apps/app/app/v1/projects/[projectId]/communications/route.ts:241`, `.../communications/[messageId]/retry/route.ts:90`, `apps/app/app/v1/assignments/[assignmentId]/communication-card/route.ts:52`, the Telegram `member-link-intents` (`:47`) and `binding-intents` (`:50`) routes, and `apps/app/src/lib/evidence/finalize-upload-intent.ts:29,142,168` (evidence tables); every Telegram processor, ingress, linking and erasure path passes an empty actor. In those routes a lookup by id inside a transaction declared for workspace X can return a row of another workspace where the actor holds `project.view` or `project.admin`. The fix should also say in `adoptServiceWorkspace`'s comment that the confinement holds only with an empty actor. DEV-015 (0086) confined the two readiness projections' service policies and added them to the affected set: `rp_select` and `br_select` still admit an entitled actor's other workspaces to a service transaction. DEV-015's `gp-architect` named the clean fix: a restrictive policy `as restrictive for all to goproceed_service using (workspace_id = app.service_workspace()) with check (…)` on every table both planes read, which combines with every permissive branch by AND and touches only the service role. Ranked by DEV-014.
+- **Scope (DEV-084 gp-security S3, 2026-09-25):** the same inheritance reaches `upload_intents`: `goproceed_service` holds the 22-column INSERT of `goproceed_app` (0108) and `ui_insert` applies to it, so an actor-bearing service transaction can create an intent wherever the actor holds `evidence.record`, whatever it declares. No production path does; `rls-coverage.csv` has no `upload_intents × goproceed_service` pair, so the write registry does not see it.
 - **Evidence:** observed 2026-09-17: `packages/testing/src/communication-rls.test.ts` header; a mutation run in DEV-014 (row 5) shows the service-plane assertions depend on the declared workspace. Unverified: a test with a member of both workspaces (`asService(USER, WS_B)` reading A's rows) has not been written.
 - **Depends on:** none.
 - **Deadline:** none recorded.
@@ -1357,9 +1360,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-105"></a>
 ### BL-105 — P3 — A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment
 
-- **State:** open
+- **State:** scheduled → DEV-084
 - **Legacy cite:** none
-- **Why:** DEV-017's `gp-security` review (S1-04). `public.capture_events` has no foreign key on `work_assignment_id` (nor on `project_id`; `0035:145` records why the server branch carries the intent instead), and `0087` binds only the workspace, the intent and the project (`ce_insert_server` through `app.upload_intent_scope_matches`). A service transaction declaring workspace A may therefore write a row of A that names an assignment id belonging to another workspace: not a cross-tenant read and not a cross-tenant write, but a row whose own references do not agree, which every other tenant relation prevents with a composite foreign key (INV-001). Pre-existing; `0087` neither introduces nor closes it. The fix is the composite-FK treatment the rest of the schema uses, or one more term in the policy. Ranked by DEV-017.
+- **Why:** *[2026-09-25, DEV-084: the owner chose to fold it into BL-170; `0108` adds `capture_events_assignment_fkey` (workspace, project, assignment) → `work_assignments`, and `evidence-write-rls.test.ts` asserts it on both planes.]* DEV-017's `gp-security` review (S1-04). `public.capture_events` has no foreign key on `work_assignment_id` (nor on `project_id`; `0035:145` records why the server branch carries the intent instead), and `0087` binds only the workspace, the intent and the project (`ce_insert_server` through `app.upload_intent_scope_matches`). A service transaction declaring workspace A may therefore write a row of A that names an assignment id belonging to another workspace: not a cross-tenant read and not a cross-tenant write, but a row whose own references do not agree, which every other tenant relation prevents with a composite foreign key (INV-001). Pre-existing; `0087` neither introduces nor closes it. The fix is the composite-FK treatment the rest of the schema uses, or one more term in the policy. Ranked by DEV-017.
 - **Evidence:** observed 2026-09-18 at `e7e35aa` from the policy and table definitions (`0015`, `0035`, `0087`); local database at `0087`. Unverified: whether any code path could produce such a row today — the only server writer resolves the assignment from the intent it just read.
 - **Depends on:** none.
 - **Deadline:** none recorded.
@@ -2057,7 +2060,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-170"></a>
 ### BL-170 — P1 — 3 evidence registry rows lack a cross-workspace write-denial test
 
-- **State:** open
+- **State:** scheduled → DEV-084
 - **Legacy cite:** none
 - **Why:** BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 3 relation–principal rows (2 relations) as `gap`: `public.capture_events` (goproceed_app): INSERT; `public.capture_events` (goproceed_service): INSERT; `public.upload_intents` (goproceed_app): INSERT. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 3 `gap` rows for module `evidence` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
@@ -2388,4 +2391,33 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **Ranking.** Ranked by DEV-083.
 - **Evidence:** the two catalogs; `supabase/migrations/0047_the_act_assembled_from_recorded_facts.sql`.
 - **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-196"></a>
+### BL-196 — P3 — An upload intent may name any member of its workspace as its creator
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-084's `gp-architect` (Q4), 2026-09-25.
+  - **The gap.** `ui_insert` asks `evidence.record` on the row's project and nothing of `created_by_member_id`, which the composite foreign key binds only to the workspace. A member can create an intent attributed to another member of the same workspace; `ce_insert` then admits capture events only for that other member.
+  - **Its bounds.** Inside one workspace; the authorize route always writes the actor's own member id. Raw SQL on the application plane is needed.
+  - **The fix.** `created_by_member_id = app.active_member_id(workspace_id)` in `ui_insert`'s WITH CHECK, and a same-workspace test with a second member.
+  - **Ranking.** Ranked by DEV-084.
+- **Evidence:** `supabase/migrations/0016_execution_evidence_security.sql` (`ui_insert`); `apps/app/src/lib/evidence/authorize-upload-intent.ts`.
+- **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-197"></a>
+### BL-197 — P3 — An upload intent's kept columns are unconstrained in value: a negative quota reservation, or a bucket and key outside the evidence bucket for the purge to delete
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-084's `gp-security` (S1), 2026-09-25; older than DEV-084. `0108` withdrew the state and purge columns from the INSERT grant, but the columns it keeps carry no CHECK and `ui_insert` asks only `evidence.record`. By raw SQL on the application plane, inside the actor's own workspace:
+  - **Quota.** `quota_reserved_bytes = -10^12` with a far `expires_at`: `app.evidence_bytes_in_use` (0031) sums it, and the workspace's quota is defeated for good.
+  - **Purge.** `staging_bucket = 'requirement-reference-images'` with a reference image's key (readable to any member through `rriv_select`) and a past `expires_at`: expiry, then `app.claim_upload_purge`, hands that bucket and key to the purge worker, which deletes an operator-provisioned illustration with the secret key.
+  - **Its bounds.** One workspace; another's keys are not readable, and `upload_intents_staging_key_key` refuses a key an intent already holds. The authorize route writes none of these shapes.
+  - **The fix.** In `ui_insert`'s WITH CHECK: `staging_bucket = 'evidence'`, a `<uuid>/<uuid>` key, `quota_reserved_bytes = expected_byte_size`, and `expires_at` within the route's TTL — all of which the route already satisfies. The test: as the owner of A, `intent(A)` with a negative reservation, and separately with the reference bucket, each refused by the policy.
+  - **Ranking.** Ranked by DEV-084.
+- **Evidence:** `supabase/migrations/0015_execution_evidence_module.sql` (the columns), `0016` (`ui_insert`), `0031` (`app.evidence_bytes_in_use`), `0090`/`0091` (expiry and the purge claim); `apps/app/src/lib/evidence/authorize-upload-intent.ts`.
+- **Depends on:** `gp-architect`, `gp-security`.
 - **Deadline:** none recorded.
