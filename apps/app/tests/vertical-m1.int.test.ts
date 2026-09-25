@@ -184,10 +184,13 @@ describe("v0.1-M1 vertical: parties → contracts → import → publish → rei
     const b2 = await call(import("../app/v1/contracts/[contractId]/import-batches/route"), "POST", "http://x",
       {}, { contractId: contract1 });
     const batch2 = (await b2.json()).batchId;
-    await addXlsx(batch2, "приклад-кошторис-v2.xlsx", await buildEstimateV2());
+    const up2 = await addXlsx(batch2, "приклад-кошторис-v2.xlsx", await buildEstimateV2());
+    expect(up2.status).toBe(201);
     const val2body = await (await call(import("../app/v1/import-batches/[batchId]/validate/route"), "POST", "http://x",
       { mapping: MAPPING_V1, config: { headerRow: 1, locale: "uk-UA" }, expectedVersion: 2 }, { batchId: batch2 })).json();
-    expect(val2body.status).toBe("preview_ready");
+    // With its failure codes, so a failed parse names itself in the log (BL-064).
+    expect({ status: val2body.status, failureCodes: val2body.failureCodes })
+      .toEqual({ status: "preview_ready", failureCodes: [] });
     // The SAME rule version v1 bound. The uniqueness that stops a rule
     // contributing twice is per contract version, and v2 is a new one — so a
     // reimport pins the same obligations to the new baseline rather than

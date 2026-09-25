@@ -22,7 +22,13 @@ export async function parseXlsx(
 
   const wb = new ExcelJS.Workbook();
   try {
-    await wb.xlsx.load(Buffer.from(bytes).buffer as ArrayBuffer);
+    // An exact-length copy with its own ArrayBuffer: the bytes the guard just
+    // checked, and nothing else. `Buffer.from(bytes).buffer` is Node's shared
+    // allocation pool (64 KiB on Node 24) for any upload under half its size,
+    // so the parser used to read the workbook embedded among leftover bytes of
+    // other allocations, and failed as malformed when they held a zip
+    // signature (DEV-082, BL-064).
+    await wb.xlsx.load(bytes.slice().buffer as ArrayBuffer);
   } catch {
     return { ok: false, errors: ["XLSX_MALFORMED"] };
   }

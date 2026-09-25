@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import ExcelJS from "exceljs";
 import { deflateRawSync } from "node:zlib";
 import { guardXlsxContainer } from "./xlsx-guard";
@@ -121,6 +121,32 @@ describe("guardXlsxContainer (INV-016)", () => {
 });
 
 describe("parseXlsx", () => {
+  it("hands the parser exactly the bytes the guard checked, whatever buffer holds them (DEV-082, BL-064)", async () => {
+    const bytes = await buildXlsx([["Приклад", 1]]);
+    // The upload as a view into a larger buffer: before DEV-082 the parser got
+    // the whole backing ArrayBuffer (on Node 24, Node's shared 64 KiB pool for
+    // any upload under 32 KiB), with other allocations' bytes around the file.
+    const host = new Uint8Array(bytes.length + 4096);
+    host.set(bytes, 1024);
+    const view = host.subarray(1024, 1024 + bytes.length);
+    const xlsxProto = Object.getPrototypeOf(new ExcelJS.Workbook().xlsx) as { load: (data: unknown) => Promise<unknown> };
+    const load = vi.spyOn(xlsxProto, "load");
+    // Node 24's pool size on any Node, so a copy through Buffer.from lands in
+    // the shared pool here too.
+    const poolSize = Buffer.poolSize;
+    Buffer.poolSize = 64 * 1024;
+    try {
+      const r = await parseXlsx(view);
+      expect(r.ok).toBe(true);
+      const arg = load.mock.calls[0]![0] as ArrayBuffer;
+      expect(arg.byteLength).toBe(bytes.length);
+      expect(new Uint8Array(arg)).toEqual(bytes);
+    } finally {
+      Buffer.poolSize = poolSize;
+      load.mockRestore();
+    }
+  });
+
   it("reads cells with worksheet + 1-based row provenance", async () => {
     const b = await buildXlsx([["Назва", "К-сть"], ["Бетон", 12.5]]);
     const p = await parseXlsx(b);

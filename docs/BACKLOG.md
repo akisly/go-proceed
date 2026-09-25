@@ -92,7 +92,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-061](#bl-061) | P2 | closed → DEV-069 | vitest 3.2.4 → 4 |
 | [BL-062](#bl-062) | P2 | closed → DEV-067 | Three TypeScript versions in one workspace |
 | [BL-063](#bl-063) | P2 | closed → DEV-066 | `scripts/validate_package.py` is orphaned |
-| [BL-064](#bl-064) | P2 | open | vertical-m1 steps 7 and 8 went red once and never again |
+| [BL-064](#bl-064) | P1 | scheduled → DEV-082 | vertical-m1 steps 7 and 8 went red once and never again |
 | [BL-065](#bl-065) | P2 | open | A page render costs about three auth round trips and two self-fetch hops |
 | [BL-066](#bl-066) | P3 | open | `turbo-ignore` is deprecated |
 | [BL-067](#bl-067) | P3 | open | CI's `apt-get` step has no timeout or retry |
@@ -946,11 +946,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-064"></a>
-### BL-064 — P2 — vertical-m1 steps 7 and 8 went red once and never again
+### BL-064 — P1 — vertical-m1 steps 7 and 8 went red once and never again
 
-- **State:** open
+- **State:** scheduled → DEV-082
 - **Legacy cite:** `TODOS.md` «vertical-m1 steps 7 and 8 went red once and would not do it again»
-- **Why:** a real unexplained red in one full serialized run on 2026-08-10. The hypothesis to test first is cross-package residue from `@goproceed/testing` running before `apps/app`.
+- **Why:** *[2026-09-25, DEV-082: root-caused. `parseXlsx` handed ExcelJS `Buffer.from(bytes).buffer` — Node's whole shared allocation pool (64 KiB on Node 24, the engine this repository pins, for any buffer under 32 KiB) — so the parser read the workbook among leftover bytes of other allocations and threw on a stray zip signature, which the parser reports as `XLSX_MALFORMED` and the validate route as `failed`. Reproduced at about 1% of parses on Node 24.21.0 and never on Node 22. Raised to P1: it fails real imports, and the parser read up to 64 KiB of process memory the upload guard never checked.]* a real unexplained red in one full serialized run on 2026-08-10. The hypothesis to test first is cross-package residue from `@goproceed/testing` running before `apps/app`.
 - **Evidence:** none since; CI history was not searched for a recurrence. *[2026-09-24: it recurred. CI run 36024385064 (`claude/app-qa-otp-flake`, `9f885170`, verify job 107717069989): step 7 failed at `vertical-m1.int.test.ts:190` with «expected 'failed' to be 'preview_ready'», then step 8 failed at `:222` with «expected { …(11) } to deeply equal undefined». The change under test touched only `apps/app/qa/field.mjs` and docs. Recorded by [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md).]*
 - **Depends on:** a recurrence: capture the assertion text before re-running.
 - **Deadline:** none recorded.
