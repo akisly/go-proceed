@@ -861,12 +861,11 @@ const RLS_WRITE_ORDER = ["INSERT", "UPDATE", "DELETE"];
  * granted later, on a new pair or an old one, arrives covered. Every key must
  * still be a gap row, so a stage that covers or revokes a pair removes its key,
  * and a later re-grant cannot return as a gap. Keys are never added.
+ *
+ * Empty since DEV-086 (2026-09-25): every key DEV-076 filed is covered or
+ * revoked. The ratchet stays: a write gap row is now refused outright.
  */
-export const RLS_WRITE_GAP_BASELINE = Object.freeze({
-  "public.blocked_reasons goproceed_service": "INSERT|UPDATE|DELETE",
-  "public.idempotency_records goproceed_app": "INSERT",
-  "public.readiness_projection goproceed_service": "INSERT|UPDATE|DELETE",
-});
+export const RLS_WRITE_GAP_BASELINE = Object.freeze({});
 
 /**
  * The write registry against the read registry, the backlog and the cited test
