@@ -179,6 +179,7 @@ export function LineReveal({
         {reduced ? (
           <motion.span
             data-line-reveal=""
+            data-entrance=""
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: REDUCED.duration, ease: REDUCED.ease }}

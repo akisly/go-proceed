@@ -115,7 +115,7 @@ export function StaggerItem({
 }) {
   const reduced = useReduced();
   return (
-    <motion.div className={className} variants={child(reduced, y, from, size)}>
+    <motion.div className={className} data-entrance="" variants={child(reduced, y, from, size)}>
       {children}
     </motion.div>
   );

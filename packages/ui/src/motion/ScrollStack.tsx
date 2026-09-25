@@ -99,6 +99,7 @@ export function ScrollStackCard({
         style={{ scale: on ? scale : 1, y: on ? y : 0, transformOrigin: "50% 0%" }}
       >
         <motion.div
+          data-entrance=""
           initial={reduced ? { opacity: 0 } : { opacity: 0, y: 40 }}
           whileInView={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.15 }}

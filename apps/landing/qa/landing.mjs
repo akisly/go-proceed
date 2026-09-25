@@ -908,6 +908,54 @@ try {
     && x.cardHoverReduced.moved === 0 && x.cardHoverReduced.answered;
   console.log(`interactions: ${interactionsOk ? "ok" : "PROBLEM"} ${JSON.stringify(x)}`);
 
+  // WITH SCRIPTING OFF, EVERY VISIBLE TEXT ELEMENT IN <main> PAINTS (BL-116,
+  // DEV-091). What sits in a `hidden` panel — a closed FAQ answer, an inactive
+  // tab — is not counted (BL-209), and only opacity is read, not a clip, a mask
+  // or `visibility`. `Reveal`
+  // and `StaggerItem` server-render their hidden first frame and only
+  // JavaScript clears it; the layout's `<noscript>` rule, scoped to their
+  // `data-entrance` mark, shows them at rest instead. Each route is loaded with
+  // scripting off and given time for the fold's CSS `entrance` to finish; then
+  // no text-bearing element in <main> may sit under an opacity of 0, except
+  // inside a `hidden` panel, and /pilot's form must be among what paints. The
+  // same pages with the rule removed are counted too, so the pass shows what it
+  // guards against rather than a count that could be zero for another reason.
+  async function noScript() {
+    const out = {};
+    for (const [route, path] of ROUTES) {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+      await page.setJavaScriptEnabled(false);
+      await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: "load" });
+      await new Promise((r) => setTimeout(r, 2000));
+      const measure = () => {
+        const zero = (el) => { for (let n = el; n && n !== document.documentElement; n = n.parentElement) { if (parseFloat(getComputedStyle(n).opacity) === 0) return true; } return false; };
+        const texts = [...document.querySelectorAll("main *")]
+          .filter((el) => [...el.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()) && !el.closest("[hidden]"));
+        const form = document.querySelector("main form");
+        return { texts: texts.length, hidden: texts.filter(zero).length, form: form ? !zero(form) : null };
+      };
+      const shown = await page.evaluate(measure);
+      const rule = await page.evaluate(() => document.querySelectorAll("noscript style").length);
+      await page.evaluate(() => document.querySelectorAll("noscript style").forEach((el) => el.remove()));
+      const withoutRule = await page.evaluate(measure);
+      await page.close();
+      // With scripting on, the same `<noscript>` body is inert text: no style
+      // node, so no entrance is flattened for a scripted reader (R3).
+      const scripted = await browser.newPage();
+      await scripted.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+      await scripted.goto(`http://localhost:${PORT}${path}`, { waitUntil: "networkidle0" });
+      const ruleScripted = await scripted.evaluate(() => document.querySelectorAll("noscript style").length);
+      await scripted.close();
+      out[route] = { ...shown, rule, hiddenWithoutRule: withoutRule.hidden, ruleScripted };
+    }
+    return out;
+  }
+  report.noScript = await noScript();
+  const noScriptOk = Object.entries(report.noScript).every(([route, r]) => r.rule === 1 && r.ruleScripted === 0 && r.texts > 0 && r.hidden === 0
+    && r.hiddenWithoutRule > 0 && (route !== "pilot" || r.form === true));
+  console.log(`no-script: ${noScriptOk ? "ok" : "PROBLEM"} ${JSON.stringify(report.noScript)}`);
+
   const og = await browser.newPage();
   await og.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
   await og.goto(`http://localhost:${PORT}/og`, { waitUntil: "networkidle0" });
@@ -915,7 +963,7 @@ try {
   console.log("wrote public/og.png");
 
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
-  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && firstFoldOk && linksOk && beamOk && parityOk && interactionsOk;
+  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && firstFoldOk && linksOk && beamOk && parityOk && interactionsOk && noScriptOk;
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
   exitCode = allOk ? 0 : 1;
 } catch (err) {

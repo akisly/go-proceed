@@ -144,7 +144,8 @@ describe("the inventory is closed and complete", () => {
       join(repoRoot, "apps/landing/app/kitchen-sink/page.tsx"), "utf8"));
 
     const names = [...motionIndex.matchAll(/export\s*\{([^}]*)\}\s*from\s*"\.\/([\w-]+)"/g)]
-      .filter((m) => !["tokens", "use-reduced"].includes(m[2]!))
+      // Not primitives: the token bridge, the preference hook, and the no-script rule (DEV-091).
+      .filter((m) => !["tokens", "use-reduced", "no-script"].includes(m[2]!))
       .flatMap((m) => m[1]!.split(",")
         .map((n) => n.trim().split(/\s+as\s+/).pop()!.trim())
         .filter((n) => /^[A-Z]/.test(n)));

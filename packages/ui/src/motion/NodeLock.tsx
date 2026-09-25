@@ -35,6 +35,7 @@ export function NodeLock({
   return (
     <motion.div
       className={className}
+      data-entrance=""
       initial={hidden}
       animate={{ ...hidden, transition: { duration: 0 } }}
       whileInView={

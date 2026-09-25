@@ -79,7 +79,7 @@ export function Reveal({
           ? { opacity: 1, transition: { duration: REDUCED.duration, ease: REDUCED.ease } }
           : { opacity: [0, 1], ...(x ? { x: [x, 0] } : {}), ...(y ? { y: [y, 0] } : {}), transition: { duration: DURATION[size], ease: EASE.enter, delay } };
     return (
-      <motion.div className={className} initial={hidden} animate={enter}>
+      <motion.div className={className} data-entrance="" initial={hidden} animate={enter}>
         {children}
       </motion.div>
     );
@@ -87,6 +87,7 @@ export function Reveal({
   return (
     <motion.div
       className={className}
+      data-entrance=""
       initial={hidden}
       animate={{ ...hidden, transition: { duration: 0 } }}
       whileInView={

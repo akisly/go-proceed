@@ -41,6 +41,7 @@ import { SITE_ORIGIN } from "../content/site-origin";
 // BETWEEN them, which would end the search early.
 import localFont from "next/font/local";
 import "./globals.css";
+import { NO_SCRIPT_ENTRANCE_CSS } from "@goproceed/ui/motion";
 
 const hankenLatin = localFont({
   src: "./fonts/hanken-grotesk-latin.woff2",
@@ -126,6 +127,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // the viewport up through the whole of the next. Hash links stay smooth.
     <html lang="uk" data-theme="light" data-scroll-behavior="smooth" className={fontVariables}>
       <body className="landing-body">
+        {/* BL-116, DEV-091: with scripting off, every `Reveal` and `StaggerItem`
+          * (`data-entrance`) is shown at rest instead of at its hidden first
+          * frame. Inert text whenever scripting is on (`@goproceed/ui/motion`,
+          * no-script.ts). */}
+        <noscript dangerouslySetInnerHTML={{ __html: `<style>${NO_SCRIPT_ENTRANCE_CSS}</style>` }} />
         {/* Development only. The contract names internal paths, internal
           * process and internal vocabulary, and it shipped as the first node
           * of every production response on the marketing site of a product
