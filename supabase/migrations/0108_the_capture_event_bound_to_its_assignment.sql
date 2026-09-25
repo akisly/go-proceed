@@ -1,5 +1,6 @@
 -- 0108: a capture event is bound to its assignment, and both evidence tables
--- take at INSERT only the columns their writers write.
+-- take at INSERT, from the goproceed principals, only the columns their
+-- writers write (service_role keeps Supabase's defaults, 0009).
 --
 -- Append-only; adds one foreign key and narrows two grants. No row changes.
 --
@@ -42,8 +43,10 @@ set local lock_timeout = '5s';
 --   grant insert on public.capture_events, public.upload_intents to goproceed_app;
 -- and, in the same change, the three evidence rows of
 -- technical/database/rls-write-coverage.csv (their privileges return to INSERT),
--- DA-113, DA-182 and DA-183, INV-001, and the assignment and column probes of
--- packages/testing/src/evidence-write-rls.test.ts.
+-- DA-113, DA-182 and DA-183, INV-001 and INV-060's DEV-084 clause, the
+-- capture_events → work_assignments row of
+-- technical/database/relationship-catalog.csv, BL-105's state, and the
+-- assignment and column probes of packages/testing/src/evidence-write-rls.test.ts.
 
 do $$
 declare

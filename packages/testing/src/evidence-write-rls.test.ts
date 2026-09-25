@@ -150,7 +150,8 @@ async function scopeAnswer(login: "app" | "service", declared: string, s: Side):
       "select app.upload_intent_scope_matches($1, $2, $3) as ok", [s.ws, s.intent, s.project]);
     return r.rows[0]!.ok;
   } catch (e) {
-    return (e as { code?: string }).code ?? "unknown";
+    const { code, message } = e as { code?: string; message?: string };
+    return `${code ?? "unknown"} ${message ?? ""}`;
   } finally {
     await c.query("rollback").catch(() => undefined);
     await c.end().catch(() => undefined);
@@ -303,12 +304,14 @@ describe("evidence cross-workspace write denial", () => {
       inserted,
     ]);
     // The definer answers only for the workspace the service declares (a bounded
-    // existence check, not an oracle for another), and only to the service.
+    // existence check, not an oracle for another), and only to the service: the
+    // member role holds no EXECUTE (0087). Its own session_user check is not
+    // reached here; it is passed by every probe above.
     expect([
       await scopeAnswer("service", WS_A, A),
       await scopeAnswer("service", WS_A, B),
       await scopeAnswer("app", WS_A, A),
-    ]).toEqual([true, false, "42501"]);
+    ]).toEqual([true, false, "42501 permission denied for function upload_intent_scope_matches"]);
   });
 
   it("upload_intents: an owner of A cannot authorize an upload in B or onto B's project, assignment, member or occurrence, nor one born past the state machine", async () => {
