@@ -872,10 +872,6 @@ export const RLS_WRITE_GAP_BASELINE = Object.freeze({
   "public.external_sessions goproceed_app": "INSERT|UPDATE",
   "public.idempotency_records goproceed_app": "INSERT",
   "public.readiness_projection goproceed_service": "INSERT|UPDATE|DELETE",
-  "public.statutory_act_version_quantities goproceed_app": "INSERT|UPDATE|DELETE",
-  "public.statutory_act_version_signatories goproceed_app": "INSERT|UPDATE|DELETE",
-  "public.statutory_act_versions goproceed_app": "INSERT|UPDATE",
-  "public.statutory_acts goproceed_app": "INSERT",
   "public.transaction_outbox goproceed_app": "INSERT",
   "public.upload_intents goproceed_app": "INSERT",
 });
