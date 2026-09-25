@@ -85,6 +85,27 @@ describe("import_files.add", () => {
     expect(JSON.stringify(b2.fieldErrors)).toMatch(/XLSX_BOMB/);
   });
 
+  it("refuses the caller before the container guard inflates anything (DEV-087, gp-security S1)", async () => {
+    const batchId = await createBatch(fx.contractId);
+    const bomb = craftZip([
+      { name: "xl/worksheets/sheet1.xml", data: Buffer.alloc(4096, 0x20), declaredUncompressed: 3 * 1024 * 1024 * 1024 },
+    ]);
+    // A member holding project.view but not imports.manage: 403, not the guard's 422.
+    await grantTo(C, ["project.view"]);
+    current = C;
+    const viewer = await addFile(batchId, "бомба.xlsx", bomb);
+    expect(viewer.status).toBe(403);
+    expect((await viewer.json()).code).toBe("SCOPE_PROJECT_DENIED");
+    // A signed-in user with no membership at all: 404 from the batch lookup.
+    current = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+    const outsider = await addFile(batchId, "бомба.xlsx", bomb);
+    expect(outsider.status).toBe(404);
+    // And a batch that does not exist: 404, whatever the file.
+    current = A;
+    const missing = await addFile(crypto.randomUUID(), "бомба.xlsx", bomb);
+    expect(missing.status).toBe(404);
+  });
+
   it("same content twice in one batch → 409 IMPORT_JOB_CONFLICT", async () => {
     const batchId = await createBatch(fx.contractId);
     expect((await addFile(batchId, "a.csv", enc(CSV_OK))).status).toBe(201);

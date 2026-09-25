@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import ExcelJS from "exceljs";
 import { createDeflateRaw, deflateRawSync } from "node:zlib";
+import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 import { guardXlsxContainer } from "./xlsx-guard";
 import { parseXlsx } from "./xlsx";
 
@@ -83,6 +85,8 @@ interface ZipEntryIn {
   flags?: number;
   /** A pre-built raw deflate stream, used instead of compressing `data`. */
   compressed?: Buffer;
+  /** Zero sizes in the local header and a 16-byte data descriptor after the data (flag bit 3). */
+  descriptor?: boolean;
 }
 
 interface ZipShape {
@@ -97,6 +101,8 @@ interface ZipShape {
   trailing?: Buffer;
   /** Point the second entry's local header at the first's (overlapping data). */
   overlap?: boolean;
+  /** The EOCD's disk number. */
+  disk?: number;
 }
 
 /** A hand-built ZIP, every field under the test's control (DEV-087). */
@@ -112,26 +118,33 @@ function buildZip(entries: ZipEntryIn[], shape: ZipShape = {}): Uint8Array {
     const localName = e.localName === undefined ? centralName : Buffer.from(e.localName, "utf-8");
     const compressed = e.compressed ?? (method === 8 ? deflateRawSync(e.data) : e.data);
     const uncomp = e.declaredUncompressed ?? e.data.length;
+    const flags = (e.flags ?? 0) | (e.descriptor ? 0x0008 : 0);
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4);
-    local.writeUInt16LE(e.flags ?? 0, 6);
+    local.writeUInt16LE(flags, 6);
     local.writeUInt16LE(method, 8);
-    local.writeUInt32LE(compressed.length, 18);
-    local.writeUInt32LE(uncomp, 22);
+    local.writeUInt32LE(e.descriptor ? 0 : compressed.length, 18);
+    local.writeUInt32LE(e.descriptor ? 0 : uncomp, 22);
     local.writeUInt16LE(localName.length, 26);
     local.writeUInt16LE(0, 28);
     const localOffset = shape.overlap && i === 1 ? offsets[0]! : offset;
     offsets.push(offset);
-    chunks.push(local, localName, compressed);
-    offset += local.length + localName.length + compressed.length;
+    const descriptor = Buffer.alloc(e.descriptor ? 16 : 0);
+    if (e.descriptor) {
+      descriptor.writeUInt32LE(0x08074b50, 0);
+      descriptor.writeUInt32LE(compressed.length, 8);
+      descriptor.writeUInt32LE(uncomp, 12);
+    }
+    chunks.push(local, localName, compressed, descriptor);
+    offset += local.length + localName.length + compressed.length + descriptor.length;
 
     const extra = e.centralExtra ?? Buffer.alloc(0);
     const cd = Buffer.alloc(46);
     cd.writeUInt32LE(0x02014b50, 0);
     cd.writeUInt16LE(20, 4);
     cd.writeUInt16LE(20, 6);
-    cd.writeUInt16LE(e.flags ?? 0, 8);
+    cd.writeUInt16LE(flags, 8);
     cd.writeUInt16LE(method, 10);
     cd.writeUInt32LE(compressed.length, 20);
     cd.writeUInt32LE(uncomp, 24);
@@ -146,6 +159,7 @@ function buildZip(entries: ZipEntryIn[], shape: ZipShape = {}): Uint8Array {
   const count = shape.count ?? entries.length;
   const eocd = Buffer.alloc(22);
   eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(shape.disk ?? 0, 4);
   eocd.writeUInt16LE(count, 8);
   eocd.writeUInt16LE(count, 10);
   eocd.writeUInt32LE(cdBuf.length + (shape.cdSizeDelta ?? 0), 12);
@@ -181,6 +195,38 @@ describe("guardXlsxContainer reads the directory JSZip reads (DEV-087, BL-191)",
     expect(guardXlsxContainer(buildZip([SHEET], { comment: Buffer.from("Приклад") }))).toEqual({ ok: true });
   });
 
+  it("accepts what other writers emit: data descriptors, timestamp and NTFS extra fields, duplicate names", () => {
+    const timestamp = Buffer.alloc(9);
+    timestamp.writeUInt16LE(0x5455, 0);
+    timestamp.writeUInt16LE(5, 2);
+    const ntfs = Buffer.alloc(36);
+    ntfs.writeUInt16LE(0x000a, 0);
+    ntfs.writeUInt16LE(32, 2);
+    expect(guardXlsxContainer(buildZip([
+      { ...SHEET, descriptor: true },
+      { name: "xl/styles.xml", data: Buffer.from("<styleSheet/>"), centralExtra: Buffer.concat([timestamp, ntfs]) },
+    ]))).toEqual({ ok: true });
+    expect(guardXlsxContainer(buildZip([SHEET, { ...SHEET }]))).toEqual({ ok: true });
+  });
+
+  it("accepts workbooks from writers other than JSZip, and reads their rows", async () => {
+    // LibreOffice Calc 24.2.7 (data descriptors, the UTF-8 flag), openpyxl 3.1.5
+    // on Python 3.11 (zipfile), and the LibreOffice file repacked by Info-ZIP
+    // Zip 3.0 through a pipe (data descriptors, 0x5455 and 0x7875 extra fields,
+    // stored directory entries). Built from koshtorys.csv (DEV-087, gp-reviewer R1).
+    for (const name of ["libreoffice.xlsx", "openpyxl.xlsx", "infozip-streamed.xlsx"]) {
+      const bytes = new Uint8Array(readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url)));
+      expect(guardXlsxContainer(bytes), name).toEqual({ ok: true });
+      const r = await parseXlsx(bytes);
+      expect(r.ok, name).toBe(true);
+      if (r.ok) {
+        expect(r.rows.map((row) => Object.values(row.cells).map((c) => c.raw)), name).toEqual([
+          ["Назва", "Од", "К-сть", "Ціна"], ["Мурування", "м2", "10", "199.99"], ["Штукатурення", "м2", "5.5", "150"],
+        ]);
+      }
+    }
+  });
+
   it("(a) refuses a directory holding more records than its end record counts", () => {
     // Before DEV-087 the guard checked one record; JSZip read both, the macro container included.
     expect(guardXlsxContainer(buildZip([SHEET], { uncounted: [MACROS] }))).toEqual(malformed);
@@ -206,6 +252,7 @@ describe("guardXlsxContainer reads the directory JSZip reads (DEV-087, BL-191)",
 
   it("refuses zip64 and multi-disk end records", () => {
     expect(guardXlsxContainer(buildZip([SHEET], { count: 0xffff }))).toEqual(malformed);
+    expect(guardXlsxContainer(buildZip([SHEET], { disk: 1 }))).toEqual(malformed);
     const zip64 = Buffer.alloc(4);
     zip64.writeUInt16LE(0x0001, 0);
     expect(guardXlsxContainer(buildZip([{ ...SHEET, centralExtra: zip64 }]))).toEqual(malformed);
@@ -215,12 +262,27 @@ describe("guardXlsxContainer reads the directory JSZip reads (DEV-087, BL-191)",
     const eocdInComment = Buffer.alloc(22);
     eocdInComment.writeUInt32LE(0x06054b50, 0);
     expect(guardXlsxContainer(buildZip([SHEET], { comment: eocdInComment }))).toEqual(malformed);
+    // A signature in the final 21 bytes: the last one, which JSZip takes and the
+    // baseline guard, scanning from 22 bytes before the end, never saw (R5).
+    expect(guardXlsxContainer(buildZip([SHEET], { comment: Buffer.from("PK\x05\x06abcd", "latin1") }))).toEqual(malformed);
     expect(guardXlsxContainer(buildZip([SHEET], { trailing: Buffer.from("tail") }))).toEqual(malformed);
   });
 
   it("refuses entries sharing data, and a name that is not UTF-8", () => {
-    expect(guardXlsxContainer(buildZip([SHEET, { ...SHEET, name: "xl/b.xml" }], { overlap: true }))).toEqual(malformed);
+    // Same names, so the refusal is the overlap and not a name mismatch (R2).
+    expect(guardXlsxContainer(buildZip([SHEET, { ...SHEET }], { overlap: true }))).toEqual(malformed);
     expect(guardXlsxContainer(buildZip([{ ...SHEET, rawName: Buffer.from([0x78, 0xff, 0x2e]) }]))).toEqual(malformed);
+  });
+
+  it("refuses a name JSZip would rewrite before ExcelJS sees it (gp-security S2)", () => {
+    for (const name of ["./xl/macros/a.bin", "xl//macros/a.bin", "xl/./macros/a.bin"]) {
+      expect(guardXlsxContainer(buildZip([{ ...SHEET, name }]))).toEqual(malformed);
+    }
+  });
+
+  it("was read against JSZip 3.10.1: an upgrade repeats that reading", () => {
+    const fromExcelJs = createRequire(createRequire(import.meta.url).resolve("exceljs"));
+    expect((fromExcelJs("jszip/package.json") as { version: string }).version).toBe("3.10.1");
   });
 
   it("refuses an encrypted entry and an unsupported compression method", () => {

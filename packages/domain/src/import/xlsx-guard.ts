@@ -18,12 +18,18 @@ import { inflateRawSync } from "node:zlib";
  *   - every entry's local header is where the central record says, carries the
  *     same name, and its data lies before the directory without overlapping
  *     another entry's;
- *   - no Unicode Path or zip64 extra field, and names are valid UTF-8.
+ *   - no Unicode Path or zip64 extra field, and names are valid UTF-8 and
+ *     already in the form JSZip's path resolution leaves them.
+ *
+ * That holds for the pair installed; `xlsx.test.ts` pins JSZip's version so an
+ * upgrade repeats this reading.
  *
  * The declared sizes are then enforced, not trusted (DEV-087; BL-192): each
  * entry is inflated here with its declared size as a hard ceiling, so an entry
- * that declares 1 KiB and inflates to 200 MB stops at 1 KiB, and the parser
- * that inflates it again cannot exceed what the guard measured.
+ * that declares 1 KiB and inflates to 200 MB stops at 1 KiB. JSZip inflates it
+ * again with pako, comparing lengths only after the fact; that its output
+ * matches Node's zlib for the same raw-deflate stream is assumed, not shown
+ * (DEV-087, gp-security S3).
  */
 
 export interface XlsxLimits {
@@ -108,6 +114,17 @@ function extraFieldsAcceptable(b: Uint8Array, start: number, length: number): bo
   return true;
 }
 
+/**
+ * True when JSZip keeps `path` as written. Its `utils.resolve` drops `.`
+ * segments and empty inner ones before ExcelJS sees the name, so
+ * `xl/./macros/a.bin` would reach it as `xl/macros/a.bin` past a check on the
+ * written name (DEV-087, gp-security S2). `..` is refused as traversal.
+ */
+function isCanonicalPath(path: string): boolean {
+  const parts = path.split("/");
+  return parts.every((part, i) => part !== "." && (part !== "" || i === 0 || i === parts.length - 1));
+}
+
 function sameBytes(b: Uint8Array, a0: number, b0: number, length: number): boolean {
   for (let i = 0; i < length; i++) if (b[a0 + i] !== b[b0 + i]) return false;
   return true;
@@ -129,7 +146,8 @@ export function listZipEntries(b: Uint8Array): ZipEntrySummary[] | null {
   if (count === U16_MAX || cdSize === U32_MAX || cdOffset === U32_MAX) return null;
   if (cdOffset + cdSize !== eocd) return null;
 
-  const names = new TextDecoder("utf-8", { fatal: true });
+  // ignoreBOM keeps a leading U+FEFF, as JSZip's decoding does.
+  const names = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
   const entries: ZipEntrySummary[] = [];
   const spans: [number, number][] = [];
   let off = cdOffset;
@@ -191,7 +209,11 @@ function inflateCapped(b: Uint8Array, e: ZipEntrySummary): "ok" | "overrun" | "m
   const data = b.subarray(e.dataStart, e.dataStart + e.compressedSize);
   if (e.method === 0) return e.compressedSize === e.uncompressedSize ? "ok" : "malformed";
   try {
-    const out = inflateRawSync(data, { maxOutputLength: Math.max(1, e.uncompressedSize) });
+    // One chunk the size of the ceiling: the output lands in one buffer, not in
+    // 16 KiB pieces concatenated afterwards, so the peak is the entry, not twice it.
+    const out = inflateRawSync(data, {
+      maxOutputLength: Math.max(1, e.uncompressedSize), chunkSize: Math.max(64, e.uncompressedSize + 1),
+    });
     return out.length === e.uncompressedSize ? "ok" : "malformed";
   } catch (err) {
     return (err as { code?: string }).code === "ERR_BUFFER_TOO_LARGE" ? "overrun" : "malformed";
@@ -224,6 +246,7 @@ export function guardXlsxContainer(
     if (/vbaProject/i.test(e.path) || /^xl\/macros\//i.test(e.path)) {
       errors.add("XLSX_MACROS_PRESENT");
     }
+    if (!isCanonicalPath(e.path)) errors.add("XLSX_MALFORMED");
     if (e.encrypted) errors.add("XLSX_ENCRYPTED_OR_LEGACY");
     if (e.method !== 0 && e.method !== 8) errors.add("XLSX_MALFORMED");
     totalUncompressed += e.uncompressedSize;
