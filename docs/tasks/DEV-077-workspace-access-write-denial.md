@@ -6,7 +6,7 @@
   - No user-visible change.
   - The 14 `workspace_access` rows of `technical/database/rls-write-coverage.csv` become `covered`. Each cites a test in `packages/testing/src/workspace-access-write-rls.test.ts` showing an owner of one workspace cannot insert, update or move rows into another, in the shape the DEV-076 minimum sets.
   - Migration `0103` withdraws the UPDATE grant on `public.memberships`, which no policy ever made usable.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that withdraws a grant, a catalog the validator reads, and `technical/data-access-surface.csv`. The route is: `gp-architect` → owner decisions → failing test → implementation → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -66,8 +66,10 @@
 | 6 | Coordinator | Mutations, each committed and restored in turn (30 in all, 29 killed):<br>• `WITH CHECK (true)` on 13 of the 14 INSERT policies: each fails its test. The fourteenth, `org_insert`, survived here and was killed in row 10 (R3).<br>• `WITH CHECK (true)` on `plp_update` and the six other UPDATE policies: each fails its test.<br>• `USING (true)` on all 8 UPDATE policies: each fails its test.<br>• One survivor: `WITH CHECK (true)` on `pag_update`, whose grant covers only `(revoked_at, version)`. Neither column carries a key, so no move is possible, and the permissive clause opens no path.<br>• Restored: 14 of 14 | Session output | Catalogs |
 | 7 | Coordinator | The write registry: 14 rows `covered`, and memberships `INSERT` only. The 14 keys left the baseline. DA-002, DA-003 and DA-005 are now `SELECT|INSERT`, observed with `has_table_privilege` on the local database. INV-060 cites the file. `test-strategy.md` §4 and BL-164 … BL-173 say the move-out also reads no column. `STATUS.md` has the migrations marker `0103` | `git diff` | Checks |
 | 8 | gp-security | PASS WITH FINDINGS, no blocker: `0103` correct (a whole-table revoke also removes column UPDATE grants; `goproceed_service` held UPDATE only through `goproceed_app`; no definer path lost); the probes meet the minimum; the organizations probes and the `pag_update` survivor accepted. Findings S1–S5 | Subagent report (session), on `480092bb` | Fix S1–S5 |
-| 9 | Coordinator | S1–S5 fixed in `a257848f`: UPDATE probes set `version = 424242`; the outcome carries the refusal reason (`policy` or `privilege`) and every refusal asserts it; parent-only probes for `invitations.accepted_membership_id`, `project_field_channels.project_id` and `project_parties.project_id`; BL-174 (P3) for S4; the `0103` comment names the `supabase/` grep and the definer functions `0062` and `0085` | `a257848f` | gp-reviewer |
+| 9 | Coordinator | S1–S5 fixed in `a257848f`: UPDATE probes set `version = 424242`; the outcome carries the refusal reason (`policy` or `privilege`), asserted on every refusal with a single expected code (the 17 either-or `42501`/`23503` refusals assert the code only; gp-qa found no privilege refusal hidden there); parent-only probes for `invitations.accepted_membership_id`, `project_field_channels.project_id` and `project_parties.project_id`; BL-174 (P3) for S4; the `0103` comment names the `supabase/` grep and the definer functions `0062` and `0085` | `a257848f` | gp-reviewer |
 | 10 | gp-reviewer | PASS WITH FINDINGS, no blocker; no probe passes for the wrong reason. R1 (= S1, already fixed). R2: the `0103` comment cited an owner ruling of 2026-09-24 that DEV-076 does not hold. R3: `org_insert` was never reached, and row 6 miscounted. Coordinator fixed R2 (the comment now cites test-strategy §4 and this task's owner decision) and R3 (an empty-actor probe: `insert into organizations` with no actor is refused 42501 by the policy). `WITH CHECK (true)` on `org_insert` now fails the organizations test; restored, 14 of 14 pass | Subagent report (session); session output | gp-qa |
+| 11 | gp-qa | AC-1 … AC-4 PASS on `f930c741`, AC-5 NOT RUN (no PR yet). Its own sweep: 30 mutations, 29 killed, each failing only its own table's case; policies restored byte for byte. Positive control: re-granting memberships UPDATE fails the database comparison. Every finding's fix confirmed. Wording note on row 9 (the either-or refusals), corrected here | Subagent report (session) | PR |
+| 12 | Coordinator | PR #150 CI green on `f930c741` (run 36114677455: `verify`, `app-qa`); `workspace-access-write-rls.test.ts` ran 14 of 14 and `rls-coverage.test.ts` 31 of 31 on CI's migrated database, none skipped. Merged in #150 (`5f38357b`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -94,6 +96,11 @@ Rework count and hypothesis changes: no round (review findings fixed before QA; 
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 every row cites one test meeting the minimum, control succeeding | Yes | `f930c741` | gp-qa: the three files 76 of 76, none skipped; CI run 36114677455: the write file 14 of 14 (row 12) | PASS | |
+| AC-2 policy mutations fail a test | Yes | `f930c741` | 30 mutations, 29 killed; `pag_update` `WITH CHECK (true)` opens no path (rows 6, 10, 11) | PASS | Local 17.6 stack |
+| AC-3 `0103` and the catalogs agree | Yes | `f930c741` | no UPDATE on memberships for either role; database comparison passes, and fails with the grant restored (row 11); CI's comparison 31 of 31 | PASS | |
+| AC-4 validator and typecheck | Yes | `f930c741` | `pnpm validate:canonical-docs` OK; `pnpm turbo run typecheck` 10 of 10 | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `f930c741` | run 36114677455: `verify`, `app-qa` success | PASS | |
 
 ## Sources
 
@@ -102,8 +109,8 @@ Rework count and hypothesis changes: no round (review findings fixed before QA; 
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` pending.
-- Verified scope: rows 1–10.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` also independent.
+- Verified scope: rows 1–12.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the final revision.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner decides the push of `0103` to `goproceed-staging`; BL-165 is the next stage.
+- Final state and reason: done — every required criterion PASS; #150 merged with CI green (row 12).
