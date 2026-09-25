@@ -719,6 +719,40 @@ describe("external.occurrence_decision_submit", () => {
     expect(head[0]!.current_outcome).toBe("accepted");
   });
 
+  it("reads and advances only the session's own head — insert, update and replay (DEV-085, BL-182 S2)", async () => {
+    // The three head statements now name the session's workspace and occurrence
+    // as the member route does. Across workspaces RLS answers first, so this is
+    // the paths' regression guard: each of the three still finds exactly the
+    // session's own head.
+    const fx = await baseline();
+    const { cookie, csrf, scopeBody } = await openLink(fx);
+    const confirmationTextVersion = scopeBody.confirmationTextVersion;
+    const first = await submit(cookie, csrf, {
+      outcome: "returned", reason: "Приклад-перша причина", issues: [], reviewerClaims: {},
+      expectedVersion: null, confirmationTextVersion,
+    });
+    expect(first.status).toBe(201);
+    const r1 = await first.json();
+    expect(r1.headVersion).toBe(1);
+
+    const key = crypto.randomUUID();
+    const advance = {
+      outcome: "accepted", issues: [], reviewerClaims: {}, expectedVersion: 1, confirmationTextVersion,
+    };
+    const second = await submit(cookieOf(first), r1.csrfToken, advance, { key });
+    expect(second.status).toBe(201);
+    const r2 = await second.json();
+    expect(r2.headVersion).toBe(2);
+    const heads = await q<{ version: string; current_outcome: string }>(
+      `select version::text as version, current_outcome from public.requirement_evidence_decision_heads
+        where workspace_id = $1 and requirement_occurrence_id = $2`, [fx.workspaceId, fx.occurrenceId]);
+    expect(heads).toEqual([{ version: "2", current_outcome: "accepted" }]);
+
+    const replay = await submit(cookieOf(second), r2.csrfToken, advance, { key });
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).headVersion).toBe(2);
+  });
+
   it("a revoked grant's DECISIONS survive the revocation", async () => {
     const fx = await baseline();
     const { cookie, csrf, scopeBody, grantId } = await openLink(fx);

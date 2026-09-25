@@ -199,7 +199,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-168](#bl-168) | P1 | closed → DEV-081 | 6 execution registry rows lack a cross-workspace write-denial test |
 | [BL-169](#bl-169) | P1 | closed → DEV-083 | 4 statutory registry rows lack a cross-workspace write-denial test |
 | [BL-170](#bl-170) | P1 | closed → DEV-084 | 3 evidence registry rows lack a cross-workspace write-denial test |
-| [BL-171](#bl-171) | P1 | open | 3 external_review registry rows lack a cross-workspace write-denial test |
+| [BL-171](#bl-171) | P1 | scheduled → DEV-085 | 3 external_review registry rows lack a cross-workspace write-denial test |
 | [BL-172](#bl-172) | P1 | open | 3 operational registry rows lack a cross-workspace write-denial test |
 | [BL-173](#bl-173) | P1 | open | 2 projection registry rows lack a cross-workspace write-denial test |
 | [BL-174](#bl-174) | P3 | open | Any signed-in actor can make itself owner of an organization that has no memberships |
@@ -210,7 +210,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-179](#bl-179) | P3 | open | Six data-access rows describe import tables and worker grants that do not exist, and a capability row says no operation creates a unit |
 | [BL-180](#bl-180) | P3 | open | Two SECURITY DEFINER helpers answer about a contract version or a work type of any workspace |
 | [BL-181](#bl-181) | P3 | open | A line can be added to an already-published contract version at any time, not only in the transaction that publishes it |
-| [BL-182](#bl-182) | P1 | open | The external-session write branches on evidence decisions and their heads have no cross-workspace write-denial test |
+| [BL-182](#bl-182) | P1 | scheduled → DEV-085 | The external-session write branches on evidence decisions and their heads have no cross-workspace write-denial test |
 | [BL-183](#bl-183) | P3 | open | Three requirement UPDATE grants are whole-table where their routes set a few columns |
 | [BL-184](#bl-184) | P3 | open | An external decision's access grant is not pinned to its session's grant |
 | [BL-185](#bl-185) | P3 | open | A decision or exception head's pointer is not constrained to the tip of its lineage |
@@ -226,6 +226,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
 | [BL-196](#bl-196) | P3 | open | An upload intent may name any member of its workspace as its creator |
 | [BL-197](#bl-197) | P3 | open | An upload intent's kept columns are unconstrained in value: a negative quota reservation, or a bucket and key outside the evidence bucket for the purge to delete |
+| [BL-198](#bl-198) | P3 | open | An external decision, or a rotated session, can name a grant other than its session's own |
+| [BL-199](#bl-199) | P3 | open | A rotated external session's absolute expiry is bounded by the route alone |
+| [BL-200](#bl-200) | P3 | open | Three data-access rows describe external objects that do not exist |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2070,7 +2073,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-171"></a>
 ### BL-171 — P1 — 3 external_review registry rows lack a cross-workspace write-denial test
 
-- **State:** open
+- **State:** scheduled → DEV-085
 - **Legacy cite:** none
 - **Why:** BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 3 relation–principal rows (3 relations) as `gap`: `public.external_access_grants` (goproceed_app): INSERT|UPDATE; `public.external_decision_batches` (goproceed_app): INSERT; `public.external_sessions` (goproceed_app): INSERT|UPDATE. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 3 `gap` rows for module `external_review` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
@@ -2082,7 +2085,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 3 relation–principal rows (3 relations) as `gap`: `public.audit_events` (goproceed_app): INSERT; `public.idempotency_records` (goproceed_app): INSERT; `public.transaction_outbox` (goproceed_app): INSERT. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
+- **Why:** *[2026-09-25, DEV-085: the `audit_events` and `transaction_outbox` rows are covered by `packages/testing/src/external-review-write-rls.test.ts` (member and external planes; the owner folded them in); `idempotency_records` stays open.]* BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 3 relation–principal rows (3 relations) as `gap`: `public.audit_events` (goproceed_app): INSERT; `public.idempotency_records` (goproceed_app): INSERT; `public.transaction_outbox` (goproceed_app): INSERT. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
 - **Note:** for `audit_events` and `transaction_outbox` the read row's negative is already a cross-workspace insert refusal (DEV-016), since the principal holds no `SELECT`. The validator refuses a write row citing the read row's own test, so the stage that closes them cites a separate write-denial case (or splits the existing one) and says so.
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 3 `gap` rows for module `operational` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
 - **Depends on:** none.
@@ -2181,7 +2184,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-182"></a>
 ### BL-182 — P1 — The external-session write branches on evidence decisions and their heads have no cross-workspace write-denial test
 
-- **State:** open
+- **State:** scheduled → DEV-085
 - **Legacy cite:** none
 - **Why:**
   - **What the external policies admit.** DEV-080's `gp-architect` and `gp-security` (S1–S3), 2026-09-25. `red_external_insert`, `redh_external_insert` and `redh_external_update` (0049) admit an external reviewer's session writing to its own occurrence (`requirement_occurrence_id = app.external_session_occurrence()` with `app.external_session_may_decide()`). DEV-080 runs on the member plane, where these policies are false.
@@ -2214,7 +2217,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-080's `gp-architect` and `gp-reviewer` (R7), 2026-09-25. INV-015's enforcement text («no UPDATE/DELETE grants plus mutation-rejecting triggers») is stale for templates: `rtv_update` holds a whole-table UPDATE with no draft condition, so the guard alone freezes a published template. `goproceed_app` holds UPDATE on every column of `requirement_evidence_decision_heads`, `requirement_exception_heads` (0045) and `requirement_template_versions` (0016). Their routes set only the head's `current_*`, `version` and `updated_at`, and the template's `status`, `template_hash`, `published_at` and `published_by_member_id` (plus a row lock). Their cross-workspace confinement is tested (DEV-080), and the guards refuse a lineage change. Column grants would turn the tenant-key moves into privilege refusals and leave only the pointer columns to the policies. The pattern is BL-175 and BL-178. Ranked by DEV-080.
+- **Why:** *[2026-09-25, DEV-085: the `requirement_evidence_decision_heads` part is done — `0109` narrowed its UPDATE to the four columns the routes set (owner). `requirement_exception_heads` and `requirement_template_versions` stay open.]* DEV-080's `gp-architect` and `gp-reviewer` (R7), 2026-09-25. INV-015's enforcement text («no UPDATE/DELETE grants plus mutation-rejecting triggers») is stale for templates: `rtv_update` holds a whole-table UPDATE with no draft condition, so the guard alone freezes a published template. `goproceed_app` holds UPDATE on every column of `requirement_evidence_decision_heads`, `requirement_exception_heads` (0045) and `requirement_template_versions` (0016). Their routes set only the head's `current_*`, `version` and `updated_at`, and the template's `status`, `template_hash`, `published_at` and `published_by_member_id` (plus a row lock). Their cross-workspace confinement is tested (DEV-080), and the guards refuse a lineage change. Column grants would turn the tenant-key moves into privilege refusals and leave only the pointer columns to the policies. The pattern is BL-175 and BL-178. Ranked by DEV-080.
 - **Evidence:** `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql`, `supabase/migrations/0016_execution_evidence_security.sql`; `apps/app/src/lib/evidence/record-evidence-decision.ts`; the occurrence exceptions route; `apps/app/app/v1/requirement-templates/`.
 - **Depends on:** the owner; a migration (`gp-architect`, `gp-security`).
 - **Deadline:** none recorded.
@@ -2420,4 +2423,38 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **Ranking.** Ranked by DEV-084.
 - **Evidence:** `supabase/migrations/0015_execution_evidence_module.sql` (the columns), `0016` (`ui_insert`), `0031` (`app.evidence_bytes_in_use`), `0090`/`0091` (expiry and the purge claim); `apps/app/src/lib/evidence/authorize-upload-intent.ts`.
 - **Depends on:** `gp-architect`, `gp-security`.
+- **Deadline:** none recorded.
+
+<a id="bl-198"></a>
+### BL-198 — P3 — An external decision, or a rotated session, can name a grant other than its session's own
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-085's `gp-architect` (F2), 2026-09-25; the owner chose to file it («File as P3»).
+  - **The gap.** `red_external_insert` does not tie `external_access_grant_id` to the session's grant, and no key does. `es_external_rotate_insert` pins the lineage and the occurrence, not the grant. By raw SQL on the external plane, an observer's session could mint a successor under a deciding grant on the same occurrence (INV-031, INV-056).
+  - **Its bounds.** One workspace, since 0109's workspace term; the routes copy the session's grant.
+  - **The fix.** `external_access_grant_id = (select grant_id from app.external_session_scope())` in both WITH CHECKs, with probes.
+  - **Ranking.** Ranked by DEV-085.
+- **Evidence:** `supabase/migrations/0049_the_link_that_decides_one_obligation.sql`; [DEV-085](tasks/DEV-085-external-review-write-denial.md).
+- **Depends on:** `gp-architect`, `gp-security`.
+- **Deadline:** none recorded.
+
+<a id="bl-199"></a>
+### BL-199 — P3 — A rotated external session's absolute expiry is bounded by the route alone
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-085's `gp-architect` (F3), 2026-09-25. `es_external_rotate_insert` does not bound `absolute_expires_at`, and the session guard covers UPDATE only, so the twelve-hour ceiling on a rotation is `apps/app/src/lib/external-session.ts`'s alone; the grant's seven-day expiry still bounds the session. The fix: `absolute_expires_at <= (the predecessor's)` in the policy, or an INSERT arm of the guard. Ranked by DEV-085.
+- **Evidence:** `supabase/migrations/0049_the_link_that_decides_one_obligation.sql`; `apps/app/src/lib/external-session.ts`.
+- **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-200"></a>
+### BL-200 — P3 — Three data-access rows describe external objects that do not exist
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-085's `gp-architect`, 2026-09-25. DA-047 (`external_shares`), DA-049 (`external_decisions`) and DA-091 (the `goproceed_external` role, which `packages/database/src/tx.ts` records as declined) are GA-era rows for objects no migration creates. Mark them target, or retire them with the owner, in the BL-179 pattern. Ranked by DEV-085.
+- **Evidence:** `technical/data-access-surface.csv`; `supabase/migrations/`.
+- **Depends on:** the owner.
 - **Deadline:** none recorded.

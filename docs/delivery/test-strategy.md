@@ -315,7 +315,7 @@ artifact the first time it is pasted into a bug report.
   write denial part of the minimum elsewhere (BL-099). *[2026-09-24, DEV-076:
   it is now, for every covered row holding a write; see above.]* That negative covers
   members only: the external-session insert branches (`audit_insert_external`,
-  `outbox_insert_external`) are exercised by no test yet.]*
+  `outbox_insert_external`) are exercised by no test yet.]* *[2026-09-25, DEV-085: both external branches, and the member branches' write minimum, are in `packages/testing/src/external-review-write-rls.test.ts`.]*
 - This is also M0 gate 11 in
   [production-readiness.md](production-readiness.md). The same evidence closes
   both, and it must: a pilot admitted on a sampled coverage claim is admitted on
