@@ -196,7 +196,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-165](#bl-165) | P1 | closed → DEV-078 | 11 communication registry rows lack a cross-workspace write-denial test |
 | [BL-166](#bl-166) | P1 | closed → DEV-079 | 10 contract_baseline registry rows lack a cross-workspace write-denial test |
 | [BL-167](#bl-167) | P1 | closed → DEV-080 | 9 requirements registry rows lack a cross-workspace write-denial test |
-| [BL-168](#bl-168) | P1 | open | 6 execution registry rows lack a cross-workspace write-denial test |
+| [BL-168](#bl-168) | P1 | scheduled → DEV-081 | 6 execution registry rows lack a cross-workspace write-denial test |
 | [BL-169](#bl-169) | P1 | open | 4 statutory registry rows lack a cross-workspace write-denial test |
 | [BL-170](#bl-170) | P1 | open | 3 evidence registry rows lack a cross-workspace write-denial test |
 | [BL-171](#bl-171) | P1 | open | 3 external_review registry rows lack a cross-workspace write-denial test |
@@ -214,6 +214,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-183](#bl-183) | P3 | open | Three requirement UPDATE grants are whole-table where their routes set a few columns |
 | [BL-184](#bl-184) | P3 | open | An external decision's access grant is not pinned to its session's grant |
 | [BL-185](#bl-185) | P3 | open | A decision or exception head's pointer is not constrained to the tip of its lineage |
+| [BL-186](#bl-186) | P3 | open | The application role's UPDATE on `work_stages` is whole-table where the closures route sets three columns |
+| [BL-187](#bl-187) | P3 | open | `app.stage_key_is_admissible` answers for any workspace's assignment without a membership check |
+| [BL-188](#bl-188) | P3 | open | The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only |
+| [BL-189](#bl-189) | P3 | open | An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2027,7 +2031,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-168"></a>
 ### BL-168 — P1 — 6 execution registry rows lack a cross-workspace write-denial test
 
-- **State:** open
+- **State:** scheduled → DEV-081
 - **Legacy cite:** none
 - **Why:** BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 6 relation–principal rows (6 relations) as `gap`: `public.progress_entries` (goproceed_app): INSERT; `public.stage_closure_occurrences` (goproceed_app): INSERT; `public.stage_closures` (goproceed_app): INSERT; `public.valuation_allocations` (goproceed_app): INSERT; `public.work_assignments` (goproceed_app): INSERT|UPDATE; `public.work_stages` (goproceed_app): INSERT|UPDATE. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 6 `gap` rows for module `execution` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
@@ -2229,5 +2233,58 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **The consequence.** A principal holding the decide capability and able to run SQL, or a route defect, could point a head back at a superseded `accepted` decision on the same occurrence and re-satisfy a hold. The routes always write the new decision's id.
   - **Classification.** Inside one workspace; outside the cross-workspace minimum. For `gp-architect` to confirm and design. Ranked by DEV-080.
 - **Evidence:** `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql` (`guard_requirement_head`).
+- **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-186"></a>
+### BL-186 — P3 — The application role's UPDATE on `work_stages` is whole-table where the closures route sets three columns
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-architect`, 2026-09-25. `goproceed_app` holds UPDATE on every column of `work_stages` (0045). The only product writer, the closures route, locks a stage and sets `status`, `version` and `updated_at`. Its cross-workspace confinement is tested (DEV-081). `ws_update` admits only an open stage becoming closed, and the stage guard admits only a +1 version step. A column grant would turn the tenant-key moves into privilege refusals. The pattern is BL-175, BL-178 and BL-183. Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql`; `apps/app/app/v1/stages/[stageId]/closures/route.ts`; DA-229.
+- **Depends on:** the owner; a migration (`gp-architect`, `gp-security`).
+- **Deadline:** none recorded.
+
+<a id="bl-187"></a>
+### BL-187 — P3 — `app.stage_key_is_admissible` answers for any workspace's assignment without a membership check
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-security` (S3), 2026-09-25.
+  - **The gap.** `app.stage_key_is_admissible(workspace, assignment, key)` (0051) is SECURITY DEFINER and executable by `goproceed_app`. It checks neither membership nor capability. So a caller running SQL on the BFF connection who knows B's workspace and assignment ids can test stage keys against B's bound baseline, a cross-tenant boolean oracle.
+  - **What its header says.** The header bounds the disclosure to a workspace the caller is an active member of, which the function does not enforce.
+  - **The fix.** Require `app.has_project_capability(workspace, the assignment's project, array['assignments.manage'])` inside the function and answer false otherwise. The test: a member of A calling it with B's ids gets the same answer for every key.
+  - **Ranking.** Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0051_the_stage_nobody_agreed_to.sql` (the function and its grant).
+- **Depends on:** a migration (`gp-architect`, `gp-security`).
+- **Deadline:** none recorded.
+
+<a id="bl-188"></a>
+### BL-188 — P3 — The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-security` (S4), 2026-09-25.
+  - **The existence oracle.** `app.open_allocation_head` and `app.assert_reservation_invariant` (0017) look the root progress entry up and raise «unknown root progress entry» before they authorise. The two messages tell a caller whether a (workspace, root) pair exists in another tenant.
+  - **The grant.** Their EXECUTE is revoked from `public` only, with no explicit revoke from `anon` and `authenticated` as `agents/COMMON.md` requires. 0009's default privileges probably cover it, but nothing asserts it.
+  - **The search path.** The pinned search path is BL-146.
+  - **The fix.** Authorise on the workspace first, or answer one message for both cases; revoke EXECUTE from `anon` and `authenticated`; assert both with `has_function_privilege`.
+  - **Ranking.** Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0017_allocation_head_definer_authz.sql`; DA-230.
+- **Depends on:** a migration (`gp-architect`, `gp-security`); BL-146.
+- **Deadline:** none recorded.
+
+<a id="bl-189"></a>
+### BL-189 — P3 — An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-081's `gp-security` (S6), 2026-09-25.
+  - **The gap.** `va_insert`'s admitted arm (0046) lets a holder of `stage_closures.close` and `project.view` insert an admitted allocation naming any existing closure of the entry's assignment, at any later time. A closure's members, by contrast, are tied to its own transaction by `guard_closure_member_window`.
+  - **Its bounds.** The composite foreign keys keep it inside one workspace, and `funded_within_lineage` caps the funded quantity at COMMIT. It is outside the cross-workspace minimum.
+  - **The fix.** An xmin window like the member window.
+  - **Ranking.** Ranked by DEV-081.
+- **Evidence:** `supabase/migrations/0046_the_carve_moves_to_admission.sql` (`va_insert`); `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql` (`guard_closure_member_window`).
 - **Depends on:** `gp-architect`.
 - **Deadline:** none recorded.
