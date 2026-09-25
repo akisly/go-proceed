@@ -9,7 +9,7 @@
     - `readiness_projection` and `blocked_reasons` (`goproceed_service`): BL-173, in `packages/testing/src/projection-write-rls.test.ts`.
   - `RLS_WRITE_GAP_BASELINE` becomes empty: every gap DEV-076 filed is covered or revoked, and a write gap row is refused outright from now on.
   - Migration `0110` narrows the `idempotency_records` INSERT grant to the eleven columns `withIdempotency` writes.
-- State: reviewing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that narrows a grant, catalogs the validator reads, the validator's baseline, and `technical/data-access-surface.csv`. The route is `gp-architect` → owner decisions → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -81,6 +81,8 @@
 | 7 | gp-security | PASS, no blocker or major, on `e929d14a`.<br>• `0110` breaks no writer: `withIdempotency` writes exactly the eleven columns; ON CONFLICT and `RETURNING expires_at` need only the SELECT it keeps; the definers and the cron purge run as the owner; every INSERT naming `created_at` runs as admin.<br>• No principal of A can write a record that collides with, pre-empts or replays as one of B: the unique key carries the workspace and the actor, and the policy fixes both.<br>• F2 is rightly P3: in all five routes the recorded and declared workspace are one variable, and replay filters on it.<br>• The tests prove confinement without masking; the empty baseline fails closed; the hosted apply fails closed.<br>Findings S1–S7 (below) | Subagent report (session) | Fixes |
 | 8 | gp-reviewer | PASS, no blocker or major, on `e929d14a`. Every probe fails for the reason it asserts; the registry string matches `WRITE_PRIVILEGES_SQL`'s order; the citations match exactly; `0110` fits every writer; the empty baseline fails closed; the mutation counts are right. Findings R1–R6 (below) | Subagent report (session) | Fixes |
 | 9 | Coordinator | Fixes:<br>• **S2, R3:** two service probes: declaring A, B's owner is refused A, and writes B (BL-101's residual, pinned);<br>• **R1:** the two probes where B's project breaks both of a blocked reason's keys accept either; each key alone stays pinned by the probes that break only it, so the key-drop kills stand;<br>• **S1:** `0110`'s rationale reworded, and the `expires_at` ceiling filed as BL-202 (P3);<br>• **S3:** BL-201 says a reader resolves `scope_ref` and the ids in `blocking` only with the row's workspace;<br>• **R2:** INV-001 says `scope_ref` has no key and no policy binds it;<br>• **R4:** AC-1 and the §4 annotation name the `scope_ref` exception;<br>• **R5:** row 5 says what the outputs show;<br>• **R6:** the inheritance cited to `0034`, `idem_insert` to `0006`.<br>`operational-write-rls` 2, `projection-write-rls` 2, `rls-coverage` 31; the validator and `typecheck` pass | Session output | gp-qa |
+| 10 | gp-qa | AC-1 … AC-4 PASS on `d7592e85`; every finding fix confirmed.<br>• Both suites pass; the three citations and the service case named in `reason` match their titles exactly.<br>• Its own rerun at HEAD, after R1: each composite-key drop still fails a test (with the occurrence key dropped, the either-key probes received the contract key and the occurrence-only probe inserted); `br_write_server` WITH CHECK `true` killed; `idem_insert` without `m.user_id` survives.<br>• `0110` in the database: no `goproceed_%` role holds a whole-table INSERT, or `id` or `created_at`; the eleven-column list equals the registry string.<br>• The validator fails closed on the empty baseline: a gap row and a stale baseline key were each refused, on a scratch copy.<br>• The neighbouring suites pass: `rls-coverage` 31, `operational-rls` 5, `projection-rls` 4, `m3-closure-rls` 28, `idempotency-expiry` 2, `foundation` 6, `privileges` 3, `outbox` 4.<br>• Q1 (info): the fixtures' `auth.users` rows outlive `dropWorkspaces`, as in DEV-077 … DEV-085 | Subagent report (session) | CI |
+| 11 | Coordinator | PR #168 CI green on `d7592e85` (run 36180807225: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database: `operational-write-rls` 2 of 2, `projection-write-rls` 2 of 2, `rls-coverage` 31. Merged in #168 (`f75b4373`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -105,6 +107,7 @@
 | R4 | minor | AC-1; `test-strategy.md` §4 | The `scope_ref` exception unstated | Coordinator | Fixed |
 | R5 | nit | Row 5 | Overstated what the outputs show | Coordinator | Fixed |
 | R6 | nit | Citations | `0087` for the inheritance; `0089` for `idem_insert` | Coordinator | Fixed |
+| Q1 | info | The fixtures' `auth.users` rows | Not removed by `dropWorkspaces` | — | No action: as every earlier stage; harmless (`on conflict do nothing`) |
 
 Rework count and hypothesis changes: none.
 
@@ -120,11 +123,11 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 each row cites one test meeting the minimum | Yes | | | | |
-| AC-2 every listed mutation fails a test, or is stated | Yes | | | | |
-| AC-3 `0110`, the registry, the empty baseline, the DA rows, INV-001, INV-060 | Yes | | | | |
-| AC-4 validator and typecheck | Yes | | | | |
-| AC-5 CI green, both suites in the log | Yes | | | | |
+| AC-1 each row cites one test meeting the minimum | Yes | `d7592e85` | gp-qa 2+2, citations exact; CI 2+2 (rows 10, 11) | PASS | `scope_ref` excepted (BL-201) |
+| AC-2 every listed mutation fails a test, or is stated | Yes | `d7592e85` | 15 of 18 killed, the 3 survivors stated; the key drops rerun at HEAD by gp-qa (rows 5, 10) | PASS | Local 17.6 stack |
+| AC-3 `0110`, the registry, the empty baseline, the DA rows, INV-001, INV-060 | Yes | `d7592e85` | gp-qa's database checks and fail-closed probes; `rls-coverage` 31 locally and on CI (rows 10, 11) | PASS | |
+| AC-4 validator and typecheck | Yes | `d7592e85` | validator OK; typecheck exit 0 | PASS | Node 22 locally |
+| AC-5 CI green, both suites in the log | Yes | `d7592e85` | run 36180807225: `verify` and `app-qa` success; both suites in the log | PASS | |
 
 ## Sources
 
@@ -133,8 +136,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents.
-- Verified scope: rows 1–9.
+- Review independence: `gp-architect`, `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
+- Verified scope: rows 1–11.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa`.
-- Final state and reason: reviewing.
+- Next bounded action and owner: BL-099's programme is complete. Pushing `0103` … `0110` to staging is the owner's; BL-201 and BL-202 (P3) are open.
+- Final state and reason: done — every required criterion PASS; #168 merged with CI green (row 11).
