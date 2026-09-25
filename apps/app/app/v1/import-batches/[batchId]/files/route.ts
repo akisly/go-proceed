@@ -80,7 +80,8 @@ export async function POST(
         // Only an authorized caller reaches the container guard, which inflates
         // every entry (DEV-087, gp-security S1): before this, any signed-in user
         // could make the server inflate up to 100 MB per request, batch or none.
-        // It runs before the batch is locked, so the lock never waits on it.
+        // It runs before the batch's row lock, inside the transaction and the
+        // idempotency advisory lock (gp-qa Q8).
         let detectedFormat: "xlsx" | "csv";
         // Format sniffing by magic bytes — never by filename/claimed type.
         const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;

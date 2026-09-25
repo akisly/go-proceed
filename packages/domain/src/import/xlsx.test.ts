@@ -235,6 +235,34 @@ describe("guardXlsxContainer reads the directory JSZip reads (DEV-087, BL-191)",
   it("(b) refuses an end record whose directory size does not reach it", () => {
     expect(guardXlsxContainer(buildZip([SHEET], { cdSizeDelta: -1 }))).toEqual(malformed);
     expect(guardXlsxContainer(buildZip([SHEET], { cdSizeDelta: 1 }))).toEqual(malformed);
+    // The archive JSZip reads differently (gp-qa Q2): the end record points at
+    // a directory naming the sheet but states the size of a second directory
+    // after it. JSZip re-bases by the difference and reads only the second,
+    // which names the macro container; the baseline guard read only the first.
+    const local = (name: Buffer, data: Buffer) => {
+      const h = Buffer.alloc(30);
+      h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(8, 8);
+      h.writeUInt32LE(deflateRawSync(data).length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(name.length, 26);
+      return Buffer.concat([h, name, deflateRawSync(data)]);
+    };
+    const central = (name: Buffer, data: Buffer, at: number) => {
+      const h = Buffer.alloc(46);
+      h.writeUInt32LE(0x02014b50, 0); h.writeUInt16LE(8, 10);
+      h.writeUInt32LE(deflateRawSync(data).length, 20); h.writeUInt32LE(data.length, 24);
+      h.writeUInt16LE(name.length, 28); h.writeUInt32LE(at, 42);
+      return Buffer.concat([h, name]);
+    };
+    const sheetName = Buffer.from(SHEET.name), macroName = Buffer.from(MACROS.name);
+    const sheet = local(sheetName, SHEET.data);
+    const macroAt = sheet.length + 200;
+    const macro = local(macroName, MACROS.data);
+    const dirA = central(sheetName, SHEET.data, 0);
+    const dirB = central(macroName, MACROS.data, macroAt - dirA.length);
+    const end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10);
+    end.writeUInt32LE(dirB.length, 12); end.writeUInt32LE(macroAt + macro.length, 16);
+    const rebased = new Uint8Array(Buffer.concat([sheet, Buffer.alloc(200), macro, dirA, dirB, end]));
+    expect(guardXlsxContainer(rebased)).toEqual(malformed);
   });
 
   it("(c) refuses an entry whose local name differs from its central one", () => {
@@ -272,6 +300,8 @@ describe("guardXlsxContainer reads the directory JSZip reads (DEV-087, BL-191)",
     // Same names, so the refusal is the overlap and not a name mismatch (R2).
     expect(guardXlsxContainer(buildZip([SHEET, { ...SHEET }], { overlap: true }))).toEqual(malformed);
     expect(guardXlsxContainer(buildZip([{ ...SHEET, rawName: Buffer.from([0x78, 0xff, 0x2e]) }]))).toEqual(malformed);
+    // A BOM before `xl/macros/`, which JSZip keeps in the name (gp-qa Q1).
+    expect(guardXlsxContainer(buildZip([{ ...SHEET, name: "\uFEFFxl/macros/a.bin" }]))).toEqual(malformed);
   });
 
   it("refuses a name JSZip would rewrite before ExcelJS sees it (gp-security S2)", () => {
@@ -288,7 +318,8 @@ describe("guardXlsxContainer reads the directory JSZip reads (DEV-087, BL-191)",
   it("refuses an encrypted entry and an unsupported compression method", () => {
     expect(guardXlsxContainer(buildZip([{ ...SHEET, flags: 0x0001 }])))
       .toEqual({ ok: false, errors: ["XLSX_ENCRYPTED_OR_LEGACY"] });
-    expect(guardXlsxContainer(buildZip([{ ...SHEET, method: 12 }]))).toEqual(malformed);
+    // A valid deflate stream, so the method check and not the inflation refuses it (gp-qa Q3).
+    expect(guardXlsxContainer(buildZip([{ ...SHEET, method: 12, compressed: deflateRawSync(SHEET.data) }]))).toEqual(malformed);
   });
 });
 

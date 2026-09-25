@@ -172,6 +172,9 @@ export function listZipEntries(b: Uint8Array): ZipEntrySummary[] | null {
     } catch {
       return null;
     }
+    // A U+FEFF anywhere in a name, as JSZip keeps it, would slip an anchored
+    // name check (`^xl/macros/`) that the plain name meets (DEV-087 gp-qa Q1).
+    if (path.includes("\uFEFF")) return null;
 
     // The local header JSZip reads the data from: at the stated offset, with
     // the same name, and its data wholly before the central directory.

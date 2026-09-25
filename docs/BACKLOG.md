@@ -232,6 +232,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-201](#bl-201) | P3 | open | A readiness projection's scope reference has no key, so a service write can name another workspace's scope |
 | [BL-202](#bl-202) | P3 | open | An idempotency record's expiry is bounded only by its writer, so a caller could keep a stored response past its retention class |
 | [BL-203](#bl-203) | P3 | open | An approved unreadable file is approved by its path, so new content at that path passes the contactPoint guard unread |
+| [BL-204](#bl-204) | P3 | open | ExcelJS 4.4.0 cannot load an openpyxl workbook that carries a cell comment, so its import fails as malformed |
+| [BL-205](#bl-205) | P3 | open | An XLSX hyperlink or error cell imports as «[object Object]» |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2497,5 +2499,29 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **The fix.** Key the approval on path and git blob id (`git ls-files -s` already yields the blob), so any content change re-triggers review; a self-test that an approved path with another blob is refused.
   - **Ranking.** Ranked by DEV-087.
 - **Evidence:** `scripts/validate-canonical-docs.mjs` (`UNREADABLE_APPROVED_PATHS`, `binaryBlobErrors`, `prospectingPathErrors`); [DEV-087](tasks/DEV-087-xlsx-guard-reads-what-the-parser-reads.md).
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-204"></a>
+### BL-204 — P3 — ExcelJS 4.4.0 cannot load an openpyxl workbook that carries a cell comment, so its import fails as malformed
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-087's `gp-qa` (Q5), 2026-09-25. ExcelJS 4.4.0 throws «Cannot read properties of undefined (reading 'comments')» on any workbook openpyxl writes with a cell comment (its `xl/comments/comment1.xml` part), so `parseXlsx` returns `XLSX_MALFORMED` for a genuine estimate. The container guard passes the file, before and after DEV-087; a LibreOffice workbook with a comment parses. Not caused by DEV-087. How often real estimates carry comments is unknown.
+  - **The fix.** Reproduce with a fixture, then either catch the load error per worksheet part and parse without comments, or upgrade ExcelJS (repeating DEV-087's JSZip reading), with the owner.
+  - **Ranking.** Ranked by DEV-087.
+- **Evidence:** `packages/domain/src/import/xlsx.ts`; DEV-087's gp-qa run (`openpyxl` 3.1.5 with a cell comment).
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-205"></a>
+### BL-205 — P3 — An XLSX hyperlink or error cell imports as «[object Object]»
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-087's `gp-qa` (Q6), 2026-09-25. `parseXlsx` reads a cell value that is neither a formula, rich text nor a date with `String(v)`. ExcelJS returns a hyperlink as `{ text, hyperlink }` and an error as `{ error }`, so the row's raw text becomes «[object Object]», and a later validation reports it as the cell's content. Unchanged since before DEV-087.
+  - **The fix.** Take `.text` for a hyperlink value and `.error` for an error value, with a test for each; `PARSER_VERSION` bumped.
+  - **Ranking.** Ranked by DEV-087.
+- **Evidence:** `packages/domain/src/import/xlsx.ts` (the value branch after rich text and dates).
 - **Depends on:** none.
 - **Deadline:** none recorded.
