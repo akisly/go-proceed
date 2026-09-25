@@ -28,8 +28,13 @@ import { APPROVER_ROLE, insertDecision, recordDecision, seedClosureWorld } from 
  * parent; UPDATE reading no column (no WHERE, a constant SET, no RETURNING)
  * changing exactly A's admitted rows, with B's read back unchanged; a move-out
  * refused by the policy, by a key, or — since 0109 narrowed the grant — by
- * privilege. A trigger's refusal does not count: the UPDATE guards are
- * disabled inside the rolled-back probe and asserted enabled afterwards.
+ * privilege. A trigger's refusal does not count: the grant and head UPDATE
+ * guards are disabled inside the rolled-back probe and asserted enabled
+ * afterwards; the session guard stays on, since every session outcome asserted
+ * is a policy's, a privilege's or a USING filter's, and it raises rather than
+ * skip a row. Where one of B's parents breaks two composite keys, the one named
+ * is the one that answers first on a migrated database (RI triggers fire in
+ * name order), as in DEV-080 and DEV-084.
  *
  * 0109 (owner, 2026-09-25) made the external plane's write policies read the
  * session's workspace (BL-182), and narrowed the grants and decision heads'
@@ -355,6 +360,12 @@ beforeAll(async () => {
   await dropWorkspaces(admin, BOTH);
   A = await seedSide(WS_A, USER_A, "DEV085-A");
   B = await seedSide(WS_B, USER_B, "DEV085-B");
+  // A's owner once belonged to B: a suspended membership, visible to that actor
+  // under m_select, so audit_insert's and outbox_insert's `m.status = 'active'`
+  // is what refuses the member plane's rows into B.
+  await admin.query(
+    "insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'owner', 'suspended')",
+    [WS_B, USER_A]);
   // Premise: no INSERT trigger could answer before a policy on these tables.
   const triggers = await admin.query<{ t: string }>(
     `select tgrelid::regclass::text || ':' || tgname as t from pg_trigger
@@ -395,6 +406,8 @@ describe("external_review cross-workspace write denial", () => {
       [member, GRANT, grantRow(A, { replaced: B.gDec })],
       [member, GRANT, grantRow(A, { member: B.member })],
       [member, GRANT_BORN_REVOKED, grantRow(A)],
+      // The external plane issues no link, not even in its own workspace.
+      [external(A.sDec), GRANT, grantRow(A)],
       [member, GRANT, grantRow(A)],
     ])).toEqual([
       refusedByPolicy,
@@ -405,6 +418,7 @@ describe("external_review cross-workspace write denial", () => {
       byForeignKey("external_access_grants_replaced_fkey"),
       byForeignKey("external_access_grants_member_fkey"),
       refusedByPrivilege,
+      refusedByPolicy,
       inserted,
     ]);
     // eag_update admits an active grant only: A's three live grants, not the
@@ -412,6 +426,10 @@ describe("external_review cross-workspace write denial", () => {
     expect(await confined(member, "external_access_grants",
       "update public.external_access_grants set version = 424242", ["external_access_grants"]))
       .toEqual({ outcome: changed(3), aChanged: [A.gDec, A.gDec2, A.gObs].sort(), bUnchanged: true });
+    // No UPDATE policy admits the external plane.
+    expect(await confined(external(A.sDec), "external_access_grants",
+      "update public.external_access_grants set version = 424242", ["external_access_grants"]))
+      .toEqual({ outcome: changed(0), aChanged: [], bUnchanged: true });
     // 0109 narrowed UPDATE to the three columns revoke-reissue sets.
     expect(await outcomes([
       [member, "update public.external_access_grants set workspace_id = $1", [WS_B]],
@@ -471,6 +489,8 @@ describe("external_review cross-workspace write denial", () => {
       // An observer's session may not decide (INV-031).
       [external(A.sObs), BATCH, batchRow(A, { grant: A.gObs, session: A.sObs })],
       [external(A.sDec), BATCH_LABELLED, batchRow(A)],
+      // The member plane has no INSERT policy on batches, whatever it holds.
+      [member, BATCH, batchRow(A)],
       [external(A.sDec), BATCH, batchRow(A)],
     ])).toEqual([
       refusedByPolicy,
@@ -481,6 +501,7 @@ describe("external_review cross-workspace write denial", () => {
       refusedByPolicy,
       refusedByPolicy,
       refusedByPrivilege,
+      refusedByPolicy,
       inserted,
     ]);
   });

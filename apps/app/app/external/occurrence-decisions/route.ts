@@ -64,7 +64,10 @@ export const dynamic = "force-dynamic";
  *
  * ───────────────────────────────────────────────────────────────────────────
  * INV-007'S REPLAY IS UNREACHABLE, AND THE UNIQUE KEY UNDER IT IS NOT
- * — recorded 2026-08-08, still open
+ * — recorded 2026-08-08. [2026-09-25, DEV-085 R9: superseded. 0055's
+ * edb_external_select_lineage lets a rotated session read its lineage's
+ * receipt, and m5-external.int.test.ts's INV-007 case replays it. The text
+ * below is kept as the record of 2026-08-08.]
  *
  * WHAT IS TRUE. `external_decision_batches_idempotency_key` is unique over
  * (workspace, grant, key) and `packages/testing/src/m5-external-schema.test.ts`

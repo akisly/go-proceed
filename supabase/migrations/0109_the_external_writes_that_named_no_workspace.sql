@@ -10,7 +10,10 @@
 --    refused by a composite foreign key alone (BL-182, DEV-080 R2). Every
 --    member-plane policy reads the tenant key through has_project_capability,
 --    and audit_insert_external and outbox_insert_external (0049 §10) already
---    read app.external_session_workspace(). The five below now do too. The
+--    read app.external_session_workspace(). The five below now do too: the
+--    four external INSERT policies and redh_external_update's WITH CHECK.
+--    es_external_rotate_update still reads only the current session's id; §2
+--    keeps it from moving the row. The
 --    route writes scope.workspaceId, and rotation copies the session's own, so
 --    no legitimate write changes. redh_external_update gains it in WITH CHECK
 --    only: in USING it would admit nothing the occurrence conjunct does not.
@@ -34,19 +37,21 @@
 -- 3. The INSERT grants. The same three external tables take at INSERT only
 --    the columns their writers write (occurrence grants and revoke-reissue;
 --    session rotation; the external decision route), so a member-plane INSERT
---    cannot create a grant already consumed, revoked or backdated, a session
---    already revoked or seen, or a receipt with its own assurance label.
+--    cannot create a grant already consumed, revoked or backdated, nor an
+--    external-plane INSERT a session already revoked or seen, or a receipt
+--    with its own assurance label.
 --
 -- DEV-085 (BL-171, BL-182) found them while writing the cross-workspace write
 -- tests the DEV-076 minimum asks. The owner chose all three on 2026-09-25
 -- (DEV-085), with the heads' part of BL-183.
 --
 -- Rollback:
---   grant update, insert on public.external_sessions, public.external_access_grants,
---     public.external_decision_batches to goproceed_app (external_decision_batches
---     INSERT only), grant update on public.requirement_evidence_decision_heads to
---   goproceed_app, and alter the five policies back to 0049's WITH CHECK (the
---   same text without `workspace_id = app.external_session_workspace() and`);
+--   grant update, insert on public.external_sessions, public.external_access_grants
+--     to goproceed_app;
+--   grant insert on public.external_decision_batches to goproceed_app;
+--   grant update on public.requirement_evidence_decision_heads to goproceed_app;
+--   and alter the five policies back to 0049's WITH CHECK (the same text
+--   without `workspace_id = app.external_session_workspace() and`);
 -- and, in the same change, the external rows and the heads row of
 -- technical/database/rls-write-coverage.csv, their DA rows, INV-001, the heads
 -- move-outs of packages/testing/src/requirements-write-rls.test.ts, and the

@@ -2433,7 +2433,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-085's `gp-architect` (F2), 2026-09-25; the owner chose to file it («File as P3»).
   - **The gap.** `red_external_insert` does not tie `external_access_grant_id` to the session's grant, and no key does. `es_external_rotate_insert` pins the lineage and the occurrence, not the grant. By raw SQL on the external plane, an observer's session could mint a successor under a deciding grant on the same occurrence (INV-031, INV-056).
   - **Its bounds.** One workspace, since 0109's workspace term; the routes copy the session's grant.
-  - **The fix.** `external_access_grant_id = (select grant_id from app.external_session_scope())` in both WITH CHECKs, with probes.
+  - **The fix.** `external_access_grant_id = (select grant_id from app.external_session_scope())` in both WITH CHECKs, with probes. A structural alternative that a future route cannot forget (DEV-085 `gp-security` S4): a composite key `(workspace_id, decision_batch_id, external_access_grant_id)` from the decision onto a new `unique (workspace_id, id, external_access_grant_id)` on the batches, and a self-key `(workspace_id, rotated_from_session_id, external_access_grant_id)` onto `external_sessions_grant_key`, which MATCH SIMPLE skips for the exchange's first session.
   - **Ranking.** Ranked by DEV-085.
 - **Evidence:** `supabase/migrations/0049_the_link_that_decides_one_obligation.sql`; [DEV-085](tasks/DEV-085-external-review-write-denial.md).
 - **Depends on:** `gp-architect`, `gp-security`.
