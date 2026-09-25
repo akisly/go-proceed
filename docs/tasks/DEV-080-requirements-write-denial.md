@@ -38,6 +38,7 @@
     - `USING (true)` on every UPDATE policy;
     - each arm of `rrv_insert` made `true`, and its status arm inverted;
     - the project scope dropped from the WITH CHECK of every capability-on-project policy.
+    - *[2026-09-25, DEV-085 row 9: `0109` withdrew UPDATE on the heads' tenant key and project, so `redh_update`'s WITH CHECK `true` and its project drop now survive, unobservable; the move-out is refused by privilege.]*
   - AC-3: the write registry, the baseline, DA-123, DA-217 … DA-224 and INV-060 agree with the database, and the database comparison in `rls-coverage.test.ts` passes.
   - AC-4: the validator and `typecheck` pass.
   - AC-5: CI green on the pull request.
