@@ -236,6 +236,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-205](#bl-205) | P3 | open | An XLSX hyperlink or error cell imports as «[object Object]» |
 | [BL-206](#bl-206) | P3 | open | A workspace's timezone is stored unchecked and cannot be corrected |
 | [BL-207](#bl-207) | P3 | open | With scripting on but a landing chunk that fails to load, every entrance stays hidden |
+| [BL-208](#bl-208) | P2 | open | Without JavaScript `/pilot`'s form is visible but cannot be sent, and says nothing about it |
+| [BL-209](#bl-209) | P3 | open | Without JavaScript the landing's closed disclosures cannot open and its canvas words leave holes |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2553,3 +2555,34 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `packages/ui/src/motion/no-script.ts`; `apps/landing/app/layout.tsx`.
 - **Depends on:** none.
 - **Deadline:** before the landing is pointed at a production domain.
+
+<a id="bl-208"></a>
+### BL-208 — P2 — Without JavaScript `/pilot`'s form is visible but cannot be sent, and says nothing about it
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-091's `gp-ui-reviewer` (U2), 2026-09-25. DEV-091 made the form paint for a reader with scripting off, for the first time, and it does not work for them:
+  - «Роль» is a Radix `Select` that renders empty and cannot open.
+  - «Скопіювати текст заявки» is `type="button"` with only an `onClick`.
+  - «Надіслати запит на пілот» posts form-encoded data to `/api/pilot`, which answers a raw JSON 4xx (`apps/landing/AGENTS.md`).
+
+  A reader can fill five fields and reach a dead end. The working path, «Або напишіть нам поштою» (`mailto:`), paints beside the form but reads as secondary.
+  - **The fix.** A `<noscript>` line inside the form above the buttons, sending the reader to the mail link (for example «Без JavaScript форма не надсилається — напишіть нам поштою»), with its copy-catalog row. A form-encoded path in `/api/pilot` is the larger alternative and a `gp-security` trigger.
+  - **Ranking.** Ranked by DEV-091.
+- **Evidence:** `apps/landing/components/blocks/pilot-form.tsx`; DEV-091's scriptless `/pilot` screenshots.
+- **Depends on:** none for the line; the owner's wording.
+- **Deadline:** before the landing is pointed at a production domain.
+
+<a id="bl-209"></a>
+### BL-209 — P3 — Without JavaScript the landing's closed disclosures cannot open and its canvas words leave holes
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-091's `gp-ui-reviewer` (U3, U5), 2026-09-25.
+  - **Closed disclosures.** The FAQ is a Radix `Accordion`, whose closed content ships `hidden`, so a scriptless reader sees seven questions they cannot open, «Скільки коштує пілот і хто відповідає?» among them; `/product`'s `PinnedTabs` inactive panels are the same.
+  - **Canvas words.** Words that draw on a canvas (`ParticleSphere` on the home page) leave an empty band where the scripted page draws; §7.3 asks a canvas word to name its fallback.
+  - **The fix.** Disclosures that work without script (`<details>`, or content mounted and shown by a no-script rule), and a still fallback for a canvas word when scripting is off. The harness's no-script pass skips `[hidden]` today and reads opacity only.
+  - **Ranking.** Ranked by DEV-091.
+- **Evidence:** `apps/landing/components/blocks/faq.tsx`; `packages/ui/src/components/Accordion.tsx`; `packages/ui/src/motion/PinnedTabs.tsx`, `ParticleSphere.tsx`.
+- **Depends on:** none.
+- **Deadline:** none recorded.

@@ -63,8 +63,10 @@ export function Hero() {
             );
           })()}
         </h1>
-        <div className="entrance [--gp-entrance-delay:0.15s]"><p className="measure mt-6 text-body leading-relaxed text-ink-secondary">{h.lead}</p></div>
-        <div className="entrance [--gp-entrance-delay:0.25s] mt-7 flex flex-wrap justify-center gap-3">
+        {/* `data-entrance`: with scripting off, the fold is shown at rest rather
+          * than left to its CSS animation's timing (DEV-091 gp-ui-reviewer U1). */}
+        <div data-entrance="" className="entrance [--gp-entrance-delay:0.15s]"><p className="measure mt-6 text-body leading-relaxed text-ink-secondary">{h.lead}</p></div>
+        <div data-entrance="" className="entrance [--gp-entrance-delay:0.25s] mt-7 flex flex-wrap justify-center gap-3">
           <PillLink href={h.primaryHref}>{h.primaryAction}</PillLink>
           <PillLink href={h.secondaryHref} tone="paper">{h.secondaryAction}</PillLink>
         </div>

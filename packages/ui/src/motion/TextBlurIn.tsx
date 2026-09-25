@@ -40,6 +40,7 @@ export function TextBlurIn({
     return (
       <As className={className}>
         <motion.span
+          data-entrance=""
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: REDUCED.duration, ease: REDUCED.ease }}

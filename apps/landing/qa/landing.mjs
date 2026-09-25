@@ -908,7 +908,10 @@ try {
     && x.cardHoverReduced.moved === 0 && x.cardHoverReduced.answered;
   console.log(`interactions: ${interactionsOk ? "ok" : "PROBLEM"} ${JSON.stringify(x)}`);
 
-  // WITH SCRIPTING OFF, EVERY WORD IN <main> PAINTS (BL-116, DEV-091). `Reveal`
+  // WITH SCRIPTING OFF, EVERY VISIBLE TEXT ELEMENT IN <main> PAINTS (BL-116,
+  // DEV-091). What sits in a `hidden` panel — a closed FAQ answer, an inactive
+  // tab — is not counted (BL-209), and only opacity is read, not a clip, a mask
+  // or `visibility`. `Reveal`
   // and `StaggerItem` server-render their hidden first frame and only
   // JavaScript clears it; the layout's `<noscript>` rule, scoped to their
   // `data-entrance` mark, shows them at rest instead. Each route is loaded with
@@ -937,12 +940,19 @@ try {
       await page.evaluate(() => document.querySelectorAll("noscript style").forEach((el) => el.remove()));
       const withoutRule = await page.evaluate(measure);
       await page.close();
-      out[route] = { ...shown, rule, hiddenWithoutRule: withoutRule.hidden };
+      // With scripting on, the same `<noscript>` body is inert text: no style
+      // node, so no entrance is flattened for a scripted reader (R3).
+      const scripted = await browser.newPage();
+      await scripted.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+      await scripted.goto(`http://localhost:${PORT}${path}`, { waitUntil: "networkidle0" });
+      const ruleScripted = await scripted.evaluate(() => document.querySelectorAll("noscript style").length);
+      await scripted.close();
+      out[route] = { ...shown, rule, hiddenWithoutRule: withoutRule.hidden, ruleScripted };
     }
     return out;
   }
   report.noScript = await noScript();
-  const noScriptOk = Object.entries(report.noScript).every(([route, r]) => r.rule === 1 && r.texts > 0 && r.hidden === 0
+  const noScriptOk = Object.entries(report.noScript).every(([route, r]) => r.rule === 1 && r.ruleScripted === 0 && r.texts > 0 && r.hidden === 0
     && r.hiddenWithoutRule > 0 && (route !== "pilot" || r.form === true));
   console.log(`no-script: ${noScriptOk ? "ok" : "PROBLEM"} ${JSON.stringify(report.noScript)}`);
 

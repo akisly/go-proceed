@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome.** A reader whose browser runs no JavaScript now sees each landing page whole: a reader mode, a crawler that does not execute, a locked-down browser.
-  - **Before.** `Reveal`, `Stagger`'s items and `StaggerItem` server-render their hidden first frame inline (`opacity: 0` and an offset), and only JavaScript ever clears it. Such a reader saw each page's h1 and little else, and `/pilot`'s form was not among what painted.
+  - **Before.** `Reveal`, `Stagger`'s items and `StaggerItem` server-render their hidden first frame inline, and only JavaScript ever clears it. On the server that frame is `opacity: 0`, because `useReduced()` is true there and the reduced branch renders. Such a reader saw each page's h1 and little else, and `/pilot`'s form was not among what painted.
   - **After.** Each entrance is shown at rest, at its final opacity with no offset.
   - **With scripting on, nothing changes.** First paint and every entrance stay as they were.
 - **State:** reviewing
@@ -60,19 +60,33 @@
 | 2 | Coordinator | **Measured on the built landing** (`next build`, `next start`, puppeteer with scripting off, 1440).<br>Text elements in `main` under opacity 0, with the rule removed → with it:<br>• `/`: 89 → 0<br>• `/product`: 302 → 0<br>• `/roles`: 157 → 0<br>• `/pilot`: 56 → 0<br>`/pilot`'s form now paints. At the instant of load, 3 elements on `/` read 0: the hero's lead and actions. Their CSS `entrance` runs without JavaScript, and after 2 s they paint.<br>With scripting on, the `<noscript>` holds no style node, and the entrances below the fold still start hidden: `/` 23 of 23, `/roles` 16 of 16, `/pilot` 3 of 3, `/product` 34 of 44. | `scratchpad/dev091/nojs.txt`, `nojs-settled.txt` | Tests |
 | 3 | Coordinator | **Tests and gate.**<br>• `tests/no-script-entrances.test.tsx`: 3 of 3.<br>• Two tests pinned the old markup and are updated: `landing-render.test.tsx`'s card wrapper regex, which now also asserts the mark; and `component-contract.test.ts`'s motion inventory, which excludes `no-script` beside `tokens` and `use-reduced`, since its exports are constants, not primitives.<br>• Landing unit suite 275 of 275; component contract 21 of 21.<br>• §5: step 1 skipped (tokens unchanged); step 2 `motion-audit: clean`; step 3, the fourteen DB-free `packages/testing` files, 209 of 209 after the exclusion; step 4 `typecheck` 10/10; step 5 in the harness's own `next build`. | `scratchpad/dev091-gate.log` | Harness |
 | 4 | Coordinator | **The landing harness**, run as `GOPROCEED_CHROME_PATH=/opt/pw-browsers/chromium pnpm --filter @goproceed/landing qa`:<br>• Its own `next build`, which is §5 step 5: exit 0.<br>• 40 audits, 28 widths plus 12 reduced, all ok.<br>• First folds, internal links and the border beam: ok.<br>• The new **«no-script» pass: ok**, 0 hidden on every route against 89 / 302 / 157 / 56 with the rule removed, and `/pilot`'s form painting.<br>• **Parity and interactions: PROBLEM.** The failing fields are the pointer-lit canvas grounds (`gridLit`, `floorLit`, `gridLitBesideDome`, `gridLitAboveDome`), `arcsLean`/`arcsLeanReduced` and `orbit`; none reads an entrance or an opacity.<br>• The harness's `public/og.png` rewrite was restored with `git checkout`. | `scratchpad/dev091/harness.txt`; `apps/landing/qa-output/report.json` | Baseline |
-| 6 | Coordinator | **Baseline.** The same harness on `origin/main` `984ce6f0`, in a separate worktree, gives parity PROBLEM and interactions PROBLEM with **no field differing** from this branch's report (a key-by-key comparison of both `report.json` files), and 39 passes where the branch has 40, the 40th being «no-script». The two failures come from this sandbox (a headless browser with no real pointer or GPU; the pointer-lit grounds and the orbit never register), not from this change. The worktree's `og.png` was restored and the worktree removed | `scratchpad/dev091/harness-base.txt` | §6 |
-| 5 | Coordinator | **§6 with scripting off**: every route at 1920, 1440, 1240, 768 (fine pointer), 390 and 360 (touch), with no horizontal scroll at any width. `/pilot` at 1440 paints its heading, lead, the two lists, the form with its buttons, the plan and the FAQ; `/` at 1440 and 360 is also photographed. | `scratchpad/dev091/shots.txt`, `nojs-{home,pilot}-{1440,360}.png` | Reviews |
+| 5 | Coordinator | **Baseline.** The same harness on `origin/main` `984ce6f0`, in a separate worktree, gives parity PROBLEM and interactions PROBLEM with **no field differing** from this branch's report (a key-by-key comparison of both `report.json` files), and 39 passes where the branch has 40, the 40th being «no-script». The two failures come from this sandbox (a headless browser with no real pointer or GPU; the pointer-lit grounds and the orbit never register), not from this change. The worktree's `og.png` was restored and the worktree removed | `scratchpad/dev091/harness-base.txt` | §6 |
+| 6 | Coordinator | **§6 with scripting off**: every route at 1920, 1440, 1240, 768 (fine pointer), 390 and 360 (touch), with no horizontal scroll at any width. `/pilot` at 1440 paints its heading, lead, the two lists, the form with its buttons, the plan and the FAQ; `/` at 1440 and 360 is also photographed. | `scratchpad/dev091/shots.txt`, `nojs-{home,pilot}-{1440,360}.png` | Reviews |
+| 7 | gp-ui-reviewer | **HOLD.** The mechanism is right. **U1 (major):** the scriptless home at 1440 showed the h1 without the lead and actions, which are the hero's CSS `.entrance` wrappers and depend on the animation's timing. **U2 (major, needs a disposition):** the form now paints without script but cannot be sent. U3–U5 (below) | Subagent report (session) | Fixes |
+| 8 | gp-reviewer | **PASS WITH FINDINGS**, no blocker or major. In the built HTML every `opacity:0` element carries the mark and no other does (pilot 9/9, roles 23/23, index 23/23). `<noscript dangerouslySetInnerHTML>` is safe under React 19.2.8 / Next 16.3.1: never reconciled, no hydration mismatch, one copy in the built page, the same string `renderToStaticMarkup` gives. The layout gets the real string, not a client reference. No marked element's class sets a transform or filter. R1–R4 (below) | Subagent report (session) | Fixes |
+| 9 | Coordinator | **Fixes.**<br>• **U1:** the hero's two `.entrance` wrappers take `data-entrance`, since an `!important` declaration beats an animation; a unit case holds it. Scriptless `/` at 1920 and 1440: both wrappers read opacity 1 at `domcontentloaded` and after 2.5 s, and the viewport shot shows the lead and both actions.<br>• **U2:** filed as BL-208, the form's own no-script line with its copy row. **U3, U5:** filed as BL-209. **U4:** scriptless `/product` and `/roles` at 1440 photographed; the harness comment now names what it does not read.<br>• **R1:** `NodeLock` and the reduced branch of `TextBlurIn` and `LineReveal` take the mark; the fixture renders all five words and counts 7 hidden elements, all marked. **R2:** wording in `no-script.ts` and here. **R3:** the harness's no-script pass also loads each route with scripting on and requires no style node (`ruleScripted: 0`). **R4:** row order.<br>• Checks: landing suite 276 of 276; DB-free `packages/testing` 209 of 209; `motion-audit: clean`; `typecheck` 10/10. The harness re-run gave 40 passes; «no-script» is ok on every route with `ruleScripted` 0; parity and interactions still fail, as on the baseline. | `scratchpad/dev091/harness2.txt`, `shots2.txt`, `nojs-home-{1920,1440}-viewport.png`, `nojs-{product,roles}-1440.png` | gp-ui-reviewer re-check, gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| U1 | major | the hero's `.entrance` wrappers | The scriptless fold relied on a CSS animation's timing | Coordinator | Fixed: marked; opacity 1 at load; a unit case |
+| U2 | major | `/pilot`'s form without script | Visible now but cannot be sent, and says nothing | — | Filed: BL-208 (P2) |
+| U3 | minor | closed disclosures | The FAQ answers and inactive tabs cannot open without script; the harness skips `[hidden]` | — | Filed: BL-209; the harness comment says so |
+| U4 | minor | the harness reads opacity only | Clip, mask, `visibility` unseen | Coordinator | `/product`, `/roles` photographed; the limit named in the harness |
+| U5 | optional | the home's canvas band without script | An empty band where the dome draws | — | Filed: BL-209 |
+| R1 | minor | `NodeLock`, `TextBlurIn`, `LineReveal` | Also render `opacity:0` on the server, unmarked | Coordinator | Fixed: marked; the fixture covers them |
+| R2 | nit | the wording | «and an offset»: the server renders opacity only | Coordinator | Fixed |
+| R3 | nit | AC-2 | Not held by the harness | Coordinator | Fixed: `ruleScripted` |
+| R4 | nit | the record | Rows out of order | Coordinator | Fixed |
 
 Rework count and hypothesis changes: none.
 
 ## What is not true after this task
 
 - A browser with scripting on, whose chunk never loads, still sees BL-116's page: BL-207.
+- Without script, `/pilot`'s form paints but cannot be sent (BL-208). The FAQ's answers and `/product`'s inactive tabs cannot open, and the home's canvas words leave an empty band (BL-209).
+- The harness's no-script pass reads opacity on text-bearing elements in `main` at 1440; a clip, mask or `visibility` would not register (the four routes are photographed without script instead).
 - `/product` has 10 entrances below the fold that read visible with scripting on. Why was not examined here. This task cannot have caused it: with scripting on the rule is inert text, and no stylesheet outside `<noscript>` names the mark, so the mark changes no scripted behaviour.
 - The rule is shipped by `apps/landing` only. `apps/app` imports no entrance word today.
 
@@ -95,7 +109,7 @@ Rework count and hypothesis changes: none.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** every stage runs as an independent native subagent.
-- **Verified scope:** rows 1–6.
+- **Verified scope:** rows 1–9.
 - **Remaining risks / blocked requirements:** see «What is not true after this task».
-- **Next bounded action and owner:** the harness, then `gp-reviewer` and `gp-ui-reviewer`.
+- **Next bounded action and owner:** `gp-ui-reviewer` re-check (U1), then `gp-qa`.
 - **Final state and reason:** reviewing.
