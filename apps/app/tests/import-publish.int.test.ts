@@ -261,8 +261,9 @@ describe("zero-priced rows publish", () => {
         where workspace_id = $1 and source_key = '1.5'`, [fx.workspaceId]);
     expect(rows[0]!.unit_price_state).toBe("zero");
     expect(rows[0]!.unit_price_decimal).toBeNull();
-    // The basis a typed zero line now states too (DEV-088, BL-022).
-    expect(rows[0]!.price_basis).toMatch(/^(net|gross)$/);
+    // The basis a typed zero line now states too (DEV-088, BL-022); the
+    // fixture's contract is tax-exclusive, so net.
+    expect(rows[0]!.price_basis).toBe("net");
   });
 });
 

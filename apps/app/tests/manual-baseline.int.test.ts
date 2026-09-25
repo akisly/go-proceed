@@ -214,8 +214,9 @@ describe("work_items.create succeeds on a draft", () => {
       `select source_key, price_basis from public.work_items
         where contract_version_id = $1 order by source_key`, [contractVersionId]);
     const basisOf = (key: string) => bases.find((b) => b.source_key === key)?.price_basis;
-    expect(basisOf("1.1")).toMatch(/^(net|gross)$/);
-    expect(basisOf("1.3")).toBe(basisOf("1.1"));
+    // The fixture's contract is tax-exclusive, so its basis is net.
+    expect(basisOf("1.1")).toBe("net");
+    expect(basisOf("1.3")).toBe("net");
     expect(basisOf("1.4")).toBeNull();
   });
 

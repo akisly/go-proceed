@@ -35,18 +35,19 @@ function importedBasis(unitPriceText: string | null) {
 
 describe("a typed line states the price basis an imported one does (DEV-088, BL-022)", () => {
   it.each([
-    ["zero", "0", "0,00"],
+    ["zero", null, "0,00"],
     ["known", "199.99", "199,99"],
     ["missing", null, null],
   ] as const)("%s price", (state, typedPrice, importedText) => {
     const imported = importedBasis(importedText);
     expect(imported.state).toBe(state);
-    expect(deriveLine("req", typed(state, state === "known" ? typedPrice : null), UNIT, PINS).priceBasis)
+    expect(deriveLine("req", typed(state, typedPrice), UNIT, PINS).priceBasis)
       .toBe(imported.basis);
   });
 
   it("a zero price states the version's basis, not none", () => {
     expect(deriveLine("req", typed("zero", null), UNIT, PINS).priceBasis).toBe("net");
-    expect(deriveLine("req", typed("zero", null), UNIT, { ...PINS, priceBasis: "gross" }).priceBasis).toBe("gross");
+    const inclusive: VersionPins = { ...PINS, taxMode: "inclusive", priceBasis: "gross" };
+    expect(deriveLine("req", typed("zero", null), UNIT, inclusive).priceBasis).toBe("gross");
   });
 });
