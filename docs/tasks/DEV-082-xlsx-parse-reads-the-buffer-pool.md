@@ -6,7 +6,7 @@
   - An XLSX estimate that passed the upload guard no longer fails validation at random as malformed.
   - Before the fix, on Node 24 (the engine `package.json` pins, and CI's), about 1% of parses of a small workbook failed with `XLSX_MALFORMED`. The batch then went to `failed`, and an office user saw an import fail that a retry would pass.
   - The parser now reads exactly the bytes the guard checked.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): a bug fix in executed code under `packages/domain` on the upload path, which is a security trigger, plus a test assertion under `apps/app`. The route is: root cause → failing test → fix → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -59,6 +59,7 @@
 | 7 | Coordinator | **S2 measured** on the installed exceljs 4.4.0, alternating the two m1 fixture workbooks (7,359 and 7,342 bytes as built on Node 22; one byte more each on Node 24) through the DB round trip in one process:<br>• **Node 24.21.0, the old load:** of 3,000 parses, 2,314 returned their own rows, **58 returned the other workbook's rows**, and 628 failed;<br>• **Node 24.21.0, the fixed load:** 3,000 of 3,000 own rows;<br>• **Node 22.22.2, the old load:** 1,000 of 1,000 own rows.<br>The substitution is real, not hypothetical. The failure rate depends on what else the process allocates, so the tight loop's rate is not a production estimate.<br>**Fixes:** S3: `PARSER_VERSION` is `goproceed-import/1.0.1`. S6: the fake answers `new Uint8Array(options.bytes).buffer`. S2: BL-190 (P1, the owner's audit), and «What is not true» below. S4, S5: BL-191, BL-192 (P2) | Session output | gp-qa |
 | 8 | gp-qa | AC-1, AC-2, AC-3 and AC-6 PASS on `927bbff9`; AC-4 PASS statically, its runtime on CI; AC-5 typecheck and validator PASS, CI pending.<br>• **Negative control:** both old loads (`bytes.slice().buffer`, `Buffer.from(bytes).buffer`) fail the regression test on Node 22 and on Node 24 («expected 65536 to be 6460»); the file was restored.<br>• **Import tests:** 49 of 49 on both Nodes.<br>• **Version coupling:** nothing but the frozen archive names `1.0.0`; no test pins the version or the manifest hash.<br>• **Row 7 re-measured:** Node 24 old load 2,110 own, **51 other workbook's**, 839 failed; fixed 3,000 own; Node 22 1,000 own.<br>• Q1–Q3 below | Subagent report (session) | Fix Q1; CI |
 | 9 | Coordinator | Q1 fixed: the BL-064 note my own edit had also appended to BL-127 is removed; «Root-caused by DEV-082» now appears only under BL-064. Q2 fixed. The validator passes | Session output | PR, CI |
+| 10 | Coordinator | PR #160 CI green on `113a9099` (run 36138014061: `verify`, `app-qa`), on Node 24.21.0. The `verify` log shows `src/import/xlsx.test.ts` 11 of 11 and `tests/vertical-m1.int.test.ts` 9 of 9, with step 7's new assertions, on CI's migrated database. Merged in #160 (`ce1350d9`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -93,6 +94,12 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 ExcelJS receives exactly the input's length and bytes | Yes | `927bbff9` (content of `113a9099`) | gp-qa: the regression test's view and pooled-`Buffer` cases, on Node 22 and 24 (row 8); CI 11 of 11 (row 10) | PASS | Unit level |
+| AC-2 the test fails on the old code and passes on the fix | Yes | `927bbff9` | gp-qa's negative control: both old loads fail on both Nodes, restored afterwards (row 8) | PASS | |
+| AC-3 the import tests pass on Node 24 | Yes | `927bbff9` | 49 of 49 on Node 24.21.0 and on 22.22.2 (row 8) | PASS | |
+| AC-4 `vertical-m1` step 7 asserts the upload and names the failure codes | Yes | `113a9099` | static review (row 8); CI `vertical-m1.int.test.ts` 9 of 9 (row 10) | PASS | Runs only in CI |
+| AC-5 typecheck, the validator and CI | Yes | `113a9099` | domain and app typecheck exit 0; validator OK; run 36138014061 `verify`, `app-qa` success | PASS | |
+| AC-6 `PARSER_VERSION` bumped | Yes | `113a9099` | `goproceed-import/1.0.1`; nothing else pins `1.0.0` (row 8) | PASS | |
 
 ## Sources
 
@@ -103,7 +110,7 @@ Rework count and hypothesis changes: none.
 
 - Changed / inspected files: see «Owning module».
 - Review independence: the root cause came from an independent subagent; `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents.
-- Verified scope: rows 1–9.
+- Verified scope: rows 1–10.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: CI on the pull request; the owner for BL-190.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner for BL-190 (the audit); BL-191 and BL-192 stay open.
+- Final state and reason: done — every required criterion PASS; #160 merged with CI green (row 10).
