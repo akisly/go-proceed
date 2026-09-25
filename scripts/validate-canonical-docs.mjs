@@ -1582,6 +1582,14 @@ export const UNREADABLE_APPROVED_PATHS = new Set([
   // A text file with one stray NUL byte (offset 746) in a frozen design
   // reference; it is still read as text by the content rule.
   "design-references/contest-2026-09/daylight/api/pilot.js",
+  // Three workbooks written by DEV-087 from a synthetic three-row estimate
+  // («Назва / Мурування / Штукатурення», no person), by LibreOffice Calc
+  // 24.2.7, openpyxl 3.1.5 and an Info-ZIP 3.0 streamed repack: the evidence
+  // that the XLSX guard passes real writers other than JSZip. Their only other
+  // text is each writer's own metadata. Owner, 2026-09-25 (DEV-087).
+  "packages/domain/src/import/__fixtures__/infozip-streamed.xlsx",
+  "packages/domain/src/import/__fixtures__/libreoffice.xlsx",
+  "packages/domain/src/import/__fixtures__/openpyxl.xlsx",
 ]);
 
 // Binaries the repository legitimately tracks, which hold no text a dump

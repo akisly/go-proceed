@@ -27,6 +27,7 @@
 - Owning module and allowed edit paths:
   - `packages/domain/src/import/xlsx-guard.ts`, `xlsx.test.ts`, `version.ts`, and `__fixtures__/` (three workbooks, new);
   - `apps/app/app/v1/import-batches/[batchId]/files/route.ts` and `apps/app/tests/imports.int.test.ts` (gp-security S1);
+  - `scripts/validate-canonical-docs.mjs` (`UNREADABLE_APPROVED_PATHS` only, owner);
   - `technical/database/invariant-catalog.csv` (INV-016);
   - `docs/BACKLOG.md` (BL-191, BL-192), this record, and `docs/tasks/README.md`.
 - Read context:
@@ -53,6 +54,7 @@
 | Date | Decision | Source |
 |---|---|---|
 | 2026-09-25 | Take the next item after BL-099; BL-191 and BL-192 together, the hardening DEV-082 filed | Coordinator, under the owner's standing order («мержи и давай дальше») |
+| 2026-09-25 | The three workbook fixtures, refused by the BL-079 contactPoint guard once pushed, are approved in `UNREADABLE_APPROVED_PATHS` rather than dropped | Owner's answer in the session («Approve the three paths»), after the guard's history clause stopped the stage (row 8) |
 
 ## Plan
 
@@ -73,6 +75,7 @@
 | 5 | gp-security | PASS, no blocker or major, on `e8e3f9f9`. The guard closes BL-191 and BL-192 for the installed pair: data descriptors, gaps, duplicate names, CRC, stored entries, the EOCD window, JSZip's signed `readInt`, overflow, extra fields, zip64, disks and re-basing all traced against JSZip's source; every path fails closed; ExcelJS fetches and evaluates nothing. Findings S1–S3, I1–I4 (below) | Subagent report (session) | Fixes |
 | 6 | gp-reviewer | HOLD on `e8e3f9f9`: R1, the claim that genuine workbooks pass rested only on JSZip-written ones; R2, the overlap test passed on a name mismatch. Every other point traced against JSZip matched. Findings R1–R7 (below) | Subagent report (session) | Fixes |
 | 7 | Coordinator | Fixes:<br>• **S1:** the upload route's format sniffing and guard moved inside the idempotent command, after `authorize`, before the batch is locked; an integration case (CI only) posts a bomb as a `project.view`-only member (403), as a user with no membership (404), and to a batch that does not exist (404);<br>• **S2, R3:** a name JSZip's `utils.resolve` would rewrite is refused; three names tested;<br>• **S3, R4:** the header states the pako-equals-zlib assumption; a genuine workbook is inflated three times (the upload's guard, the validate's guard, JSZip), and `chunkSize` now equals the ceiling, so the guard's output lands in one buffer and its peak is the entry, not twice it;<br>• **I4:** a test pins JSZip 3.10.1;<br>• **R1:** three workbooks from other writers checked in and parsed: **LibreOffice Calc 24.2.7** (data descriptors, the UTF-8 flag), **openpyxl 3.1.5** on Python 3.11 (zipfile), and the LibreOffice file **repacked by Info-ZIP Zip 3.0 through a pipe** (data descriptors, 0x5455 and 0x7875 extra fields, stored directory entries); plus hand-built accepted shapes (a descriptor, 0x5455 and 0x000a extras, duplicate names);<br>• **R2:** the overlap case uses one name; with the overlap check removed it fails;<br>• **R5:** a signature in the final 21 bytes, and a disk-1 end record, refused;<br>• **R7:** `ignoreBOM` makes the guard's names byte-exact; the stricter refusals are kept and listed below.<br>`xlsx.test.ts` 26 of 26; `typecheck` clean for domain and app | Session output | gp-qa |
+| 8 | Coordinator | PR #170's first `verify` failed at `validate:canonical-docs`: the BL-079 contactPoint guard refuses the three fixtures as tracked spreadsheets it cannot read. The local validator had passed before they were staged, since it reads tracked files. The guard's clause for a pushed file is to stop and ask the owner; the stage stopped, said so on the PR, and asked. The fixtures hold the three synthetic rows and each writer's metadata («LibreOffice/24.2.7.2», «openpyxl», timestamps), no person. **Owner: approve.** The three paths are in `UNREADABLE_APPROVED_PATHS` with that reason; the validator passes | CI job log; PR comment; session output | gp-security (the approval) |
 
 ## Findings and rework
 
