@@ -2355,7 +2355,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** DEV-083's `gp-architect`, 2026-09-25; the owner chose to test the whole-table grant and file the narrowing («Test it, file P3»).
   - **The gap.** 0047 granted UPDATE on the whole table. The freeze (`apps/app/app/v1/statutory-act-versions/[actVersionId]/freeze/route.ts`) sets `status`, `frozen_at`, `frozen_by_member_id`, `content_hash`, `renderer_version`, `form_template_hash`, `frozen_project_name`, `frozen_project_address`, `source_project_version` and `draft_version`, and locks the row `FOR UPDATE`, which needs UPDATE on one column only.
-  - **Its bounds.** `sav_update` admits a draft only and writes a draft or frozen row in the actor's project; the guard (BEFORE UPDATE) refuses the rest. `statutory-write-rls.test.ts` tests every move the whole-table grant allows.
+  - **Its bounds.** `sav_update` admits a draft only and writes a draft or frozen row in the actor's project; the guard (BEFORE UPDATE) refuses the rest. `statutory-write-rls.test.ts` tests every tenancy move it can isolate; `work_assignment_id` and `work_item_id` are pinned by the act key, which the contract and act moves exercise.
   - **The fix.** A column grant of the ten, and the move-outs it no longer allows removed from the test, in one migration.
   - **Ranking.** Ranked by DEV-083, as BL-186.
 - **Evidence:** `supabase/migrations/0047_the_act_assembled_from_recorded_facts.sql` (the grant); [DEV-083](tasks/DEV-083-statutory-write-denial.md).

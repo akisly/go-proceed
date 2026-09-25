@@ -300,7 +300,7 @@ function versionRow(s: Side, act: string, o: VersionOverride): unknown[] {
 const ACT_WRITE = ACT_INSERT.replace(/\s+returning id\s*$/, "");
 const VERSION_WRITE = VERSION_INSERT.replace(/\s+returning id\s*$/, "");
 
-/** The freeze's SET, constant: the only UPDATE the product makes. */
+/** The freeze's SET, constant: nine of the route's ten columns (not `frozen_project_address`, which may be null). */
 const FREEZE_SET = `status = 'frozen', frozen_at = timestamptz '${FROZEN_AT}', frozen_by_member_id = $1,
   content_hash = '${HEX64}', renderer_version = 'statutory-act-render/1', form_template_hash = '${HEX64}',
   frozen_project_name = 'Приклад-об''єкт', source_project_version = 1, draft_version = 2`;
@@ -390,6 +390,8 @@ describe("statutory cross-workspace write denial", () => {
         [WS_B, B.project, B.contract, B.act1, B.assignment, B.workItem, B.member, B.v1]],
       ["update public.statutory_act_versions set project_id = $1", [B.project]],
       ["update public.statutory_act_versions set contract_id = $1", [B.contract]],
+      // Breaks act_fkey and, v2 having a predecessor, chain_fkey too: both are the
+      // cross-workspace refusal; act_fkey answers as its RI triggers sort first.
       ["update public.statutory_act_versions set statutory_act_id = $1", [B.act1]],
       ["update public.statutory_act_versions set predecessor_version_id = $1", [B.v1]],
       ["update public.statutory_act_versions set composed_by_member_id = $1", [B.member]],

@@ -78,6 +78,8 @@
 | 7 | Coordinator | The suites that touch these tables and do not reset, run one at a time against the local database at `0107`: `m4-act-rls` 12 of 12, `m5-external-rls` 10 of 10, `m5-external-schema` 42 of 42. `m4-act-schema` failed 1 of 58 on its grant assertion, which pinned UPDATE and DELETE on the content tables. It now asserts SELECT and INSERT held and UPDATE and DELETE withheld, and passes 58 of 58 | Session output | Reviews |
 | 8 | gp-security | PASS, no blocker or major. 0107 narrows privileges and breaks no flow: compose inserts only a draft and never edits content; freeze updates and locks the version alone; no definer, job or the external exchange writes these tables. Reads are unchanged, since the select policies cover what the FOR ALL policies' USING added. Across workspaces, the composite FKs and the capability refuse everything with every guard off. Findings S1–S3 (below) | Subagent report (session) | Fixes |
 | 9 | Coordinator | Fixes: S1, the claim about what a born-frozen INSERT skipped, corrected in 0107's comment, the objective and BL-194. S2 recorded in BL-194 with its fix and test. S3: the file asserts no probed INSERT carries a RETURNING. 4 of 4 pass | Session output | gp-reviewer |
+| 10 | gp-reviewer | PASS, no blocker or major. Every probe fails for the reason it asserts; the born-frozen probe is also 0107's regression test; the minimum is met on every row; the kills and the survivor are right. Findings R1–R5 (below). Noted as a coverage limit, not a finding: a capability evaluated on the declared workspace rather than the row's would be refused only by the composite keys | Subagent report (session) | Fixes |
+| 11 | Coordinator | R1–R5 fixed (below). 4 of 4 pass; `m4-act-schema` 58 of 58; typecheck and the validator pass | Session output | gp-qa |
 
 ## Findings and rework
 
@@ -86,6 +88,11 @@
 | S1 | low | 0107's comment, this record | «past the render, the content hash»: the render and the hash are the route's alone, on either path | Coordinator | Fixed: wording (row 9) |
 | S2 | low | `app.guard_statutory_act_content()` (0047), pre-existing | A content INSERT can race a freeze and land in a frozen version (raw SQL, one workspace) | Owner | Deferred to BL-194 (P3), with its fix and test |
 | S3 | info | The file's RETURNING strip | A fixture change could silently re-mask the policies | Coordinator | Fixed: asserted in `beforeAll` |
+| R1 | minor | INV-015 | «the one exception»: template and contract versions also hold UPDATE | Coordinator | Fixed |
+| R2 | nit | BL-193 | «every move»: assignment and item are not moved alone | Coordinator | Fixed |
+| R3 | nit | 0107's rollback note | Missed the schema test, INV-015, the DA rows and the role's name | Coordinator | Fixed, in the comment and «What is not true» |
+| R4 | nit | `m4-act-schema.test.ts`, the FREEZE_SET comment | Stale rationale; nine of ten columns | Coordinator | Fixed |
+| R5 | nit | The `statutory_act_id` move | Breaks two keys; which answers is trigger order | Coordinator | Fixed: comment |
 
 Rework count and hypothesis changes: none.
 
@@ -95,7 +102,7 @@ Rework count and hypothesis changes: none.
 - The other write rows (BL-170 … BL-173) are still gaps.
 - Capability scope within one workspace is outside the cross-workspace minimum.
 - The deferred completeness check is exercised by this file's fixture freeze and by the m4 suites, not by a probe.
-- A rollback of `0107` owes more than its revokes: the content tables' UPDATE and DELETE keys are out of the gap baseline, so restoring them fails the registry check until the full UPDATE and DELETE minimum is written.
+- A rollback of `0107` owes more than its revokes: the content tables' UPDATE and DELETE keys are out of the gap baseline, so restoring them fails the registry check until the full UPDATE and DELETE minimum is written; `m4-act-schema.test.ts`'s grant assertion, INV-015, DA-233 and DA-234 revert with it, and 0047's policies are recreated to `goproceed_app` (gp-reviewer R3).
 - BL-193 … BL-195 (P3) stay open.
 
 ## Acceptance evidence
@@ -110,8 +117,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect` ran as an independent native subagent; `gp-reviewer`, `gp-security` and `gp-qa` are pending.
-- Verified scope: rows 1–9.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
+- Verified scope: rows 1–11.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-reviewer` and `gp-security`.
+- Next bounded action and owner: `gp-qa`.
 - Final state and reason: implementing.

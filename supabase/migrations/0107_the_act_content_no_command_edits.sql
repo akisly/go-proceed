@@ -38,12 +38,14 @@
 --   grant update, delete on public.statutory_act_version_quantities,
 --     public.statutory_act_version_signatories to goproceed_app;
 --   and recreate savq_write and savs_write as 0047 wrote them (for all,
---   with the same capability in both clauses);
+--   with the same capability in both clauses), to goproceed_app (0047 names
+--   the role's old name);
 -- and, in the same change, the two content rows of
--- technical/database/rls-write-coverage.csv, their DA rows, and the full UPDATE
--- and DELETE minimum in packages/testing/src/statutory-write-rls.test.ts (the
--- gap baseline no longer carries them, so the registry check fails until it is
--- written).
+-- technical/database/rls-write-coverage.csv, DA-233 and DA-234, INV-015's
+-- enforcement, the grant assertion in packages/testing/src/m4-act-schema.test.ts,
+-- and the full UPDATE and DELETE minimum in
+-- packages/testing/src/statutory-write-rls.test.ts (the gap baseline no longer
+-- carries them, so the registry check fails until it is written).
 
 revoke update, delete on public.statutory_act_version_quantities from goproceed_app;
 revoke update, delete on public.statutory_act_version_signatories from goproceed_app;
