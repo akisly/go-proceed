@@ -3,10 +3,10 @@ public,audit_events,goproceed_app,operational,INSERT,gap,,BL-172,"no cross-works
 public,blocked_reasons,goproceed_service,projection,INSERT|UPDATE|DELETE,gap,,BL-173,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,capture_events,goproceed_app,evidence,INSERT,gap,,BL-170,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,capture_events,goproceed_service,evidence,INSERT,gap,,BL-170,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,communication_attachments,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,communication_delivery_attempts,goproceed_service,communication,INSERT,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,communication_message_events,goproceed_service,communication,INSERT,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,communication_messages,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,communication_attachments,goproceed_service,communication,INSERT|UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_attachments: the service plane declaring A cannot insert or update an attachment of B or move one there,,
+public,communication_delivery_attempts,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_delivery_attempts: the service plane declaring A cannot insert an attempt of B,,
+public,communication_message_events,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_message_events: the service plane declaring A cannot insert an event of B,,
+public,communication_messages,goproceed_service,communication,INSERT|UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_messages: the service plane declaring A cannot insert or update a message of B or move one there,,
 public,contract_version_rule_bindings,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,contract_versions,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,contracts,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
@@ -50,13 +50,12 @@ public,statutory_act_version_quantities,goproceed_app,statutory,INSERT|UPDATE|DE
 public,statutory_act_version_signatories,goproceed_app,statutory,INSERT|UPDATE|DELETE,gap,,BL-169,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,statutory_act_versions,goproceed_app,statutory,INSERT|UPDATE,gap,,BL-169,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,statutory_acts,goproceed_app,statutory,INSERT,gap,,BL-169,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_binding_intents,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_chat_bindings,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_media_groups,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_member_link_intents,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_member_links,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_requirement_choice_sessions,goproceed_service,communication,INSERT|UPDATE,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,telegram_requirement_choices,goproceed_service,communication,INSERT,gap,,BL-165,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,telegram_binding_intents,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_binding_intents: the service plane declaring A cannot insert an intent of B and holds no UPDATE,,
+public,telegram_chat_bindings,goproceed_service,communication,UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_chat_bindings: the service plane declaring A cannot update a binding of B or move one there and holds no INSERT,,
+public,telegram_media_groups,goproceed_service,communication,INSERT|UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_media_groups: the service plane declaring A cannot insert or update a media group of B or move one there,,
+public,telegram_member_link_intents,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_member_link_intents: the service plane declaring A cannot insert an intent of B and holds no UPDATE,,
+public,telegram_requirement_choice_sessions,goproceed_service,communication,INSERT|UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_requirement_choice_sessions: the service plane declaring A cannot insert or update a session of B or move one there,,
+public,telegram_requirement_choices,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_requirement_choices: the service plane declaring A cannot insert a choice of B,,
 public,transaction_outbox,goproceed_app,operational,INSERT,gap,,BL-172,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,unit_definitions,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,upload_intents,goproceed_app,evidence,INSERT,gap,,BL-170,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
