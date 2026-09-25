@@ -194,7 +194,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-163](#bl-163) | P3 | open | The довідковий disclaimer calls every requirement list «довідковий Додаток Н… відтворений дослівно», including lists with no Додаток Н item |
 | [BL-164](#bl-164) | P1 | closed → DEV-077 | 14 workspace_access registry rows lack a cross-workspace write-denial test |
 | [BL-165](#bl-165) | P1 | closed → DEV-078 | 11 communication registry rows lack a cross-workspace write-denial test |
-| [BL-166](#bl-166) | P1 | open | 10 contract_baseline registry rows lack a cross-workspace write-denial test |
+| [BL-166](#bl-166) | P1 | scheduled → DEV-079 | 10 contract_baseline registry rows lack a cross-workspace write-denial test |
 | [BL-167](#bl-167) | P1 | open | 9 requirements registry rows lack a cross-workspace write-denial test |
 | [BL-168](#bl-168) | P1 | open | 6 execution registry rows lack a cross-workspace write-denial test |
 | [BL-169](#bl-169) | P1 | open | 4 statutory registry rows lack a cross-workspace write-denial test |
@@ -206,6 +206,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-175](#bl-175) | P3 | open | The service plane's UPDATE on `telegram_chat_bindings` is wider than the row locks it exists for |
 | [BL-176](#bl-176) | P3 | open | Two Telegram upsert arbiters carry no tenant column, so a foreign binding id is arbitrated against another workspace's row |
 | [BL-177](#bl-177) | P3 | open | Two service-written occurrence-id arrays are not confined to their row's workspace |
+| [BL-178](#bl-178) | P3 | open | The application role's UPDATE on `contracts` is wider than the row lock it exists for |
+| [BL-179](#bl-179) | P3 | open | Six data-access rows describe import tables and worker grants that do not exist, and a capability row says no operation creates a unit |
+| [BL-180](#bl-180) | P3 | open | Two SECURITY DEFINER helpers answer about a contract version or a work type of any workspace |
+| [BL-181](#bl-181) | P3 | open | A line can be added to an already-published contract version at any time, not only in the transaction that publishes it |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1999,7 +2003,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-166"></a>
 ### BL-166 — P1 — 10 contract_baseline registry rows lack a cross-workspace write-denial test
 
-- **State:** open
+- **State:** scheduled → DEV-079
 - **Legacy cite:** none
 - **Why:** BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 10 relation–principal rows (10 relations) as `gap`: `public.contract_version_rule_bindings` (goproceed_app): INSERT; `public.contract_versions` (goproceed_app): INSERT|UPDATE; `public.contracts` (goproceed_app): INSERT|UPDATE; `public.import_batches` (goproceed_app): INSERT|UPDATE; `public.import_files` (goproceed_app): INSERT; `public.import_row_results` (goproceed_app): INSERT; `public.locations` (goproceed_app): INSERT|UPDATE; `public.source_amount_resolutions` (goproceed_app): INSERT; `public.unit_definitions` (goproceed_app): INSERT|UPDATE; `public.work_items` (goproceed_app): INSERT|UPDATE|DELETE. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 10 `gap` rows for module `contract_baseline` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
@@ -2115,4 +2119,44 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-078's `gp-security` (S6), 2026-09-25. `telegram_requirement_choice_sessions.allowed_occurrence_ids` (0067) and `communication_messages.telegram_occurrence_snapshot` (0068) are `uuid[]` columns no foreign key checks. A service transaction declaring workspace A can store B's occurrence ids in them, a cross-workspace reference INV-001 does not enforce. It is inert today: `candidate_occurrence_id` and `chosen_occurrence_id` carry composite foreign keys, and the evidence path only checks that the allowed list includes the candidate. It predates DEV-078. The fix is a check or trigger confining each array to the row's workspace and project, or a stated exception in INV-001. Ranked by DEV-078.
 - **Evidence:** `supabase/migrations/0067_*`, `supabase/migrations/0068_*`; `apps/app/src/lib/telegram/evidence.ts`.
 - **Depends on:** a design choice (`gp-architect`).
+- **Deadline:** none recorded.
+
+<a id="bl-178"></a>
+### BL-178 — P3 — The application role's UPDATE on `contracts` is wider than the row lock it exists for
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-079's `gp-architect`, 2026-09-25. `goproceed_app` holds UPDATE on every column of `contracts` (0013), and `contracts_update` admits it with `contracts.edit`. The only product use is the import publish route's `select … for update` row lock; no route updates a contract. The owner kept the full grant on 2026-09-25 (DEV-079), as for `telegram_chat_bindings` (BL-175), and its cross-workspace confinement is tested. Narrowing it to one inert column would keep the lock and remove an in-workspace edit path nobody has reviewed. Ranked by DEV-079.
+- **Evidence:** `supabase/migrations/0013_contract_baseline_security.sql`; `apps/app/app/v1/import-batches/[batchId]/publish/route.ts`; DA-014.
+- **Depends on:** the owner.
+- **Deadline:** none recorded.
+
+<a id="bl-179"></a>
+### BL-179 — P3 — Six data-access rows describe import tables and worker grants that do not exist, and a capability row says no operation creates a unit
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-079's `gp-architect` and `gp-reviewer` (R1), 2026-09-25. DA-016 and DA-017 describe `public.import_jobs` for `goproceed_app` and `goproceed_worker`; DA-019 gives `goproceed_worker` SELECT, INSERT and UPDATE on `import_row_results`; DA-072 describes `public.import_mapping_presets`, and DA-073 and DA-074 `public.import_diffs` (the second for `goproceed_worker`). No migration creates `import_jobs`, `import_mapping_presets` or `import_diffs` (`to_regclass` returns null for `import_jobs` on the local database at `0105`; no migration names the other two), or grants `goproceed_worker` anything on `import_row_results`. The rows are marked `normative`, so they read as delivered. They should be marked as a target, or removed, with the import worker's design. Separately, `technical/permissions/capabilities.csv` (`units.manage`) says no operation creates a `unit_definition`, but the validate route and the manual baseline insert one (with ON CONFLICT DO NOTHING). Ranked by DEV-079.
+- **Evidence:** `technical/data-access-surface.csv` DA-016, DA-017, DA-019, DA-072, DA-073, DA-074; `technical/permissions/capabilities.csv` (`units.manage`); `apps/app/app/v1/import-batches/[batchId]/validate/route.ts`; `apps/app/src/lib/manual-baseline.ts`; `supabase/migrations/`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-180"></a>
+### BL-180 — P3 — Two SECURITY DEFINER helpers answer about a contract version or a work type of any workspace
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-079's `gp-security` (S2), 2026-09-25. `app.contract_version_is_draft` (0042) and `app.work_type_key_is_bindable` (0050) are SECURITY DEFINER with EXECUTE granted to `goproceed_app`, and so to `goproceed_service`. Called directly, they answer for any workspace id and version id, so the 0042 comment's «not an oracle» holds only inside the policies that call them. Neither writes, and in the `work_items` policies each sits beside a capability check on the row's own workspace and a composite foreign key, so no cross-workspace write follows. Reaching one needs SQL on the BFF connection and a v4 UUID; anon and authenticated have no EXECUTE. Gating each internally on `app.active_member_id(workspace) is not null` would close it. Ranked by DEV-079.
+- **Evidence:** `supabase/migrations/0042_the_baseline_a_person_types.sql`; `supabase/migrations/0050_the_left_hand_side_of_the_predicate.sql`.
+- **Depends on:** a migration (`gp-architect`).
+- **Deadline:** none recorded.
+
+<a id="bl-181"></a>
+### BL-181 — P3 — A line can be added to an already-published contract version at any time, not only in the transaction that publishes it
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-079's `gp-security` (S3), 2026-09-25. `wi_insert` (0042) admits a line with `imports.publish` into any version of the actor's project, published or not, and no BEFORE INSERT guard limits it. `work_items_guard` covers UPDATE and DELETE only. `contract_version_rule_bindings` has exactly such a window (`guard_rule_binding_window`: a published version accepts a binding only in the transaction that created it). Reaching this needs SQL as `goproceed_app` and stays inside the actor's workspace; INV-015 (a published baseline is immutable) is then held by the routes, not the database. An insert window on `work_items` matching the bindings' would close it. Ranked by DEV-079.
+- **Evidence:** `supabase/migrations/0042_the_baseline_a_person_types.sql` (`wi_insert`, `guard_work_item`); `guard_rule_binding_window` in the same migration (the bindings window).
+- **Depends on:** a migration (`gp-architect`).
 - **Deadline:** none recorded.
