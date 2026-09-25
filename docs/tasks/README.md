@@ -100,3 +100,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-080](DEV-080-requirements-write-denial.md) | done | BL-167: the 9 `requirements` write rows covered by `requirements-write-rls.test.ts`; every grant kept (each used by a route) |
 | [DEV-081](DEV-081-execution-write-denial.md) | done | BL-168: the 6 `execution` write rows covered by `execution-write-rls.test.ts`; `0106` withdraws the `work_assignments` UPDATE grant and policy no command uses |
 | [DEV-082](DEV-082-xlsx-parse-reads-the-buffer-pool.md) | done | BL-064: the XLSX parser read Node's shared buffer pool around an upload, and failed about 1% of imports on Node 24 |
+| [DEV-083](DEV-083-statutory-write-denial.md) | implementing | BL-169: the 4 `statutory` write rows covered by `statutory-write-rls.test.ts`; `0107` withdraws the act content's UPDATE and DELETE no command uses, and a version is born a draft |

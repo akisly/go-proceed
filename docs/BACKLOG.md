@@ -197,7 +197,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-166](#bl-166) | P1 | closed → DEV-079 | 10 contract_baseline registry rows lack a cross-workspace write-denial test |
 | [BL-167](#bl-167) | P1 | closed → DEV-080 | 9 requirements registry rows lack a cross-workspace write-denial test |
 | [BL-168](#bl-168) | P1 | closed → DEV-081 | 6 execution registry rows lack a cross-workspace write-denial test |
-| [BL-169](#bl-169) | P1 | open | 4 statutory registry rows lack a cross-workspace write-denial test |
+| [BL-169](#bl-169) | P1 | scheduled → DEV-083 | 4 statutory registry rows lack a cross-workspace write-denial test |
 | [BL-170](#bl-170) | P1 | open | 3 evidence registry rows lack a cross-workspace write-denial test |
 | [BL-171](#bl-171) | P1 | open | 3 external_review registry rows lack a cross-workspace write-denial test |
 | [BL-172](#bl-172) | P1 | open | 3 operational registry rows lack a cross-workspace write-denial test |
@@ -221,6 +221,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-190](#bl-190) | P1 | open | Owner decision: audit the XLSX parses the pool bug may have substituted with another workbook |
 | [BL-191](#bl-191) | P2 | open | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
 | [BL-192](#bl-192) | P2 | open | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
+| [BL-193](#bl-193) | P3 | open | The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns |
+| [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
+| [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2044,7 +2047,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-169"></a>
 ### BL-169 — P1 — 4 statutory registry rows lack a cross-workspace write-denial test
 
-- **State:** open
+- **State:** scheduled → DEV-083
 - **Legacy cite:** none
 - **Why:** BL-099, widened by the owner on 2026-09-24 («widen now, in stages»; DEV-076): a `covered` row of `technical/database/rls-coverage.csv` whose principal holds a write needs a cross-workspace write-denial test, and `technical/database/rls-write-coverage.csv` classifies these 4 relation–principal rows (4 relations) as `gap`: `public.statutory_act_version_quantities` (goproceed_app): INSERT|UPDATE|DELETE; `public.statutory_act_version_signatories` (goproceed_app): INSERT|UPDATE|DELETE; `public.statutory_act_versions` (goproceed_app): INSERT|UPDATE; `public.statutory_acts` (goproceed_app): INSERT. The minimum per row, set by DEV-076 with the owner on 2026-09-24 (`docs/delivery/test-strategy.md` §4): on the member plane, an active member of another workspace holding every capability the policy asks for; on the service plane, another declared workspace and none. For each privilege the row names: an INSERT carrying the other workspace's tenant key and parent ids refused by the policy (42501), with the same statement succeeding in the own workspace as the control, and an INSERT carrying the own tenant key with the other workspace's parent id refused by the policy (42501) or the composite foreign key (23503); an UPDATE and a DELETE that read no column — no `WHERE`, a constant `SET`, no `RETURNING`, since a `WHERE` would be answered by the read policy alone — run in a rolled-back transaction, succeeding with a row count equal to the own-workspace rows it may change (at least one; a statement that fails proves nothing about the policy), with the other workspace's rows read back unchanged as admin; and, where the principal can UPDATE the tenant key or a parent column, its own rows refused when moved into the other workspace by an UPDATE that likewise reads no column — with a `WHERE`, the SELECT policy applied to the new row refuses the move even under `WITH CHECK (true)` (DEV-077, observed on 17.6), so it would mask the policy under test. A trigger's refusal does not count: the assertion runs with `ALTER TABLE … DISABLE TRIGGER USER` (not `ALL`, and not `session_replication_role = replica`, which also switch off the foreign keys' own triggers), or an unused write grant is revoked by a migration instead. A write row may not cite its read row's own test (gp-security S5). A test that closes a row is cited in `technical/database/rls-write-coverage.csv`, which the validator and `rls-coverage.test.ts` then check. Ranked by DEV-076 (owner: P1).
 - **Evidence:** observed 2026-09-24 on `goproceed-staging` at `0102` through the Supabase connector (`WRITE_PRIVILEGES_SQL` of `packages/testing/src/rls-coverage.ts`, run read-only as `postgres`): the 4 `gap` rows for module `statutory` in `technical/database/rls-write-coverage.csv`; [DEV-076](tasks/DEV-076-write-denial-minimum.md).
@@ -2342,5 +2345,47 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **The test.** An entry declaring 1 KiB that inflates to 200 MB is refused without the memory growth.
   - **Ranking.** Ranked by DEV-082; read, not run.
 - **Evidence:** jszip 3.10.1 `lib/compressedObject.js`; `packages/domain/src/import/xlsx-guard.ts`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-193"></a>
+### BL-193 — P3 — The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-083's `gp-architect`, 2026-09-25; the owner chose to test the whole-table grant and file the narrowing («Test it, file P3»).
+  - **The gap.** 0047 granted UPDATE on the whole table. The freeze (`apps/app/app/v1/statutory-act-versions/[actVersionId]/freeze/route.ts`) sets `status`, `frozen_at`, `frozen_by_member_id`, `content_hash`, `renderer_version`, `form_template_hash`, `frozen_project_name`, `frozen_project_address`, `source_project_version` and `draft_version`, and locks the row `FOR UPDATE`, which needs UPDATE on one column only.
+  - **Its bounds.** `sav_update` admits a draft only and writes a draft or frozen row in the actor's project; the guard (BEFORE UPDATE) refuses the rest. `statutory-write-rls.test.ts` tests every tenancy move it can isolate; `work_assignment_id` and `work_item_id` are pinned by the act key, which the contract and act moves exercise.
+  - **The fix.** A column grant of the ten, and the move-outs it no longer allows removed from the test, in one migration.
+  - **Ranking.** Ranked by DEV-083, as BL-186.
+- **Evidence:** `supabase/migrations/0047_the_act_assembled_from_recorded_facts.sql` (the grant); [DEV-083](tasks/DEV-083-statutory-write-denial.md).
+- **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-194"></a>
+### BL-194 — P3 — The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-083's `gp-architect`, 2026-09-25.
+  - **The gap.** `savq_insert` and `savs_insert` (0107) ask the capability only. A frozen version's content is refused by `app.guard_statutory_act_content()` (BEFORE INSERT) alone, against 0047's own principle for `sav_update` that a guard should not be the only defence.
+  - **Its bounds.** Inside one workspace: the composite foreign keys pin the version to the row's workspace and project.
+  - **A race (DEV-083 gp-security S2, from locking semantics, not reproduced).** The guard reads the version's status with a plain SELECT. A content INSERT that reads `draft` while a freeze holds the version `FOR UPDATE` waits on its foreign-key check, then commits after the freeze: the frozen version gains content its `content_hash` does not cover (INV-015), and every later render refuses. It needs raw SQL on the application plane; no route inserts content into an existing version. A status arm in the policy alone would not close it — the policy reads the same snapshot.
+  - **The fix.** The guard's read taken `FOR KEY SHARE` (so a frozen or locked version is waited for and then hidden by `sav_update`'s USING), and a status arm in both WITH CHECKs; `gp-architect` to weigh the policy-reads-parent cost. The test: two connections as `goproceed_app` — A locks a draft, B inserts a signatory, A freezes and commits; B fails and the content is unchanged.
+  - **Ranking.** Ranked by DEV-083.
+- **Evidence:** `supabase/migrations/0107_the_act_content_no_command_edits.sql`; `supabase/migrations/0047_the_act_assembled_from_recorded_facts.sql` (the guard, and §10's note on `sav_update`).
+- **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-195"></a>
+### BL-195 — P3 — The entity and relationship catalogs misdescribe the statutory act tables
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-083's `gp-architect`, 2026-09-25.
+  - `technical/database/entity-catalog.csv` calls `statutory_acts` `draft_mutable`; the table is append-only by trigger (0047 §11 item 2 has owed this since August). The two content tables have no entity row.
+  - `technical/database/relationship-catalog.csv` puts `composed_from progress_entries` on the versions table; the runtime has it on the quantities table. The quantities' and signatories' parents have no rows.
+  - **Ranking.** Ranked by DEV-083.
+- **Evidence:** the two catalogs; `supabase/migrations/0047_the_act_assembled_from_recorded_facts.sql`.
 - **Depends on:** none.
 - **Deadline:** none recorded.

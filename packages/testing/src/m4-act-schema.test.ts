@@ -308,10 +308,10 @@ describe("the content of a frozen version is frozen with it", () => {
   });
 
   it("PERMITS both while the version is a draft — composing is iterative", async () => {
-    // The positive control the guard needs: a quantity line chosen and then
-    // unchosen has to be removable while the version is a draft, which is why
-    // §5 and §6 are not append-only and why the guard keys on the parent's
-    // STATUS rather than on its xmin.
+    // The positive control the guard needs: the guard keys on the parent's
+    // STATUS rather than on its xmin, so a draft's content stays changeable by
+    // its owner. Since 0107 (DEV-083) no application-plane principal holds
+    // UPDATE or DELETE on the content: this runs as the owner.
     const { versionId } = await seedDraftAct(c, a);
     expect(await sqlstate(() => c.query(
       `delete from public.statutory_act_version_quantities
@@ -855,10 +855,11 @@ describe("grants — route by route, so an unused grant is visible", () => {
     // The grant that would let a frozen version disappear if the guard were
     // ever lost.
     expect(held.has("statutory_act_versions:DELETE")).toBe(false);
+    // 0107 (DEV-083) withdrew UPDATE and DELETE on the content: compose only
+    // inserts it, and no command edits a draft.
     for (const t of ["statutory_act_version_quantities", "statutory_act_version_signatories"]) {
-      for (const p of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
-        expect(held.has(`${t}:${p}`), `${t}:${p}`).toBe(true);
-      }
+      for (const p of ["SELECT", "INSERT"]) expect(held.has(`${t}:${p}`), `${t}:${p}`).toBe(true);
+      for (const p of ["UPDATE", "DELETE"]) expect(held.has(`${t}:${p}`), `${t}:${p}`).toBe(false);
     }
   });
 
