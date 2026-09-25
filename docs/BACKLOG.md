@@ -203,6 +203,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-172](#bl-172) | P1 | open | 3 operational registry rows lack a cross-workspace write-denial test |
 | [BL-173](#bl-173) | P1 | open | 2 projection registry rows lack a cross-workspace write-denial test |
 | [BL-174](#bl-174) | P3 | open | Any signed-in actor can make itself owner of an organization that has no memberships |
+| [BL-175](#bl-175) | P3 | open | The service plane's UPDATE on `telegram_chat_bindings` is wider than the row locks it exists for |
+| [BL-176](#bl-176) | P3 | open | Two Telegram upsert arbiters carry no tenant column, so a foreign binding id is arbitrated against another workspace's row |
+| [BL-177](#bl-177) | P3 | open | Two service-written occurrence-id arrays are not confined to their row's workspace |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2082,4 +2085,34 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-077's `gp-security` (S4), 2026-09-25. `org_insert` admits any signed-in actor with an id the actor chooses (`0004`), and `m_insert` admits an `owner` membership for the actor in any organization that has no members yet (`app.org_has_members`). Through the product this is not reachable: the BFF generates the id and creates the organization and its owner in one transaction (`apps/app/app/v1/organizations/route.ts`, `workspaces/route.ts`). At the database level, an organization left without members (a seed, an admin script, a failed half of that transaction) can be claimed by any actor. Ranked by DEV-077.
 - **Evidence:** the `m_insert` and `org_insert` policies (`technical/database/…` dump in DEV-077 row 1); `packages/testing/src/workspace-access-write-rls.test.ts` «memberships» and «organizations» cases, whose controls rely on this path.
 - **Depends on:** a design choice (`gp-architect`): confine `m_insert` to an organization created in the same transaction, or assert that no memberless organization exists.
+- **Deadline:** none recorded.
+
+<a id="bl-175"></a>
+### BL-175 — P3 — The service plane's UPDATE on `telegram_chat_bindings` is wider than the row locks it exists for
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-078's `gp-security` (S1), 2026-09-25. `goproceed_service` keeps UPDATE on every column of `telegram_chat_bindings` (0062) because the communication-card, communications and retry routes lock a binding with `FOR UPDATE OF b`, which needs UPDATE on at least one column. No product path updates a binding. The full grant still lets a service transaction declaring a workspace re-point that workspace's own binding once to another chat (the guard's supergroup migration) or set and clear `disconnected_at`, which changes what `app.resolve_telegram_chat` returns. It stays inside one workspace (`unique (bot_id, chat_id)` and the service policy), and needs a compromised service plane. The owner kept the full grant on 2026-09-25 (DEV-078); narrowing it to one inert column is the owner's call to revisit. Ranked by DEV-078.
+- **Evidence:** `supabase/migrations/0062_the_group_becomes_a_project_conversation.sql` (the grant and `guard_telegram_chat_binding`); `supabase/migrations/0104_the_telegram_grants_only_definers_use.sql`; DA-203.
+- **Depends on:** the owner.
+- **Deadline:** none recorded.
+
+<a id="bl-176"></a>
+### BL-176 — P3 — Two Telegram upsert arbiters carry no tenant column, so a foreign binding id is arbitrated against another workspace's row
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-078's `gp-security` (S4), 2026-09-25. `communication_messages` arbitrates `ON CONFLICT (telegram_chat_binding_id, provider_message_id) DO NOTHING` and `telegram_media_groups` `ON CONFLICT (telegram_chat_binding_id, provider_media_group_id) DO UPDATE` (`apps/app/src/lib/telegram/processor.ts`). Neither key carries `workspace_id`. A service transaction declaring workspace A that names B's binding id learns whether B's row exists: zero rows against 23503 for messages, and 42501 against 23503 for media groups, whose update the policy's USING refuses (DEV-078's upsert probe). The product cannot reach it, because the binding id always comes from `app.resolve_telegram_chat`, never from input. Adding `workspace_id` to both unique keys keeps the semantics (binding ids are unique) and makes cross-workspace arbitration impossible. Ranked by DEV-078.
+- **Evidence:** the two statements in `processor.ts`; the media-group upsert probe in `packages/testing/src/communication-write-rls.test.ts`.
+- **Depends on:** a migration (`gp-architect`).
+- **Deadline:** none recorded.
+
+<a id="bl-177"></a>
+### BL-177 — P3 — Two service-written occurrence-id arrays are not confined to their row's workspace
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-078's `gp-security` (S6), 2026-09-25. `telegram_requirement_choice_sessions.allowed_occurrence_ids` (0067) and `communication_messages.telegram_occurrence_snapshot` (0068) are `uuid[]` columns no foreign key checks. A service transaction declaring workspace A can store B's occurrence ids in them, a cross-workspace reference INV-001 does not enforce. It is inert today: `candidate_occurrence_id` and `chosen_occurrence_id` carry composite foreign keys, and the evidence path only checks that the allowed list includes the candidate. It predates DEV-078. The fix is a check or trigger confining each array to the row's workspace and project, or a stated exception in INV-001. Ranked by DEV-078.
+- **Evidence:** `supabase/migrations/0067_*`, `supabase/migrations/0068_*`; `apps/app/src/lib/telegram/evidence.ts`.
+- **Depends on:** a design choice (`gp-architect`).
 - **Deadline:** none recorded.

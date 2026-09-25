@@ -100,7 +100,7 @@ async function one<T extends Record<string, unknown>>(sql: string, params: unkno
   return r.rows[0];
 }
 
-/** One row of every communication relation in `ws` (two messages, two attachments). */
+/** One row of every communication relation in `ws` but telegram_member_links, which no probe writes (two messages, two attachments). */
 async function seedSide(ws: string, user: string, suffix: string, chatId: string, telegramUserId: string): Promise<Side> {
   const rules = await seedRulesWorld(admin, { workspaceId: ws, userId: user, suffix });
   const world = await seedOccurrenceWorld(admin, rules);
@@ -198,6 +198,8 @@ interface Probe {
   svc(sql: string, params?: unknown[], declared?: string): Promise<Outcome>;
   /** A statement as the superuser, in the same transaction. */
   admin<T extends Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+  /** The message of the last refused `svc` statement. */
+  lastMessage(): string | null;
 }
 
 async function probe(body: (p: Probe) => Promise<void>, disableTriggersOn?: string): Promise<void> {
@@ -206,8 +208,10 @@ async function probe(body: (p: Probe) => Promise<void>, disableTriggersOn?: stri
   try {
     await c.query("begin");
     if (disableTriggersOn) await c.query(`alter table public.${disableTriggersOn} disable trigger user`);
+    let last: string | null = null;
     const p: Probe = {
       async svc(sql, params = [], declared = WS_A) {
+        last = null;
         await c.query("savepoint probe");
         await c.query("set local role goproceed_service");
         await c.query(
@@ -222,6 +226,7 @@ async function probe(body: (p: Probe) => Promise<void>, disableTriggersOn?: stri
           await c.query("rollback to savepoint probe");
           await c.query("reset role");
           const { code, message, constraint } = e as { code?: string; message?: string; constraint?: string };
+          last = message ?? null;
           const reason = /row-level security policy/.test(message ?? "") ? "policy"
             : /permission denied/.test(message ?? "") ? "privilege" : "other";
           return { rowCount: null, code: code ?? "unknown", reason, constraint: constraint ?? null };
@@ -230,6 +235,7 @@ async function probe(body: (p: Probe) => Promise<void>, disableTriggersOn?: stri
       async admin(sql, params = []) {
         return (await c.query(sql, params)).rows;
       },
+      lastMessage: () => last,
     };
     await body(p);
   } finally {
@@ -348,6 +354,22 @@ describe("communication cross-workspace write denial", () => {
        values ($1, $2, $3, 'inbound', 'text', 'Приклад-проба', 'received')`,
       (s) => [s.ws, s.project, s.binding],
       [WS_A, A.project, B.binding])).toEqual(insertConfined("communication_messages_workspace_id_project_id_telegram_ch_fkey"));
+    // The product's statement (processor.ts): its arbiter has no tenant column
+    // (BL-176), so an A-declared row naming B's binding and a provider message
+    // id B already holds is swallowed by B's row before any foreign key runs —
+    // nothing is written, but the answer differs from the 23503 above.
+    await probe(async (p) => {
+      await p.admin("update public.communication_messages set provider_message_id = 424242 where id = $1", [B.inbound]);
+      const before = await snapshot(p, "communication_messages", WS_B);
+      expect(await p.svc(
+        `insert into public.communication_messages
+           (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, provider_message_id, delivery_state)
+         values ($1, $2, $3, 'inbound', 'text', 'Приклад-проба', 424242, 'received')
+         on conflict (telegram_chat_binding_id, provider_message_id) where provider_message_id is not null do nothing`,
+        [WS_A, A.project, B.binding])).toEqual({ rowCount: 0, code: null, reason: null, constraint: null });
+      expect(await snapshot(p, "communication_messages", WS_B)).toEqual(before);
+      expect(await snapshot(p, "communication_messages", WS_A)).toHaveLength(2);
+    });
     // The guard admits provider_sent_at, so the confinement holds with it on.
     await expectUpdateConfined("communication_messages", "provider_sent_at = timestamptz '2001-01-01 00:00:00Z'");
     // The guard refuses a changed tenant key, project, binding or author before
@@ -410,15 +432,18 @@ describe("communication cross-workspace write denial", () => {
     await expectUpdateConfined("telegram_media_groups", "reply_provider_message_id = 424242");
     await probe(async (p) => {
       const before = await snapshot(p, "telegram_media_groups", WS_B);
-      // The product's upsert: its arbiter has no tenant column, so an A-declared
-      // row naming B's binding and B's group key reaches B's row, and the
-      // policy's USING must refuse the update of it.
+      // The product's upsert: its arbiter has no tenant column (BL-176), so an
+      // A-declared row naming B's binding and B's group key reaches B's row,
+      // and the policy's USING must refuse the update of it.
       expect(await p.svc(
         `insert into public.telegram_media_groups
            (workspace_id, project_id, telegram_chat_binding_id, provider_media_group_id, uploader_member_id, last_part_at)
          values ($1, $2, $3, $4, $5, now())
          on conflict (telegram_chat_binding_id, provider_media_group_id) do update set last_part_at = excluded.last_part_at`,
         [WS_A, A.project, B.binding, B.groupKey, A.member])).toEqual(refusedByPolicy);
+      // The existing row's check, not the new row's: under `USING (true)` the
+      // WITH CHECK would still refuse B's row, with a different message.
+      expect(p.lastMessage()).toMatch(/\(USING expression\)/);
       expect(await p.svc(
         "update public.telegram_media_groups set workspace_id = $1, project_id = $2, telegram_chat_binding_id = $3, uploader_member_id = $4, work_assignment_id = $5",
         [WS_B, B.project, B.binding, B.member, B.assignment])).toEqual(refusedByPolicy);
