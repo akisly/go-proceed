@@ -256,11 +256,14 @@ describe("zero-priced rows publish", () => {
     const res = await publish(batchId, view.version, view.sourceManifestHash);
     expect(res.status, await res.clone().text()).toBe(201);
 
-    const rows = await q<{ unit_price_state: string; unit_price_decimal: string | null }>(
-      `select unit_price_state, unit_price_decimal::text from public.work_items
+    const rows = await q<{ unit_price_state: string; unit_price_decimal: string | null; price_basis: string | null }>(
+      `select unit_price_state, unit_price_decimal::text, price_basis from public.work_items
         where workspace_id = $1 and source_key = '1.5'`, [fx.workspaceId]);
     expect(rows[0]!.unit_price_state).toBe("zero");
     expect(rows[0]!.unit_price_decimal).toBeNull();
+    // The basis a typed zero line now states too (DEV-088, BL-022); the
+    // fixture's contract is tax-exclusive, so net.
+    expect(rows[0]!.price_basis).toBe("net");
   });
 });
 

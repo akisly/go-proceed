@@ -248,9 +248,11 @@ export function deriveLine(
   return {
     contractQuantityText: decimalText(String(pinnedQuantity.scaled), pinnedQuantity.scale),
     unitPriceText: unitPrice === null ? null : decimalText(String(unitPrice.scaled), unitPrice.scale),
-    // Tied to the presence of a price, exactly as import_batches.publish:206
-    // ties it: an unpriced line states no basis.
-    priceBasis: unitPrice === null ? null : pins.priceBasis,
+    // Tied to the price STATE, as import_batches.publish ties it: an imported
+    // zero price still carries its parsed 0, so it states the basis, and only
+    // a missing price states none. Keying on the Decimal here left a typed
+    // zero line with no basis beside an imported one with it (DEV-088, BL-022).
+    priceBasis: input.unitPriceState === "missing" ? null : pins.priceBasis,
     netMinor, taxMinor, grossMinor,
   };
 }
