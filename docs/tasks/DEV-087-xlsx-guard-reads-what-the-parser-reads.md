@@ -15,7 +15,7 @@
   - An entry that inflates past its declared size is refused as `XLSX_BOMB_SIZE` before ExcelJS sees it (BL-192). An encrypted entry is refused as `XLSX_ENCRYPTED_OR_LEGACY`. A name JSZip would rewrite (`.` or empty inner segments) is refused as `XLSX_MALFORMED`.
   - The upload route runs the guard only after the caller is authorized (gp-security S1).
   - Workbooks from LibreOffice, openpyxl and Info-ZIP, checked in as fixtures, still pass and parse. None from Excel, Google Sheets or Numbers is tested (below).
-- State: reviewing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/domain` on the import upload path. The route is implementation → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -80,6 +80,8 @@
 | 10 | gp-qa | AC-1 … AC-4 PASS; AC-6 PASS statically; AC-5 and AC-6's run NOT RUN (CI). Checked on `dd09847d` and carried to `fbcfb89b` (no change under `packages`, `apps` or `technical` between them).<br>• With the baseline guard the suite fails 11 of 26 (every refusal block); assertion by assertion, 19 of 20 refusals were accepted at the baseline.<br>• Against JSZip itself: (a), (c), the Unicode Path field, a re-based second directory, the three S2 names, all reproduced.<br>• The bomb re-measured: guard +2 MiB, about 130 ms; JSZip 479–481 MiB, 1.4–2.6 s. `chunkSize` measured on a genuine 90 MiB entry: +76 MiB against +170 MiB without it.<br>• **14 more genuine files** produced in the container (openpyxl rich, LibreOffice from ODS, a 5,000-row LibreOffice file, `jar`, Go `archive/zip`, Python stored and deflate-9 with a comment, empty entries, ExcelJS's streaming writer, Info-ZIP plain and stored): none refused by the guard.<br>• Mutations: 26, 17 killed; the 9 survivors are stricter-than-JSZip or redundant checks, and `ignoreBOM` and the method check (Q1, Q3).<br>• Q1–Q8 (below) | Subagent report (session) | Fixes |
 | 11 | Coordinator | Fixes:<br>• **Q1:** a name containing U+FEFF is refused, so `\uFEFFxl/macros/…`, which `ignoreBOM` had silently let through, is refused again, now as `XLSX_MALFORMED` rather than the baseline's `XLSX_MACROS_PRESENT`; a test, which fails with the check removed;<br>• **Q2:** the (b) witness is now the archive JSZip does read differently (a re-based second directory naming the macro container);<br>• **Q3:** the unknown-method case carries a valid deflate stream, so it fails with the method check removed;<br>• **Q5, Q6:** filed as BL-204 and BL-205 (P3), outside DEV-087;<br>• **Q7:** `gp-reviewer` on the validator change and these fixes (row 12);<br>• **Q8:** worded.<br>`xlsx.test.ts` 26 of 26; `typecheck` clean. `PARSER_VERSION` stays 1.0.2: 1.0.1 is the last released one, and Q1 lands in the same release | Session output | gp-reviewer |
 | 12 | gp-reviewer | PASS on `c8fa6deb`: the approval entry exact and narrow, nothing else in the validator changed; the U+FEFF refusal right (JSZip keeps a BOM, part names are ASCII templates in every writer it knows); each new test fails for the reason it names, traced against JSZip's `readEndOfCentral`; `PARSER_VERSION` 1.0.2 sound. R8–R11 wording, fixed | Subagent report (session) | gp-qa on the final revision |
+| 13 | gp-qa | AC-1 … AC-4 PASS on `accdb7f0`; AC-6 PASS statically. Q1–Q3 confirmed: with the U+FEFF check removed only the BOM assertion fails; on the (b) witness's bytes JSZip lists only `xl/vbaProject.bin`, the baseline guard accepts and HEAD refuses; with the method check removed only the method assertion fails. The baseline guard fails 11 of 26; the validator passes at HEAD and, with one approved path removed, reports that fixture (so the pass is the approval's); the three fixtures and 24 generated genuine files pass HEAD's guard. Of row 10's nine mutation survivors, `ignoreBOM` and the method check are now killed; seven remain, all stricter-than-JSZip or redundant | Subagent report (session) | CI |
+| 14 | Coordinator | PR #170 CI green on `accdb7f0` (run 36186816036: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database and Node 24: `xlsx.test.ts` 26 of 26 (the bomb refused as `XLSX_BOMB_SIZE`, so the overrun code is the same on Node 24), `imports.int.test.ts` 14 of 14 with the S1 case, `vertical-m1.int.test.ts` 9 of 9, and the validator OK. The first run (`dd09847d`) failed at the validator on the fixtures (row 8); the Vercel landing status failed on the account's daily deployment quota, not this change (commented on the PR). Merged in #170 (`d4ec63f6`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -131,12 +133,12 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 each divergence refused, each test failing at the baseline | Yes | | | | |
-| AC-2 the inflation bomb refused without the memory | Yes | | | | |
-| AC-3 genuine workbooks unaffected | Yes | | | | |
-| AC-4 version, INV-016, validator, typecheck | Yes | | | | |
-| AC-5 CI green, the suites in the log | Yes | | | | |
-| AC-6 the upload route authorizes before the guard | Yes | | | | |
+| AC-1 each divergence refused, each test failing at the baseline | Yes | `accdb7f0` | the baseline guard fails 11 of 26, every refusal block; divergences reproduced against JSZip (rows 3, 4, 10, 13) | PASS | |
+| AC-2 the inflation bomb refused without the memory | Yes | `accdb7f0` | guard +2 MiB against JSZip's 479 MiB peak (rows 4, 10); the bomb case on CI's Node 24 (row 14) | PASS | Peak measured on Node 22 |
+| AC-3 genuine workbooks unaffected | Yes | `accdb7f0` | three committed fixtures and 24 generated genuine files pass; domain suite 118 of 118 (rows 7, 10, 13) | PASS | No Excel, Google Sheets or Numbers file |
+| AC-4 version, INV-016, validator, typecheck | Yes | `accdb7f0` | 1.0.2; INV-016; validator OK with its positive control; both typechecks (row 13) | PASS | |
+| AC-5 CI green, the suites in the log | Yes | `accdb7f0` | run 36186816036: `verify` and `app-qa` success; the suites in the log (row 14) | PASS | |
+| AC-6 the upload route authorizes before the guard | Yes | `accdb7f0` | the static order (rows 10, 13); `imports.int.test.ts` 14 of 14 on CI (row 14) | PASS | |
 
 ## Sources
 
@@ -148,8 +150,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
-- Verified scope: rows 1–10 and 12; row 11's fixes go to gp-qa.
+- Review independence: `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents; the fixtures' part-level dump (row 9) is the coordinator's.
+- Verified scope: rows 1–14.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the final revision (Q1–Q3, the validator), then CI.
-- Final state and reason: reviewing.
+- Next bounded action and owner: none in this task. BL-203, BL-204 and BL-205 (P3) are open; the staging push of `0103` … `0110` and BL-190 are the owner's.
+- Final state and reason: done — every required criterion PASS; #170 merged with CI green (row 14).

@@ -219,8 +219,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-188](#bl-188) | P3 | open | The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only |
 | [BL-189](#bl-189) | P3 | open | An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction |
 | [BL-190](#bl-190) | P1 | open | Owner decision: audit the XLSX parses the pool bug may have substituted with another workbook |
-| [BL-191](#bl-191) | P2 | scheduled → DEV-087 | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
-| [BL-192](#bl-192) | P2 | scheduled → DEV-087 | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
+| [BL-191](#bl-191) | P2 | closed → DEV-087 | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
+| [BL-192](#bl-192) | P2 | closed → DEV-087 | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
 | [BL-193](#bl-193) | P3 | open | The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns |
 | [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
@@ -2329,9 +2329,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-191"></a>
 ### BL-191 — P2 — The XLSX guard and JSZip read an archive's directory differently (INV-016)
 
-- **State:** scheduled → DEV-087
+- **State:** closed → DEV-087
 - **Legacy cite:** none
-- **Why:** DEV-082's `gp-security` (S4), 2026-09-25; older than DEV-082. The guard (`xlsx-guard.ts`) checks the directory the EOCD declares; JSZip reads more:
+- **Why:** *[2026-09-25, DEV-087: reproduced against JSZip 3.10.1 — an uncounted record, a local name, a Unicode Path field and a re-based second directory each slipped `xl/vbaProject.bin` past the guard — and fixed: the guard now requires the one reading JSZip makes, and refuses names JSZip would rewrite. Merged in #170 (`d4ec63f6`).]* DEV-082's `gp-security` (S4), 2026-09-25; older than DEV-082. The guard (`xlsx-guard.ts`) checks the directory the EOCD declares; JSZip reads more:
   - **(a) Extra records.** JSZip keeps reading central-directory records while the signature matches. The guard checks only the EOCD's `count`, so extra records (a `xl/vbaProject.bin`, say) escape every check.
   - **(b) A second directory.** The guard never reads `centralDirSize`. An understated one makes JSZip read a second, unchecked directory.
   - **(c) Names.** JSZip takes entry names from the local headers; the guard checks the central names.
@@ -2348,9 +2348,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-192"></a>
 ### BL-192 — P2 — Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016)
 
-- **State:** scheduled → DEV-087
+- **State:** closed → DEV-087
 - **Legacy cite:** none
-- **Why:** DEV-082's `gp-security` (S5), 2026-09-25; older than DEV-082.
+- **Why:** *[2026-09-25, DEV-087: measured — a 398 KiB upload declaring 1 KiB took JSZip to 479 MiB — and fixed: each entry is inflated with its declared size as the ceiling before ExcelJS sees it (the same upload now costs about 2 MiB), and the upload route authorizes before the guard. Merged in #170 (`d4ec63f6`).]* DEV-082's `gp-security` (S5), 2026-09-25; older than DEV-082.
   - **The gap.** JSZip compares an entry's inflated length with its declared `uncompressedSize` only after inflating all of it. The guard's bomb checks use the declared sizes.
   - **The consequence.** A member with `imports.manage` can upload up to 20 MiB whose entries declare small sizes but inflate at about 1000:1, exhausting the app server's memory. INV-016 promises archive and parser resource limits.
   - **The fix.** Inflate each entry with a hard cap before ExcelJS sees it (for example `zlib.inflateRawSync(data, { maxOutputLength: declared + 1 })`), and refuse an overrun as `XLSX_BOMB_SIZE`.
