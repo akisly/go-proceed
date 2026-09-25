@@ -273,6 +273,8 @@ describe("workspace_access cross-workspace write denial", () => {
         .toEqual({ rowCount: null, code: "42501", reason: "privilege" });
       expect(await p.as(insert, [randomUUID(), B.x])).toEqual({ rowCount: null, code: "23503", reason: "other" });
       expect(await p.as(insert, [randomUUID(), null])).toEqual({ rowCount: 1, code: null, reason: null });
+      // The policy's own refusal: with no actor (an empty actor GUC makes app.current_actor() NULL) nobody may create one.
+      expect(await p.as(insert, [randomUUID(), null], "")).toEqual({ rowCount: null, code: "42501", reason: "policy" });
       expect(await p.admin<{ d: string }>("select display_name as d from public.organizations where id = $1", [WS_B]))
         .toEqual([{ d: "Приклад-Простір-B" }]);
     });

@@ -11,8 +11,9 @@
 -- DEV-077 (BL-164) found it while writing the cross-workspace write-denial test
 -- the DEV-076 minimum asks of every covered row that holds a write: a test of
 -- an UPDATE must first succeed on the member's own rows, and here nothing can.
--- The owner ruled on 2026-09-24 that an unused write grant is revoked rather
--- than tested, and on 2026-09-25 that this one is.
+-- The DEV-076 minimum (docs/delivery/test-strategy.md §4) lets an unused write
+-- grant be revoked instead of tested; the owner chose that for this one on
+-- 2026-09-25 (DEV-077).
 --
 -- Nothing in apps/, packages/, scripts/ or supabase/functions/ updates
 -- memberships or takes a row lock on them (grep for UPDATE, FOR UPDATE / SHARE,

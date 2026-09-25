@@ -63,16 +63,26 @@
 | 3 | Coordinator | Grep of `apps/app/{app,src}`, `packages/*/src`, `scripts` and `supabase/functions` for UPDATE, row locks, `ON CONFLICT DO UPDATE` and MERGE on memberships: nothing outside tests. `0103` is free on every branch. Owner decisions recorded | Session output | Implement |
 | 4 | Coordinator | `0103` written and applied by hand to the local database as `supabase_admin`, then recorded in `schema_migrations`. `goproceed_app` no longer holds UPDATE on memberships | Session output | Tests |
 | 5 | Coordinator | The test file: 14 cases, every probe in a rolled-back transaction on the superuser connection, with statements under `SET LOCAL ROLE goproceed_app` inside savepoints. It passed first time, so it was mutated. `WITH CHECK (true)` on `parties_update` survived: a move-out written with a `WHERE` is refused by the SELECT policy applied to the new row, masking the policy under test (reproduced directly on 17.6). The move-outs now read no column. The parent-only probe on `party_legal_profiles` keeps one `WHERE`, because its purpose is the composite foreign key and a two-row move hits the unique key first (23505) | Session output | Mutations |
-| 6 | Coordinator | Mutations, each committed and restored in turn:<br>• `WITH CHECK (true)` on all 13 INSERT policies, and on `plp_update` and the six other UPDATE policies: each fails its test.<br>• `USING (true)` on all 8 UPDATE policies: each fails its test.<br>• One survivor: `WITH CHECK (true)` on `pag_update`, whose grant covers only `(revoked_at, version)`. Neither column carries a key, so no move is possible, and the permissive clause opens no path.<br>• Restored: 14 of 14 | Session output | Catalogs |
+| 6 | Coordinator | Mutations, each committed and restored in turn (30 in all, 29 killed):<br>• `WITH CHECK (true)` on 13 of the 14 INSERT policies: each fails its test. The fourteenth, `org_insert`, survived here and was killed in row 10 (R3).<br>• `WITH CHECK (true)` on `plp_update` and the six other UPDATE policies: each fails its test.<br>• `USING (true)` on all 8 UPDATE policies: each fails its test.<br>• One survivor: `WITH CHECK (true)` on `pag_update`, whose grant covers only `(revoked_at, version)`. Neither column carries a key, so no move is possible, and the permissive clause opens no path.<br>• Restored: 14 of 14 | Session output | Catalogs |
 | 7 | Coordinator | The write registry: 14 rows `covered`, and memberships `INSERT` only. The 14 keys left the baseline. DA-002, DA-003 and DA-005 are now `SELECT|INSERT`, observed with `has_table_privilege` on the local database. INV-060 cites the file. `test-strategy.md` §4 and BL-164 … BL-173 say the move-out also reads no column. `STATUS.md` has the migrations marker `0103` | `git diff` | Checks |
+| 8 | gp-security | PASS WITH FINDINGS, no blocker: `0103` correct (a whole-table revoke also removes column UPDATE grants; `goproceed_service` held UPDATE only through `goproceed_app`; no definer path lost); the probes meet the minimum; the organizations probes and the `pag_update` survivor accepted. Findings S1–S5 | Subagent report (session), on `480092bb` | Fix S1–S5 |
+| 9 | Coordinator | S1–S5 fixed in `a257848f`: UPDATE probes set `version = 424242`; the outcome carries the refusal reason (`policy` or `privilege`) and every refusal asserts it; parent-only probes for `invitations.accepted_membership_id`, `project_field_channels.project_id` and `project_parties.project_id`; BL-174 (P3) for S4; the `0103` comment names the `supabase/` grep and the definer functions `0062` and `0085` | `a257848f` | gp-reviewer |
+| 10 | gp-reviewer | PASS WITH FINDINGS, no blocker; no probe passes for the wrong reason. R1 (= S1, already fixed). R2: the `0103` comment cited an owner ruling of 2026-09-24 that DEV-076 does not hold. R3: `org_insert` was never reached, and row 6 miscounted. Coordinator fixed R2 (the comment now cites test-strategy §4 and this task's owner decision) and R3 (an empty-actor probe: `insert into organizations` with no actor is refused 42501 by the policy). `WITH CHECK (true)` on `org_insert` now fails the organizations test; restored, 14 of 14 pass | Subagent report (session); session output | gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
 | C1 | major | Coordinator's mutation run; the DEV-076 minimum | A move-out with a `WHERE` passed under `WITH CHECK (true)`, because the SELECT policy refused the new row, so the stated minimum did not test the policy it names | Coordinator | Fixed: the move-out reads no column, stated in test-strategy §4 and BL-164 … BL-173; the mutation now fails |
+| S1 / R1 | minor | gp-security, gp-reviewer; UPDATE probes on `project_access_grants` and `project_field_channels` | `version = 1` is the default, so B's read-back could not show a write | Coordinator | Fixed in `a257848f`: `version = 424242` |
+| S2 | minor | gp-security; the probe outcome | Only the code was kept, and 42501 is also a missing grant's code | Coordinator | Fixed in `a257848f`: the outcome carries `reason`, asserted on every refusal |
+| S3 | nit | gp-security; three parent columns | Never moved on their own | Coordinator | Fixed in `a257848f`: one parent-only probe each |
+| S4 | low | gp-security; `org_insert`, `m_insert` | Any signed-in actor may claim an organization with no members; unreachable through the app | Owner | Deferred to BL-174 (P3, open) |
+| S5 | nit | gp-security; `0103` header | The grep scope omitted `supabase/` | Coordinator | Fixed in `a257848f` |
+| R2 | minor | gp-reviewer; `0103` header | Cited an owner ruling that does not exist | Coordinator | Fixed: cites test-strategy §4 and the owner's 2026-09-25 decision |
+| R3 | low | gp-reviewer; AC-2 | `org_insert` unreached by any probe; row 6 miscounted | Coordinator | Fixed: empty-actor probe; mutation killed; row 6 corrected |
 
-Rework count and hypothesis changes: none.
+Rework count and hypothesis changes: no round (review findings fixed before QA; no QA FAIL).
 
 ## What is not true after this task
 
@@ -92,8 +102,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
-- Verified scope: rows 1–7.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` pending.
+- Verified scope: rows 1–10.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-reviewer` and `gp-security`.
+- Next bounded action and owner: `gp-qa` on the final revision.
 - Final state and reason: implementing.
