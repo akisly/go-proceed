@@ -1588,7 +1588,8 @@ export const UNREADABLE_APPROVED_PATHS = new Set([
   // 24.2.7, openpyxl 3.1.5 and an Info-ZIP 3.0 streamed repack: the evidence
   // that the XLSX guard passes real writers other than JSZip. Their only other
   // content is writer and archiver metadata (versions, timestamps, uid/gid 0).
-  // Owner, 2026-09-25; each part read by gp-security's review (DEV-087).
+  // Owner, 2026-09-25; every part dumped by the coordinator and the dump
+  // reviewed with gp-security's findings (DEV-087, record row 9).
   "packages/domain/src/import/__fixtures__/infozip-streamed.xlsx",
   "packages/domain/src/import/__fixtures__/libreoffice.xlsx",
   "packages/domain/src/import/__fixtures__/openpyxl.xlsx",
