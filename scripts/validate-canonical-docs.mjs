@@ -42,7 +42,7 @@ import { fileURLToPath } from "node:url";
 // output directory or a gitignored QA artifact) and the same source the P1
 // entry's own measurement commands used, so the guard and the entry count the
 // same tree.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -1677,6 +1677,106 @@ export function trackedIgnoredErrors(paths) {
 }
 
 /**
+ * THE COMMITS A CHANGE ADDS, NOT ONLY ITS LAST TREE (BL-124 item 2, DEV-090).
+ * The rules above read the index, so a dump committed and then deleted on the
+ * same branch passes them, while its bytes stay in the branch's history and in
+ * the pull request's refs. `--commits <range>` runs the path, binary and
+ * contactPoint rules over every blob a commit in `<range>` added or changed,
+ * whether or not a later commit removed it; CI runs it over what a pull request
+ * or a push to main adds (`.github/workflows/ci.yml`).
+ *
+ * `git log --raw --diff-merges=separate`, so a merge's changes against each
+ * parent are read too, whatever a contributor's `log.diffMerges` says;
+ * `--no-renames`, so a moved file is read at its new path. Submodule entries
+ * (mode 160000) point at commits, not blobs, and are skipped as the index rule
+ * skips them. A range git cannot resolve (a shallow clone, a rewritten `before`)
+ * throws, and so does any token the parse does not recognise: an output it
+ * cannot read is refused, never skipped (DEV-090 gp-security S2).
+ */
+export function parseRawLog(out) {
+  const entries = [];
+  const tokens = out.split("\0");
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i].replace(/^\n+/, "");
+    if (t === "") continue;
+    const m = /^:(\d{6}) (\d{6}) ([0-9a-f]+) ([0-9a-f]+) ([A-Z])\d*$/.exec(t);
+    if (!m) throw new Error(`git log --raw printed a line the guard cannot read: ${JSON.stringify(t.slice(0, 80))}`);
+    const path = tokens[++i];
+    if (path === undefined) break;
+    const [, , mode, , blob, status] = m;
+    if (status === "D" || mode === "160000" || /^0+$/.test(blob)) continue;
+    entries.push({ mode, blob, path, status });
+  }
+  return entries;
+}
+
+/**
+ * A range `a..b` with no whitespace and no leading `-`: nothing git could read
+ * as an option. `--end-of-options` below says the same to git.
+ */
+export function isCommitRange(s) {
+  return typeof s === "string" && /^[^\s-][^\s]*\.\.[^\s]+$/.test(s);
+}
+
+export function commitRangeEntries(range) {
+  if (!isCommitRange(range)) throw new Error(`not a commit range: ${JSON.stringify(range)}`);
+  const out = execFileSync("git",
+    ["log", "--format=", "--raw", "-z", "--no-abbrev", "--no-renames", "--no-show-signature", "--diff-merges=separate",
+      "--diff-filter=AMT", "--end-of-options", range, "--"],
+    { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 30 });
+  const seen = new Set();
+  return parseRawLog(out).filter((e) => !seen.has(`${e.path}\0${e.blob}`) && seen.add(`${e.path}\0${e.blob}`));
+}
+
+/**
+ * Every rule the index guard applies, over the blobs `entries` name; each error
+ * says the range. `ignoredOf` answers which of the paths the repository's
+ * `.gitignore` files ignore: a file forced past them (`git add -f .env.local`)
+ * and deleted later is refused as the index rule refuses it tracked (S1).
+ */
+export function commitRangeErrors(range, entries, readBlobs, ignoredOf = () => []) {
+  const errs = [];
+  const where = (e) => `${e} (a commit in ${range} added it; deleting it later leaves it in the history, so a `
+    + "pushed branch clears this only by rewriting it, and the remote keeps the old commits: tell the owner)";
+  const paths = [...new Set(entries.map((x) => x.path))];
+  for (const e of prospectingPathErrors(paths)) errs.push(where(e));
+  for (const e of trackedIgnoredErrors(ignoredOf(paths))) errs.push(where(e));
+  if (entries.length === 0) return errs;
+  const { entries: bodies, error } = readBlobs(entries);
+  if (error) errs.push(`contactPoint guard over ${range}: ${error} — the scan stopped there, so it fails closed`);
+  for (const { path, body } of bodies) {
+    const text = decodeTrackedText(body);
+    if (text === null) for (const e of binaryBlobErrors(path)) errs.push(where(e));
+    for (const e of contactPointErrors(path, text ?? body.toString("latin1"))) errs.push(where(e));
+  }
+  return errs;
+}
+
+/**
+ * The paths the repository's `.gitignore` files ignore, read from the tree as
+ * checked out. `--no-index`, since a path deleted later is not in the index;
+ * no global excludes file, so the answer does not depend on the machine. Exit 1
+ * is «none ignored»; anything else throws, and the caller fails closed.
+ */
+function ignoredPaths(paths) {
+  if (paths.length === 0) return [];
+  const r = spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "--no-index", "-z", "--stdin"], {
+    cwd: ROOT, input: paths.join("\0") + "\0", encoding: "utf8", maxBuffer: 1 << 26,
+  });
+  if (r.error) throw r.error;
+  if (r.status === 1) return [];
+  if (r.status !== 0) throw new Error(`git check-ignore exited ${r.status}: ${r.stderr.trim()}`);
+  return r.stdout.split("\0").filter(Boolean);
+}
+
+function readBlobsBatch(entries) {
+  const out = execFileSync("git", ["cat-file", "--batch"], {
+    cwd: ROOT, input: entries.map((e) => e.blob).join("\n") + "\n", maxBuffer: 1 << 30,
+  });
+  return parseCatFileBatch(out, entries);
+}
+
+/**
  * The workflow documents an agent is sent to first. They carry no metadata
  * block (they are procedure, not canonical design) but a broken relative link
  * in them sends every session to a file that is not there.
@@ -2327,6 +2427,43 @@ function selfTest() {
   if (retiredWorkflowErrors("docs/superpowers/plans/a.md", "superpowers:writing-plans\n").length !== 0) t.push("retired workflow (record not exempt)");
   if (workflowLinkTargets("[a](b.md#c) [d](#e) [f](https://g)").join() !== "b.md") t.push("workflow link extractor");
 
+  // The history guard (BL-124 item 2, DEV-090): the raw log parses, a deletion
+  // and a submodule are skipped, and a dump anywhere in the range is refused.
+  {
+    const blobA = "a".repeat(40), blobB = "b".repeat(40), zero = "0".repeat(40);
+    const raw = `\n:000000 100644 ${zero} ${blobA} A\0outputs/s/hits.json\0`
+      + `:100644 000000 ${blobA} ${zero} D\0outputs/s/hits.json\0`
+      + `:000000 160000 ${zero} ${blobB} A\0vendor/sub\0`
+      + `\0:100644 100644 ${blobB} ${blobA} M\0docs/a b.md\0`;
+    const parsed = parseRawLog(raw);
+    if (parsed.map((e) => `${e.status}:${e.path}`).join() !== "A:outputs/s/hits.json,M:docs/a b.md") {
+      t.push("history guard (raw log parse)");
+    }
+    const dump = Buffer.from('{"contactPoint": {"name": "X"}}\n');
+    const read = (es) => ({ entries: es.map((e) => ({ path: e.path, body: dump })), error: null });
+    const errs = commitRangeErrors("a..b", [{ path: "outputs/s/hits.json", blob: blobA }], read);
+    if (errs.length !== 2 || !errs.every((e) => e.includes("a commit in a..b added it"))) {
+      t.push("history guard (a deleted dump refused by path and by content)");
+    }
+    const clean = (es) => ({ entries: es.map((e) => ({ path: e.path, body: Buffer.from("# ok\n") })), error: null });
+    if (commitRangeErrors("a..b", [{ path: "docs/a.md", blob: blobA }], clean).length !== 0) t.push("history guard (clean range)");
+    const forced = commitRangeErrors("a..b", [{ path: ".env.local", blob: blobA }], clean, (ps) => ps.filter((x) => x === ".env.local"));
+    if (forced.length !== 1 || !forced[0].includes("tracked although .gitignore ignores it")) t.push("history guard (a forced, ignored file refused)");
+    for (const odd of [`::100644 100644 100644 ${blobA} ${blobB} ${blobA} MM\0p\0`, "commit abc\0"]) {
+      try { parseRawLog(odd); t.push(`history guard (skipped ${JSON.stringify(odd.slice(0, 12))})`); } catch { /* fails closed */ }
+    }
+    const broken = () => ({ entries: [], error: "x: git cat-file could not read its blob (x missing)" });
+    if (commitRangeErrors("a..b", [{ path: "docs/a.md", blob: blobA }], broken).length !== 1) t.push("history guard (fails closed)");
+    // The predicate alone: running git here would run it with the very arguments refused.
+    for (const bad of ["", "--output=x", "main", "a..b c", "-x..y", "..HEAD", "a..", undefined]) {
+      if (isCommitRange(bad)) t.push(`history guard (accepted ${JSON.stringify(bad)})`);
+    }
+    for (const good of ["HEAD^1..HEAD^2", `${blobA}..HEAD`, "origin/main~5..origin/main"]) {
+      if (!isCommitRange(good)) t.push(`history guard (refused ${good})`);
+    }
+    if (parseRawLog(`:100644 100644 ${blobA} ${blobB} M100\0x.md\0`).length !== 1) t.push("history guard (a status with a score)");
+  }
+
   // ProZorro contactPoint guard (BL-081): the forms a data dump takes are
   // refused; the prose forms the repository uses (backticked paths) are not.
   const cp = (p, s) => contactPointErrors(p, s).length;
@@ -2881,6 +3018,24 @@ const BRANDING_DOCS = METADATA_DOCS;
 
 function main() {
   selfTest();
+
+  // `--commits <range>`: only the history guard (BL-124 item 2, DEV-090).
+  const at = process.argv.indexOf("--commits");
+  if (at !== -1) {
+    const range = process.argv[at + 1] ?? "";
+    try {
+      for (const e of commitRangeErrors(range, commitRangeEntries(range), readBlobsBatch, ignoredPaths)) fail(e);
+    } catch (err) {
+      fail(`contactPoint guard could not read the commits in ${JSON.stringify(range)}: ${err.message} — it fails closed`);
+    }
+    if (failures.length) {
+      console.error(`prospecting guard over ${range}: ${failures.length} problem(s)`);
+      for (const f of failures) console.error("  - " + f);
+      process.exit(1);
+    }
+    console.log(`prospecting guard over ${range}: OK`);
+    return;
+  }
 
   for (const p of REQUIRED) {
     if (!existsSync(join(ROOT, p))) fail(`missing required path: ${p}`);
