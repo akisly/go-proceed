@@ -267,12 +267,16 @@ describe("contract_baseline cross-workspace write denial", () => {
     expect(await insertOutcomes(insert,
       (s) => [s.ws, s.project, s.contract, s.draft, s.rule, s.ruleVersion, s.stageKey, s.member],
       [[WS_A, A.project, A.contract, B.draft, A.rule, A.ruleVersion, A.stageKey, A.member],
-       [WS_A, A.project, A.contract, A.draft, A.rule, A.ruleVersion, A.stageKey, B.member]],
+       [WS_A, A.project, A.contract, A.draft, A.rule, A.ruleVersion, A.stageKey, B.member],
+       // B's rule version: with the guard off, only its composite foreign keys
+       // can answer (gp-security DEV-079 S1); the first to fire is named.
+       [WS_A, A.project, A.contract, A.draft, B.rule, B.ruleVersion, B.stageKey, A.member]],
       ["contract_version_rule_bindings"]))
       .toEqual([
         refusedByPolicy,
         byForeignKey("contract_version_rule_binding_workspace_id_project_id_cont_fkey"),
         byForeignKey("contract_version_rule_binding_workspace_id_bound_by_member_fkey"),
+        byForeignKey("contract_version_rule_binding_workspace_id_requirement_rul_fkey"),
         inserted,
       ]);
     expect(await triggersEnabled("contract_version_rule_bindings")).toEqual(["O", "O", "O"]);
@@ -289,8 +293,13 @@ describe("contract_baseline cross-workspace write denial", () => {
               null, null, $4, $5, null, null)`;
     expect(await insertOutcomes(draft,
       (s) => [s.ws, s.project, s.contract, s.published, USER_A],
-      [[WS_A, A.project, A.contract, B.published, USER_A]]))
-      .toEqual([refusedByPolicy, byForeignKey("contract_versions_workspace_id_contract_id_supersedes_vers_fkey"), inserted]);
+      [[WS_A, A.project, A.contract, B.published, USER_A], [WS_A, A.project, B.contract, A.published, USER_A]]))
+      .toEqual([
+        refusedByPolicy,
+        byForeignKey("contract_versions_workspace_id_contract_id_supersedes_vers_fkey"),
+        byForeignKey("contract_versions_workspace_id_project_id_contract_id_fkey"),
+        inserted,
+      ]);
     // The published arm of cv_insert asks for another capability, so it gets its own probe.
     const published = `insert into public.contract_versions
         (workspace_id, project_id, contract_id, version_no, status, origin,
@@ -330,8 +339,14 @@ describe("contract_baseline cross-workspace write denial", () => {
               '{"midpoint":"half_up","scope":"work_item_version_pool"}'::jsonb, $6)`;
     expect(await insertOutcomes(insert,
       (s) => [s.ws, s.project, s.own, s.customer, `ПР-DEV079-проба-${n++}`, USER_A],
-      [[WS_A, A.project, A.own, B.customer, "ПР-DEV079-проба-змішаний", USER_A]]))
-      .toEqual([refusedByPolicy, byForeignKey("contracts_workspace_id_customer_party_id_fkey"), inserted]);
+      [[WS_A, A.project, A.own, B.customer, "ПР-DEV079-проба-змішаний", USER_A],
+       [WS_A, A.project, B.own, A.customer, "ПР-DEV079-проба-змішаний-2", USER_A]]))
+      .toEqual([
+        refusedByPolicy,
+        byForeignKey("contracts_workspace_id_customer_party_id_fkey"),
+        byForeignKey("contracts_workspace_id_own_party_id_fkey"),
+        inserted,
+      ]);
     expect(await confined("contracts", "update public.contracts set version = 424242"))
       .toEqual({ outcome: changed(1), aChanged: 1, bUnchanged: true });
     expect(await moveOutcomes("contracts", [
@@ -453,8 +468,13 @@ describe("contract_baseline cross-workspace write denial", () => {
     // target shows that arm refusing B.
     expect(await insertOutcomes(insert,
       (s) => [s.ws, s.project, s.contract, s.draft, s.unit],
-      [[WS_A, A.project, A.contract, A.draft, B.unit]]))
-      .toEqual([refusedByPolicy, byForeignKey("work_items_workspace_id_unit_definition_id_fkey"), inserted]);
+      [[WS_A, A.project, A.contract, A.draft, B.unit], [WS_A, A.project, A.contract, B.draft, A.unit]]))
+      .toEqual([
+        refusedByPolicy,
+        byForeignKey("work_items_workspace_id_unit_definition_id_fkey"),
+        byForeignKey("work_items_workspace_id_project_id_contract_id_contract_ve_fkey"),
+        inserted,
+      ]);
     // The line guards refuse a published line and any tenant change before the
     // policy is asked. wi_update and wi_delete admit a draft line only: one row of A.
     expect(await confined("work_items", "update public.work_items set description = 'Приклад-позиція-змінена'", ["work_items"]))

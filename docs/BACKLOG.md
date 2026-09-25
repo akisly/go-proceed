@@ -208,6 +208,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-177](#bl-177) | P3 | open | Two service-written occurrence-id arrays are not confined to their row's workspace |
 | [BL-178](#bl-178) | P3 | open | The application role's UPDATE on `contracts` is wider than the row lock it exists for |
 | [BL-179](#bl-179) | P3 | open | Three data-access rows describe an `import_jobs` table and worker grants that do not exist |
+| [BL-180](#bl-180) | P3 | open | Two SECURITY DEFINER helpers answer about a contract version or a work type of any workspace |
+| [BL-181](#bl-181) | P3 | open | A line can be added to an already-published contract version at any time, not only in the transaction that publishes it |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2137,4 +2139,24 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-079's `gp-architect`, 2026-09-25. DA-016 and DA-017 describe `public.import_jobs` for `goproceed_app` and `goproceed_worker`, and DA-019 gives `goproceed_worker` SELECT, INSERT and UPDATE on `import_row_results`. No migration creates `import_jobs` (`to_regclass` returns null on the local database at `0105`) or grants `goproceed_worker` anything on `import_row_results`. The rows are marked `normative`, so they read as delivered. They should be marked as a target, or removed, with the import worker's design. Ranked by DEV-079.
 - **Evidence:** `technical/data-access-surface.csv` DA-016, DA-017, DA-019; `supabase/migrations/`.
 - **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-180"></a>
+### BL-180 — P3 — Two SECURITY DEFINER helpers answer about a contract version or a work type of any workspace
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-079's `gp-security` (S2), 2026-09-25. `app.contract_version_is_draft` (0042) and `app.work_type_key_is_bindable` (0050) are SECURITY DEFINER with EXECUTE granted to `goproceed_app`, and so to `goproceed_service`. Called directly, they answer for any workspace id and version id, so the 0042 comment's «not an oracle» holds only inside the policies that call them. Neither writes, and in the `work_items` policies each sits beside a capability check on the row's own workspace and a composite foreign key, so no cross-workspace write follows. Reaching one needs SQL on the BFF connection and a v4 UUID; anon and authenticated have no EXECUTE. Gating each internally on `app.active_member_id(workspace) is not null` would close it. Ranked by DEV-079.
+- **Evidence:** `supabase/migrations/0042_the_baseline_a_person_types.sql`; `supabase/migrations/0050_the_left_hand_side_of_the_predicate.sql`.
+- **Depends on:** a migration (`gp-architect`).
+- **Deadline:** none recorded.
+
+<a id="bl-181"></a>
+### BL-181 — P3 — A line can be added to an already-published contract version at any time, not only in the transaction that publishes it
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-079's `gp-security` (S3), 2026-09-25. `wi_insert` (0042) admits a line with `imports.publish` into any version of the actor's project, published or not, and no BEFORE INSERT guard limits it. `work_items_guard` covers UPDATE and DELETE only. `contract_version_rule_bindings` has exactly such a window (`guard_rule_binding_window`: a published version accepts a binding only in the transaction that created it). Reaching this needs SQL as `goproceed_app` and stays inside the actor's workspace; INV-015 (a published baseline is immutable) is then held by the routes, not the database. An insert window on `work_items` matching the bindings' would close it. Ranked by DEV-079.
+- **Evidence:** `supabase/migrations/0042_the_baseline_a_person_types.sql` (`wi_insert`, `guard_work_item`); `guard_rule_binding_window` in the same migration (the bindings window).
+- **Depends on:** a migration (`gp-architect`).
 - **Deadline:** none recorded.
