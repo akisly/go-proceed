@@ -201,20 +201,22 @@ async function insertOutcomes(
 
 /**
  * A statement reading no column (an UPDATE or a DELETE), run as the owner of A:
- * its outcome, how many of A's rows changed (by content or by count), and
- * whether B's rows read back unchanged.
+ * its outcome, the ids of A's rows it changed or removed (so an inverted draft
+ * condition, changing the published row instead, fails too), and whether B's
+ * rows read back unchanged.
  */
 async function confined(table: string, sql: string, disable: string[] = []):
-Promise<{ outcome: Outcome; aChanged: number; bUnchanged: boolean }> {
-  let result = { outcome: changed(-1), aChanged: -1, bUnchanged: false };
+Promise<{ outcome: Outcome; aChanged: string[]; bUnchanged: boolean }> {
+  let result = { outcome: changed(-1), aChanged: [] as string[], bUnchanged: false };
   await probe(async (p) => {
     const beforeA = await snapshot(p, table, WS_A);
     const beforeB = await snapshot(p, table, WS_B);
     const outcome = await p.as(sql);
     const afterA = await snapshot(p, table, WS_A);
-    const kept = afterA.filter((row) => beforeA.includes(row)).length;
+    const aChanged = beforeA.filter((row) => !afterA.includes(row))
+      .map((row) => (JSON.parse(row) as { id: string }).id).sort();
     result = {
-      outcome, aChanged: beforeA.length - kept,
+      outcome, aChanged,
       bUnchanged: JSON.stringify(await snapshot(p, table, WS_B)) === JSON.stringify(beforeB),
     };
   }, disable);
@@ -317,7 +319,7 @@ describe("contract_baseline cross-workspace write denial", () => {
     // alone must confine. cv_update admits a draft only: one row of A.
     expect(await confined("contract_versions",
       "update public.contract_versions set terms = '{\"dev079\":\"probe\"}'::jsonb", ["contract_versions"]))
-      .toEqual({ outcome: changed(1), aChanged: 1, bUnchanged: true });
+      .toEqual({ outcome: changed(1), aChanged: [A.draft], bUnchanged: true });
     expect(await moveOutcomes("contract_versions", [
       ["update public.contract_versions set workspace_id = $1, project_id = $2, contract_id = $3, supersedes_version_id = $4, version_no = 424242",
         [WS_B, B.project, B.contract, B.published]],
@@ -348,7 +350,7 @@ describe("contract_baseline cross-workspace write denial", () => {
         inserted,
       ]);
     expect(await confined("contracts", "update public.contracts set version = 424242"))
-      .toEqual({ outcome: changed(1), aChanged: 1, bUnchanged: true });
+      .toEqual({ outcome: changed(1), aChanged: [A.contract], bUnchanged: true });
     expect(await moveOutcomes("contracts", [
       ["update public.contracts set workspace_id = $1, project_id = $2, own_party_id = $3, customer_party_id = $4",
         [WS_B, B.project, B.own, B.customer]],
@@ -364,7 +366,7 @@ describe("contract_baseline cross-workspace write denial", () => {
       [[WS_A, A.project, B.contract, USER_A]]))
       .toEqual([refusedByPolicy, byForeignKey("import_batches_workspace_id_project_id_contract_id_fkey"), inserted]);
     expect(await confined("import_batches", "update public.import_batches set version = 424242"))
-      .toEqual({ outcome: changed(1), aChanged: 1, bUnchanged: true });
+      .toEqual({ outcome: changed(1), aChanged: [A.batch], bUnchanged: true });
     expect(await moveOutcomes("import_batches", [
       ["update public.import_batches set workspace_id = $1, project_id = $2, contract_id = $3", [WS_B, B.project, B.contract]],
       ["update public.import_batches set contract_id = $1", [B.contract]],
@@ -432,7 +434,7 @@ describe("contract_baseline cross-workspace write denial", () => {
       [[WS_A, A.project, "Приклад-ділянка-змішана", B.location, USER_A]]))
       .toEqual([refusedByPolicy, byForeignKey("locations_workspace_id_project_id_parent_location_id_fkey"), inserted]);
     expect(await confined("locations", "update public.locations set name = 'Приклад-ділянка-змінена'"))
-      .toEqual({ outcome: refusedByPrivilege, aChanged: 0, bUnchanged: true });
+      .toEqual({ outcome: refusedByPrivilege, aChanged: [], bUnchanged: true });
   });
 
   it("unit_definitions: an owner of A cannot insert a unit into B and holds no UPDATE", async () => {
@@ -452,7 +454,7 @@ describe("contract_baseline cross-workspace write denial", () => {
     });
     expect(outcomes).toEqual([refusedByPolicy, changed(0)]);
     expect(await confined("unit_definitions", "update public.unit_definitions set code = 'проба-змінена'"))
-      .toEqual({ outcome: refusedByPrivilege, aChanged: 0, bUnchanged: true });
+      .toEqual({ outcome: refusedByPrivilege, aChanged: [], bUnchanged: true });
   });
 
   it("work_items: an owner of A cannot insert, update or delete a line of B or move one there", async () => {
@@ -478,9 +480,9 @@ describe("contract_baseline cross-workspace write denial", () => {
     // The line guards refuse a published line and any tenant change before the
     // policy is asked. wi_update and wi_delete admit a draft line only: one row of A.
     expect(await confined("work_items", "update public.work_items set description = 'Приклад-позиція-змінена'", ["work_items"]))
-      .toEqual({ outcome: changed(1), aChanged: 1, bUnchanged: true });
+      .toEqual({ outcome: changed(1), aChanged: [A.draftLine], bUnchanged: true });
     expect(await confined("work_items", "delete from public.work_items", ["work_items"]))
-      .toEqual({ outcome: changed(1), aChanged: 1, bUnchanged: true });
+      .toEqual({ outcome: changed(1), aChanged: [A.draftLine], bUnchanged: true });
     expect(await moveOutcomes("work_items", [
       [`update public.work_items set workspace_id = $1, project_id = $2, contract_id = $3, contract_version_id = $4,
           unit_definition_id = $5, position = 424242`, [WS_B, B.project, B.contract, B.draft, B.unit]],

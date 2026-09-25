@@ -21,7 +21,7 @@
   - `technical/data-access-surface.csv`: DA-011, DA-014, DA-018, DA-020, DA-070 and DA-071 corrected, DA-214 … DA-216 new;
   - `technical/database/invariant-catalog.csv` (INV-001, INV-060);
   - `scripts/validate-canonical-docs.mjs` (`RLS_WRITE_GAP_BASELINE` only);
-  - `docs/BACKLOG.md` (BL-166; BL-178 and BL-179 new), `docs/STATUS.md` (migrations row), this record, and `docs/tasks/README.md`.
+  - `docs/BACKLOG.md` (BL-166; BL-178 … BL-181 new), `docs/STATUS.md` (migrations row), this record, and `docs/tasks/README.md`.
 - Read context:
   - [DEV-076](DEV-076-write-denial-minimum.md), [DEV-077](DEV-077-workspace-access-write-denial.md) and [DEV-078](DEV-078-communication-write-denial.md): the minimum, the probe shape, and C1;
   - `packages/testing/src/contract-baseline-rls.test.ts` and `m1-rules-fixture.ts`;
@@ -34,7 +34,7 @@
   - The local database is this session's own disposable stack, started in the container. It holds no owner data, and no suite that resets it was run.
 - Required acceptance criteria:
   - AC-1: each of the 10 rows cites one test meeting the minimum for every privilege it holds, with its control succeeding.
-  - AC-2: each clause mutation fails a test:
+  - AC-2: each clause mutation fails a test (rows 5 and 10):
     - `WITH CHECK (true)` on every INSERT and UPDATE policy;
     - `USING (true)` on every UPDATE and DELETE policy;
     - each capability arm made `true`;
@@ -71,20 +71,31 @@
 | 4 | Coordinator | The test file has 10 cases. They share DEV-077's member-plane probe and DEV-078's exact outcome (`constraint`). The UPDATE and DELETE probes assert the row count, how many of A's rows changed, and B unchanged: one draft row for the version and line policies, one row for contracts and batches. The move-outs read no column. `locations` and `unit_definitions` assert the privilege refusal. Local run: 10 of 10 pass | Session output | Mutations |
 | 5 | Coordinator | 32 mutations, each applied to one policy and restored from its `pg_policies` text; the policies' md5 was identical before and after. All 32 fail their own table's case:<br>• `WITH CHECK (true)` on the 10 INSERT and 4 UPDATE policies;<br>• `USING (true)` on the 4 UPDATE policies and `wi_delete`;<br>• each capability arm of `cv_insert` and `wi_insert` made `true`;<br>• the draft condition dropped from `cv_update`, `wi_update` and `wi_delete`;<br>• `b.id = …` and `b.workspace_id = …` each dropped from the three batch-scoped INSERT policies.<br>There are no survivors | `scratchpad/dev079-mutate.out` | Catalogs |
 | 6 | Coordinator | Catalogs and docs:<br>• the write registry: 10 rows `covered`, with `locations` and `unit_definitions` now `INSERT`;<br>• the 10 keys removed from the baseline;<br>• DA-011 and DA-070 now `SELECT|INSERT` (0105);<br>• drift corrected: DA-018 `SELECT|INSERT`, DA-020 `SELECT|INSERT|UPDATE|DELETE` (it named columns that do not exist), DA-071 `SELECT|INSERT`;<br>• the DA-014 note updated;<br>• DA-214 … DA-216 added for three tables that had no row;<br>• INV-001 and INV-060 cite the file;<br>• the `STATUS.md` migrations marker is `0105`;<br>• BL-166 is scheduled; BL-178 (contracts UPDATE narrowing) and BL-179 (the `import_jobs` rows) filed.<br>The validator passes | `git diff` | Reviews |
+| 7 | gp-security | PASS, no blocker or major. `0105` closes two unused in-workspace edit paths and breaks no flow. The grants cannot return through inheritance, and dropping the policies fails closed. No probe passes for the wrong reason. Findings S1–S5 (below) | Subagent report (session), on `5622d140` | Fixes |
+| 8 | Coordinator | S1: four mixed probes added. Each is refused by its own parent's composite foreign key, observed and then named:<br>• the binding's rule version → `…_requirement_rul_fkey`;<br>• the version's contract → `contract_versions_workspace_id_project_id_contract_id_fkey`;<br>• the contract's own party → `contracts_workspace_id_own_party_id_fkey`;<br>• the line's version → `work_items_workspace_id_project_id_contract_id_contract_ve_fkey`.<br>S4/S5: DA-216, DA-011 and DA-070 reworded. S2/S3 filed as BL-180 and BL-181 (P3). 10 of 10 pass | `381df843` | gp-reviewer |
+| 9 | gp-reviewer | No blocker or major. Every probe fails for the right reason; the minimum holds per privilege on all 10 rows; the catalogs agree; 32 of 32 adds up. Findings R1–R3 (below) | Subagent report (session), on `5622d140` | Fixes |
+| 10 | Coordinator | Fixes:<br>• R1: BL-179 widened to six data-access rows, plus the stale `units.manage` line.<br>• R3: `confined` returns the ids of A's changed rows, and the tests assert `[A.draft]`, `[A.contract]`, `[A.batch]` and `[A.draftLine]`.<br>• R2: six more mutations, all killed: the capability half of `cv_update`, `wi_update` and `wi_delete` made `true`, and their draft condition inverted (the last three killed by R3's id assertion).<br>The original 32 re-run on the final file: 32 of 32 killed; the policies' md5 was unchanged | `scratchpad/dev079-mutate-extra.out`, `dev079-mutate-2.out` | gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1 | low | The bindings, versions, contracts and lines INSERT probes | Only one foreign parent was probed per table; the binding's rule version (whose other defence is a trigger) was not | Coordinator | Fixed: four mixed probes, each with its named FK (row 8) |
+| S2 | info | `app.contract_version_is_draft`, `app.work_type_key_is_bindable` | Definer helpers answer about any workspace; no write path | Owner | Deferred to BL-180 (P3) |
+| S3 | info | `wi_insert` | A line can be added to a published version outside its publishing transaction; same workspace only | Owner | Deferred to BL-181 (P3) |
+| S4 / S5 | info | DA-216; DA-011, DA-070 | Imprecise wording; «No UPDATE» meant the product roles | Coordinator | Fixed |
+| R1 | minor | BL-179 | Three more rows of the same kind (DA-072 … DA-074) | Coordinator | Fixed: widened, with the stale `units.manage` line |
+| R2 | minor | AC-2 | The capability half of the three UPDATE/DELETE policies was not mutated | Coordinator | Fixed: three mutants run, all killed (row 10) |
+| R3 | nit | `confined` | Counted A's changed rows without naming them; an inverted draft condition would pass | Coordinator | Fixed: asserts the ids; the inverted mutants are killed (row 10) |
 
-Rework count and hypothesis changes: none.
+Rework count and hypothesis changes: no round (review findings fixed before QA).
 
 ## What is not true after this task
 
 - `0103` … `0105` are on the local database only, not on `goproceed-staging`. The owner decides the push.
 - The other 30 write rows (BL-167 … BL-173) are still gaps.
 - Capability scope within one workspace (a viewer holding none of the write capabilities) is outside the cross-workspace minimum. Widening a policy's capability array would not fail these tests.
-- BL-178 and BL-179 (P3) stay open.
+- BL-178 … BL-181 (P3) stay open.
 
 ## Acceptance evidence
 
@@ -98,8 +109,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect` ran as an independent native subagent; `gp-reviewer`, `gp-security` and `gp-qa` are pending.
-- Verified scope: rows 1–6.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
+- Verified scope: rows 1–10.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-reviewer` and `gp-security`.
+- Next bounded action and owner: `gp-qa` on the final revision.
 - Final state and reason: implementing.

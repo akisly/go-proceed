@@ -207,7 +207,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-176](#bl-176) | P3 | open | Two Telegram upsert arbiters carry no tenant column, so a foreign binding id is arbitrated against another workspace's row |
 | [BL-177](#bl-177) | P3 | open | Two service-written occurrence-id arrays are not confined to their row's workspace |
 | [BL-178](#bl-178) | P3 | open | The application role's UPDATE on `contracts` is wider than the row lock it exists for |
-| [BL-179](#bl-179) | P3 | open | Three data-access rows describe an `import_jobs` table and worker grants that do not exist |
+| [BL-179](#bl-179) | P3 | open | Six data-access rows describe import tables and worker grants that do not exist, and a capability row says no operation creates a unit |
 | [BL-180](#bl-180) | P3 | open | Two SECURITY DEFINER helpers answer about a contract version or a work type of any workspace |
 | [BL-181](#bl-181) | P3 | open | A line can be added to an already-published contract version at any time, not only in the transaction that publishes it |
 <!-- index:end -->
@@ -2132,12 +2132,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-179"></a>
-### BL-179 — P3 — Three data-access rows describe an `import_jobs` table and worker grants that do not exist
+### BL-179 — P3 — Six data-access rows describe import tables and worker grants that do not exist, and a capability row says no operation creates a unit
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-079's `gp-architect`, 2026-09-25. DA-016 and DA-017 describe `public.import_jobs` for `goproceed_app` and `goproceed_worker`, and DA-019 gives `goproceed_worker` SELECT, INSERT and UPDATE on `import_row_results`. No migration creates `import_jobs` (`to_regclass` returns null on the local database at `0105`) or grants `goproceed_worker` anything on `import_row_results`. The rows are marked `normative`, so they read as delivered. They should be marked as a target, or removed, with the import worker's design. Ranked by DEV-079.
-- **Evidence:** `technical/data-access-surface.csv` DA-016, DA-017, DA-019; `supabase/migrations/`.
+- **Why:** DEV-079's `gp-architect` and `gp-reviewer` (R1), 2026-09-25. DA-016 and DA-017 describe `public.import_jobs` for `goproceed_app` and `goproceed_worker`; DA-019 gives `goproceed_worker` SELECT, INSERT and UPDATE on `import_row_results`; DA-072 describes `public.import_mapping_presets`, and DA-073 and DA-074 `public.import_diffs` (the second for `goproceed_worker`). No migration creates `import_jobs`, `import_mapping_presets` or `import_diffs` (`to_regclass` returns null for `import_jobs` on the local database at `0105`; no migration names the other two), or grants `goproceed_worker` anything on `import_row_results`. The rows are marked `normative`, so they read as delivered. They should be marked as a target, or removed, with the import worker's design. Separately, `technical/permissions/capabilities.csv` (`units.manage`) says no operation creates a `unit_definition`, but the validate route and the manual baseline insert one (with ON CONFLICT DO NOTHING). Ranked by DEV-079.
+- **Evidence:** `technical/data-access-surface.csv` DA-016, DA-017, DA-019, DA-072, DA-073, DA-074; `technical/permissions/capabilities.csv` (`units.manage`); `apps/app/app/v1/import-batches/[batchId]/validate/route.ts`; `apps/app/src/lib/manual-baseline.ts`; `supabase/migrations/`.
 - **Depends on:** none.
 - **Deadline:** none recorded.
 
