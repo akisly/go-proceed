@@ -92,7 +92,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-061](#bl-061) | P2 | closed → DEV-069 | vitest 3.2.4 → 4 |
 | [BL-062](#bl-062) | P2 | closed → DEV-067 | Three TypeScript versions in one workspace |
 | [BL-063](#bl-063) | P2 | closed → DEV-066 | `scripts/validate_package.py` is orphaned |
-| [BL-064](#bl-064) | P2 | open | vertical-m1 steps 7 and 8 went red once and never again |
+| [BL-064](#bl-064) | P1 | scheduled → DEV-082 | vertical-m1 steps 7 and 8 went red once and never again |
 | [BL-065](#bl-065) | P2 | open | A page render costs about three auth round trips and two self-fetch hops |
 | [BL-066](#bl-066) | P3 | open | `turbo-ignore` is deprecated |
 | [BL-067](#bl-067) | P3 | open | CI's `apt-get` step has no timeout or retry |
@@ -218,6 +218,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-187](#bl-187) | P3 | open | `app.stage_key_is_admissible` answers for any workspace's assignment without a membership check |
 | [BL-188](#bl-188) | P3 | open | The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only |
 | [BL-189](#bl-189) | P3 | open | An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction |
+| [BL-190](#bl-190) | P1 | open | Owner decision: audit the XLSX parses the pool bug may have substituted with another workbook |
+| [BL-191](#bl-191) | P2 | open | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
+| [BL-192](#bl-192) | P2 | open | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -946,13 +949,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-064"></a>
-### BL-064 — P2 — vertical-m1 steps 7 and 8 went red once and never again
+### BL-064 — P1 — vertical-m1 steps 7 and 8 went red once and never again
 
-- **State:** open
+- **State:** scheduled → DEV-082
 - **Legacy cite:** `TODOS.md` «vertical-m1 steps 7 and 8 went red once and would not do it again»
-- **Why:** a real unexplained red in one full serialized run on 2026-08-10. The hypothesis to test first is cross-package residue from `@goproceed/testing` running before `apps/app`.
-- **Evidence:** none since; CI history was not searched for a recurrence. *[2026-09-24: it recurred. CI run 36024385064 (`claude/app-qa-otp-flake`, `9f885170`, verify job 107717069989): step 7 failed at `vertical-m1.int.test.ts:190` with «expected 'failed' to be 'preview_ready'», then step 8 failed at `:222` with «expected { …(11) } to deeply equal undefined». The change under test touched only `apps/app/qa/field.mjs` and docs. Recorded by [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md).]*
-- **Depends on:** a recurrence: capture the assertion text before re-running.
+- **Why:** *[2026-09-25, DEV-082: root-caused. `parseXlsx` handed ExcelJS `Buffer.from(bytes).buffer` — Node's whole shared allocation pool (64 KiB on Node 24, the engine this repository pins, for any buffer under 32 KiB) — so the parser read the workbook among leftover bytes of other allocations and threw on a stray zip signature, which the parser reports as `XLSX_MALFORMED` and the validate route as `failed`. Reproduced at about 1% of parses on Node 24.21.0 and never on Node 22. Re-ranked by DEV-082 (P2 → P1): it fails real imports, and the parser read up to 64 KiB of process memory the upload guard never checked. Whether the 2026-08-10 red had the same cause depends on the Node version that run used, which was not recorded.]* a real unexplained red in one full serialized run on 2026-08-10. The hypothesis to test first is cross-package residue from `@goproceed/testing` running before `apps/app`.
+- **Evidence:** none since; CI history was not searched for a recurrence. *[2026-09-24: it recurred. CI run 36024385064 (`claude/app-qa-otp-flake`, `9f885170`, verify job 107717069989): step 7 failed at `vertical-m1.int.test.ts:190` with «expected 'failed' to be 'preview_ready'», then step 8 failed at `:222` with «expected { …(11) } to deeply equal undefined». The change under test touched only `apps/app/qa/field.mjs` and docs. Recorded by [DEV-063](tasks/DEV-063-app-qa-otp-diagnostics.md).]* *[2026-09-25: it recurred on docs-only #157 (CI run 36131358586, attempt 1, verify job 108059118983): step 7's validate answered `failed`; the one re-run passed. Root-caused by [DEV-082](tasks/DEV-082-xlsx-parse-reads-the-buffer-pool.md).]*
+- **Depends on:** a recurrence: capture the assertion text before re-running. *[Satisfied 2026-09-25: the #157 recurrence above.]*
 - **Deadline:** none recorded.
 
 <a id="bl-065"></a>
@@ -2287,4 +2290,57 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **Ranking.** Ranked by DEV-081.
 - **Evidence:** `supabase/migrations/0046_the_carve_moves_to_admission.sql` (`va_insert`); `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql` (`guard_closure_member_window`).
 - **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-190"></a>
+### BL-190 — P1 — Owner decision: audit the XLSX parses the pool bug may have substituted with another workbook
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-082's `gp-security` (S2), 2026-09-25, measured by the coordinator.
+  - **The defect, fixed by DEV-082.** Before `goproceed-import/1.0.1`, on Node 24, `parseXlsx` handed JSZip the whole 64 KiB buffer pool around any upload under 32 KiB. JSZip takes the last zip directory in what it is given, so an intact earlier workbook left in that memory could be parsed in the upload's place.
+  - **Measured, not hypothetical.** In one Node 24.21.0 process, alternating two fixture workbooks under the old load: of 3,000 parses, 58 returned the *other* workbook's rows, 628 failed, and 2,314 were correct. The fixed load gave 3,000 correct. On Node 22.22.2 the old load was correct 1,000 of 1,000 (DEV-082 row 7).
+  - **The consequence, where it happened.** The substituted rows were stored as the batch's `import_row_results`, shown in its preview, and publishable into its contract baseline. Because one process serves every workspace, the other workbook could have been another workspace's: a cross-workspace disclosure.
+  - **The audit (read-only; the owner's authority, because it reads several workspaces' data).**
+    - **Scope:** hosted batches validated under `goproceed-import/1.0.0` while the app ran Node 24. Check the hosted runtime's Node version first; it was not checked here. Include only batches with an xlsx `import_files` row where `octet_length(source_bytes) < 32768`.
+    - **Method:** re-parse each file with the fixed parser, outside the hosted system. Compare each stored `(worksheet, source_row, source_cells)` for the batch's current attempt with the re-parse. Any mismatch is an incident; follow the contract baseline rows published from that batch.
+    - **Also list:** batches that failed with `XLSX_MALFORMED` whose file re-parses cleanly. That is the harmless form, and a retry fixes it.
+    - If hosted data is test-only under the M0 rule, say so and close.
+  - **Ranking.** Ranked by DEV-082.
+- **Evidence:** [DEV-082](tasks/DEV-082-xlsx-parse-reads-the-buffer-pool.md) rows 6–7; `packages/domain/src/import/version.ts` (`1.0.1` marks fixed parses).
+- **Depends on:** the owner.
+- **Deadline:** none recorded.
+
+<a id="bl-191"></a>
+### BL-191 — P2 — The XLSX guard and JSZip read an archive's directory differently (INV-016)
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-082's `gp-security` (S4), 2026-09-25; older than DEV-082. The guard (`xlsx-guard.ts`) checks the directory the EOCD declares; JSZip reads more:
+  - **(a) Extra records.** JSZip keeps reading central-directory records while the signature matches. The guard checks only the EOCD's `count`, so extra records (a `xl/vbaProject.bin`, say) escape every check.
+  - **(b) A second directory.** The guard never reads `centralDirSize`. An understated one makes JSZip read a second, unchecked directory.
+  - **(c) Names.** JSZip takes entry names from the local headers; the guard checks the central names.
+  - **The fix, in the guard:**
+    - require `cdOffset + cdSize === eocdOffset`, and reject zip64 sentinels;
+    - require the directory walk to end exactly at the EOCD;
+    - per entry, require a local header at its offset, a local name equal to the central name, and a data range inside the file.
+  - **Tests:** crafted zips for (a) and (b) fail the guard.
+  - **Ranking.** Ranked by DEV-082; not demonstrated at runtime.
+- **Evidence:** jszip 3.10.1 `lib/zipEntries.js` (read, not run); `packages/domain/src/import/xlsx-guard.ts`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-192"></a>
+### BL-192 — P2 — Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016)
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-082's `gp-security` (S5), 2026-09-25; older than DEV-082.
+  - **The gap.** JSZip compares an entry's inflated length with its declared `uncompressedSize` only after inflating all of it. The guard's bomb checks use the declared sizes.
+  - **The consequence.** A member with `imports.manage` can upload up to 20 MiB whose entries declare small sizes but inflate at about 1000:1, exhausting the app server's memory. INV-016 promises archive and parser resource limits.
+  - **The fix.** Inflate each entry with a hard cap before ExcelJS sees it (for example `zlib.inflateRawSync(data, { maxOutputLength: declared + 1 })`), and refuse an overrun as `XLSX_BOMB_SIZE`.
+  - **The test.** An entry declaring 1 KiB that inflates to 200 MB is refused without the memory growth.
+  - **Ranking.** Ranked by DEV-082; read, not run.
+- **Evidence:** jszip 3.10.1 `lib/compressedObject.js`; `packages/domain/src/import/xlsx-guard.ts`.
+- **Depends on:** none.
 - **Deadline:** none recorded.
