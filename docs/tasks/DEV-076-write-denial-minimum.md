@@ -11,7 +11,7 @@
     - the 65 gaps it opens, filed as BL-164 … BL-173 by module;
     - the wording of the minimum wherever it is stated.
   - Later stages close the gaps module by module.
-- State: verifying
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-24.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the task changes a machine catalog under `technical/` that tests and the validator read, the tenant-isolation test gate, and executed code under `packages/testing` and `scripts/`, so the route is `gp-architect` → owner decisions → failing test → implementation → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -84,6 +84,7 @@
 | 8 | gp-security (re-check) | S1–S6 PASS at `1082304a`. New: N1 minor (a failing no-`WHERE` statement passes as a denial), N2 minor (a write gap on a read-gap pair skipped the baseline) — both fixed as stated below | Subagent report (session) | gp-qa |
 | 9 | gp-qa | At `83bcb322`: AC-1 (static and fixture half), AC-4, AC-5 and AC-6 PASS. AC-1 (DB half), AC-2, AC-3 and AC-7 NOT RUN: no local database; CI settles them. Mutations killed: 5 in `compareWriteCoverage`, 9 validator rules and 3 data mutations. Every stated fix is in place. Q1 (nit): the acceptance table was empty; filled here | Subagent report (session) | Pull request, CI |
 | 10 | Coordinator | PR #148 CI on `5e4c0397` (run 36073170834): `verify` and `app-qa` green. In `verify`, against CI's database built from the migrations, `src/rls-coverage.test.ts` ran 31 tests, none skipped, with the write comparison, both probes and the table-wide assertion among them; `packages/testing` 58 files passed | CI log of job 107878491123 | owner's merge |
+| 11 | Owner | #148 merged (`fd8c3c27`, 2026-09-25) on the owner's word («мержи»); CI green on the head `e6b0dac8` (run 36074294416: `verify`, `app-qa`) | `gh pr view 148`; the CI run | done |
 
 ## Findings and rework
 
@@ -139,7 +140,7 @@ Rework count and hypothesis changes: none. Every change after the first review i
 
 - Changed / inspected files: see «Owning module».
 - Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` (with a re-check) as native subagents; `gp-qa` (native subagents).
-- Verified scope: rows 1–10.
+- Verified scope: rows 1–11.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: the owner's merge; then the closure (BL-099 closed → DEV-076) and stage 2 (BL-164, workspace_access).
-- Final state and reason: verifying — every required criterion PASS (rows 9, 10); `done` after the owner merges.
+- Next bounded action and owner: none in this task. Stage 2 takes BL-164 (workspace_access) as its own task.
+- Final state and reason: done — every required criterion PASS; #148 merged with CI green (row 11).

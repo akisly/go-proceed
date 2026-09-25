@@ -127,7 +127,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-096](#bl-096) | P1 | closed → DEV-015 | 2 projection registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-097](#bl-097) | P1 | closed → DEV-016 | 1 requirements registry row lacks tenant-isolation tests (readiness gate 11) |
 | [BL-098](#bl-098) | P1 | closed → DEV-014 | 13 workspace-access registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-099](#bl-099) | P2 | scheduled → DEV-076 | A `covered` registry row requires only a cross-workspace read denial, not a write denial |
+| [BL-099](#bl-099) | P2 | closed → DEV-076 | A `covered` registry row requires only a cross-workspace read denial, not a write denial |
 | [BL-100](#bl-100) | P1 | closed → DEV-015 | The service plane reads and rewrites every workspace's readiness projections, whatever workspace it declares |
 | [BL-101](#bl-101) | P3 | open | A service transaction that keeps the caller's actor is not confined to the workspace it declares |
 | [BL-102](#bl-102) | P1 | closed → DEV-017 | The service plane's capture-event insert ignores the workspace it declares, and its caller declares none |
@@ -1273,9 +1273,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-099"></a>
 ### BL-099 — P2 — A `covered` registry row requires only a cross-workspace read denial, not a write denial
 
-- **State:** scheduled → DEV-076
+- **State:** closed → DEV-076
 - **Legacy cite:** none
-- **Why:** DEV-013's `gp-security` review (S1-04). The v0.1 minimum behind a `covered` row in `technical/database/rls-coverage.csv` is an authorised same-workspace read and a read denial to a member of another workspace. Where the principal also holds `INSERT` or `UPDATE`, nothing requires a cross-workspace write denial, so a policy whose `USING` clause is right and whose `WITH CHECK` is permissive can still be `covered`; on root tables no composite foreign key backstops it, and `packages/testing/src/m4-act-rls.test.ts` already treats a wrong-workspace write as the worse failure. Write denial stays review until the minimum is widened, which is the owner's call (whether it must hold before readiness gate 11 closes). Ranked by DEV-013.
+- **Why:** *[2026-09-25, DEV-076: the owner widened the minimum (2026-09-24, «widen now, in stages»; gate 11 not reopened). A covered row whose principal holds a write now needs a cross-workspace write-denial test, registered in `technical/database/rls-write-coverage.csv` and checked against the database and by the validator's ratchet. The 65 rows that held a write are gaps BL-164 … BL-173 (P1), which the later stages close. Merged in #148 (`fd8c3c27`).]* DEV-013's `gp-security` review (S1-04). The v0.1 minimum behind a `covered` row in `technical/database/rls-coverage.csv` is an authorised same-workspace read and a read denial to a member of another workspace. Where the principal also holds `INSERT` or `UPDATE`, nothing requires a cross-workspace write denial, so a policy whose `USING` clause is right and whose `WITH CHECK` is permissive can still be `covered`; on root tables no composite foreign key backstops it, and `packages/testing/src/m4-act-rls.test.ts` already treats a wrong-workspace write as the worse failure. Write denial stays review until the minimum is widened, which is the owner's call (whether it must hold before readiness gate 11 closes). Ranked by DEV-013.
 - **Evidence:** observed 2026-09-16: `docs/delivery/test-strategy.md` §4 and `docs/architecture/tenancy-and-security.md` «Required security tests and gates» (the dated DEV-013 notes); [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) row 9.
 - **Depends on:** none.
 - **Deadline:** none recorded.
