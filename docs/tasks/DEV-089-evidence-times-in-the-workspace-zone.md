@@ -60,6 +60,8 @@
 | 8 | Coordinator | U1: the issued block captured. `EvidenceByOccurrence` rendered in jsdom, the button pressed with the service mocked, and the resulting markup measured in the built CSS at the six widths. Warsaw «Діє до 2 жовт. 2026 р., 23:30 GMT+2.», Kyiv «Діє до 3 жовт. 2026 р., 00:30 GMT+3.» — the same instant on a different date; 12px, 680px (`max-w-measure`) at the desk, 308/278px at 390/360; no horizontal scroll or overflowing element at any width. The fixture test file was deleted after the run. U2 added to «What is not true»; S1 added to BL-206 | `scratchpad/dev089/measure-issued.txt`, `issued-warsaw-1440.png`, `issued-warsaw-360.png` | gp-reviewer |
 | 9 | gp-reviewer | PASS WITH FINDINGS, no blocker or major. Tenant isolation holds (the read follows authorization; `org_select` is `requireActiveMembership`'s predicate, so zero rows is a revoke); one producer and one runtime consumer of the contract, none in `apps/mobile`, `packages/*` or `qa/field.mjs`; no catalog drift; the integration assertions should pass as written (the admin `q()` UPDATE of organizations already runs in four suites; no trigger on the table; `beforeEach` truncates). R1–R7 (below) | Subagent report (session) | Fixes |
 | 10 | Coordinator | R1: a malformed instant is returned as given. R2: `Europe/Kiev` follows the default before UTC (`WORKSPACE_TIMEZONE_FALLBACKS`). R3: the test comment names the creation default. R6: `membershipInactive(requestId)` exported from `authz.ts` and used by `requireActiveMembership` and the route. Mutations: the NaN guard dropped (1 failed), the old name dropped (1 failed); restored. `src/lib` + evidence tests 479 passed, 1 skipped; `typecheck` 10/10 | Session output | gp-qa |
+| 11 | gp-qa | On `6405930b`: AC-1–AC-5, AC-7 PASS; AC-8 PASS with limits (the logged gate predates the R fixes: motion-audit, `typecheck --force` 10/10 and the app build re-run at the head; §6 on a fixture); AC-6 NOT RUN (CI's). App unit suite 544 passed, 1 skipped; evidence tests 35/35. Every stated fix confirmed. Its sweep killed M1–M10 and M14; M11 (the route hands Kyiv) is the integration test's, M12 is R4, M13 is Q1, M15 is Q2. Q1, Q2 (below) | Subagent report (session); `scratchpad/qa089/mutate.out` | CI; Q1 |
+| 12 | Coordinator | CI on `6405930b` green (run 36192766628: `verify`, `app-qa`). The `verify` log shows `tests/evidence-read.int.test.ts` (7 tests, the new zone case among them), `src/lib/workspace-time.test.ts` (7), `issue-review-link.issued.test.tsx` (2) and the three component files passing, in the app run of 137 files and 1532 tests, all passed. Q1: `tests/evidence-page.test.tsx` renders the page with the service mocked to return Warsaw and reads «11:30 GMT+2»; M13 (the page hands Kyiv) now fails it; restored. `typecheck` 10/10 | CI job 108261550110; session output | gp-qa re-check |
 
 ## Findings and rework
 
@@ -75,6 +77,8 @@
 | R5 | info | `workspaceTimezone.min(1)` | `''` would fail the read | — | Same as S1: BL-206 |
 | R6 | nit | `route.ts`, the zero-row 403 | The problem body duplicated from `authz.ts` | Coordinator | Fixed: `membershipInactive()` |
 | R7 | nit | one formatter per card | Negligible at pilot volume | — | No action |
+| Q1 | minor | `page.tsx`, the zone hand-off | Untested: a page passing `"Europe/Kyiv"` survived every test | Coordinator | Fixed: `tests/evidence-page.test.tsx` |
+| Q2 | info | `workspaceTimezone.min(1)` | Untested: dropping `.min(1)` fails nothing | — | Covered in substance by BL-206 «Empty»; no action |
 | S1 | low | `organizations.timezone` = `''` | An empty stored zone would fail `min(1)` and the whole read; unreachable through the product (both creation paths refuse it, `0039`) | — | Recorded in BL-206 |
 
 Rework count and hypothesis changes: none.
@@ -110,7 +114,7 @@ Rework count and hypothesis changes: none.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** every stage runs as an independent native subagent.
-- **Verified scope:** rows 1–10.
+- **Verified scope:** rows 1–12.
 - **Remaining risks / blocked requirements:** «What is not true after this task».
-- **Next bounded action and owner:** `gp-qa`.
+- **Next bounded action and owner:** `gp-qa` (Q1).
 - **Final state and reason:** reviewing.
