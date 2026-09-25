@@ -9,9 +9,9 @@
  * among the missing. Each of them now marks its element `data-entrance`, and
  * a page puts this rule inside `<noscript>`, where only a browser with
  * scripting off reads it: the entrance is shown at rest instead. The marked
- * words: `Reveal`, `StaggerItem`, `NodeLock`, and the reduced branch of
- * `TextBlurIn` and `LineReveal` (every word that renders `opacity: 0` on the
- * server; DEV-091 gp-reviewer R1). `transform` and `filter` are undone too,
+ * words: `Reveal`, `StaggerItem`, `NodeLock`, `ScrollStackCard`'s content, and
+ * the reduced branch of `TextBlurIn` and `LineReveal` (every word that renders
+ * `opacity: 0` on the server; DEV-091 gp-reviewer R1, gp-qa Q1). `transform` and `filter` are undone too,
  * defensively: no server branch sets them today (R2).
  *
  * The CSS `entrance` utility (`base.css`) runs without JavaScript, but a

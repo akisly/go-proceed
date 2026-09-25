@@ -2579,7 +2579,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-091's `gp-ui-reviewer` (U3, U5), 2026-09-25.
-  - **Closed disclosures.** The FAQ is a Radix `Accordion`, whose closed content ships `hidden`, so a scriptless reader sees seven questions they cannot open, «Скільки коштує пілот і хто відповідає?» among them; `/product`'s `PinnedTabs` inactive panels are the same.
+  - **Closed disclosures.** The FAQ is a Radix `Accordion`, whose closed content ships `hidden`, so a scriptless reader sees seven questions they cannot open, «Скільки коштує пілот і хто відповідає?» among them. `PinnedTabs`' inactive panels would be the same, but no public route uses it today (only `/kitchen-sink`; DEV-091 gp-ui-reviewer U6).
   - **Canvas words.** Words that draw on a canvas (`ParticleSphere` on the home page) leave an empty band where the scripted page draws; §7.3 asks a canvas word to name its fallback.
   - **The fix.** Disclosures that work without script (`<details>`, or content mounted and shown by a no-script rule), and a still fallback for a canvas word when scripting is off. The harness's no-script pass skips `[hidden]` today and reads opacity only.
   - **Ranking.** Ranked by DEV-091.

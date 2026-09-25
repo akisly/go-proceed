@@ -65,6 +65,9 @@
 | 7 | gp-ui-reviewer | **HOLD.** The mechanism is right. **U1 (major):** the scriptless home at 1440 showed the h1 without the lead and actions, which are the hero's CSS `.entrance` wrappers and depend on the animation's timing. **U2 (major, needs a disposition):** the form now paints without script but cannot be sent. U3–U5 (below) | Subagent report (session) | Fixes |
 | 8 | gp-reviewer | **PASS WITH FINDINGS**, no blocker or major. In the built HTML every `opacity:0` element carries the mark and no other does (pilot 9/9, roles 23/23, index 23/23). `<noscript dangerouslySetInnerHTML>` is safe under React 19.2.8 / Next 16.3.1: never reconciled, no hydration mismatch, one copy in the built page, the same string `renderToStaticMarkup` gives. The layout gets the real string, not a client reference. No marked element's class sets a transform or filter. R1–R4 (below) | Subagent report (session) | Fixes |
 | 9 | Coordinator | **Fixes.**<br>• **U1:** the hero's two `.entrance` wrappers take `data-entrance`, since an `!important` declaration beats an animation; a unit case holds it. Scriptless `/` at 1920 and 1440: both wrappers read opacity 1 at `domcontentloaded` and after 2.5 s, and the viewport shot shows the lead and both actions.<br>• **U2:** filed as BL-208, the form's own no-script line with its copy row. **U3, U5:** filed as BL-209. **U4:** scriptless `/product` and `/roles` at 1440 photographed; the harness comment now names what it does not read.<br>• **R1:** `NodeLock` and the reduced branch of `TextBlurIn` and `LineReveal` take the mark; the fixture renders all five words and counts 7 hidden elements, all marked. **R2:** wording in `no-script.ts` and here. **R3:** the harness's no-script pass also loads each route with scripting on and requires no style node (`ruleScripted: 0`). **R4:** row order.<br>• Checks: landing suite 276 of 276; DB-free `packages/testing` 209 of 209; `motion-audit: clean`; `typecheck` 10/10. The harness re-run gave 40 passes; «no-script» is ok on every route with `ruleScripted` 0; parity and interactions still fail, as on the baseline. | `scratchpad/dev091/harness2.txt`, `shots2.txt`, `nojs-home-{1920,1440}-viewport.png`, `nojs-{product,roles}-1440.png` | gp-ui-reviewer re-check, gp-qa |
+| 10 | gp-ui-reviewer | **PASS** at `44f5bd62`. U1 is fixed and verified: both hero wrappers are marked, read opacity 1 at 1920 and 1440, and the viewport shots show the lead and both actions. U2–U5 are filed or evidenced; the scriptless `/roles` and `/product` at 1440 paint in reading order with nothing overlapping. With scripting off the fold no longer animates, which it accepts. U6 (nit, below) | Subagent report (session) | — |
+| 11 | gp-qa | **At `44f5bd62`: AC-1 to AC-4 PASS; AC-5 NOT RUN** (no CI yet).<br>• Its own build and scriptless measurement: 0 hidden on every route at all six widths, already at `load`, against 89/302/157/56 without the rule; the form paints.<br>• Every marked element computes opacity 1, no transform, no filter; the built HTML's `opacity:0` elements are all marked (23/49/23/9).<br>• Scripted: 0 style nodes, no stylesheet naming the mark, and entrances below the fold still start hidden.<br>• Mutations M1–M7 are caught by the unit tests.<br>• Every stated fix is confirmed. Q1 (below) | Subagent report (session) | Fixes |
+| 12 | Coordinator | **Q1:** `ScrollStackCard`'s content `motion.div` takes the mark; the fixture renders it and counts 8 hidden elements, all marked; with the mark removed the fixture fails (restored). **U6:** BL-209 and this record no longer say `/product` has hidden tabs: `PinnedTabs` is used only on `/kitchen-sink`. Landing suite 276 of 276; `typecheck` 10/10; `motion-audit: clean` | Session output | gp-qa re-check, CI |
 
 ## Findings and rework
 
@@ -72,20 +75,22 @@
 |---|---|---|---|---|---|
 | U1 | major | the hero's `.entrance` wrappers | The scriptless fold relied on a CSS animation's timing | Coordinator | Fixed: marked; opacity 1 at load; a unit case |
 | U2 | major | `/pilot`'s form without script | Visible now but cannot be sent, and says nothing | — | Filed: BL-208 (P2) |
-| U3 | minor | closed disclosures | The FAQ answers and inactive tabs cannot open without script; the harness skips `[hidden]` | — | Filed: BL-209; the harness comment says so |
+| U3 | minor | closed disclosures | The FAQ answers cannot open without script; the harness skips `[hidden]` | — | Filed: BL-209; the harness comment says so |
 | U4 | minor | the harness reads opacity only | Clip, mask, `visibility` unseen | Coordinator | `/product`, `/roles` photographed; the limit named in the harness |
 | U5 | optional | the home's canvas band without script | An empty band where the dome draws | — | Filed: BL-209 |
 | R1 | minor | `NodeLock`, `TextBlurIn`, `LineReveal` | Also render `opacity:0` on the server, unmarked | Coordinator | Fixed: marked; the fixture covers them |
 | R2 | nit | the wording | «and an offset»: the server renders opacity only | Coordinator | Fixed |
 | R3 | nit | AC-2 | Not held by the harness | Coordinator | Fixed: `ruleScripted` |
 | R4 | nit | the record | Rows out of order | Coordinator | Fixed |
+| U6 | nit | BL-209, the record | Said `/product`'s `PinnedTabs` hide panels; no public route uses `PinnedTabs` | Coordinator | Fixed |
+| Q1 | minor | `ScrollStackCard` | Also renders `opacity:0` on the server, unmarked (only `/kitchen-sink` uses it) | Coordinator | Fixed: marked; the fixture covers it |
 
 Rework count and hypothesis changes: none.
 
 ## What is not true after this task
 
 - A browser with scripting on, whose chunk never loads, still sees BL-116's page: BL-207.
-- Without script, `/pilot`'s form paints but cannot be sent (BL-208). The FAQ's answers and `/product`'s inactive tabs cannot open, and the home's canvas words leave an empty band (BL-209).
+- Without script, `/pilot`'s form paints but cannot be sent (BL-208). The FAQ's answers cannot open, and the home's canvas words leave an empty band (BL-209).
 - The harness's no-script pass reads opacity on text-bearing elements in `main` at 1440; a clip, mask or `visibility` would not register (the four routes are photographed without script instead).
 - `/product` has 10 entrances below the fold that read visible with scripting on. Why was not examined here. This task cannot have caused it: with scripting on the rule is inert text, and no stylesheet outside `<noscript>` names the mark, so the mark changes no scripted behaviour.
 - The rule is shipped by `apps/landing` only. `apps/app` imports no entrance word today.
@@ -109,7 +114,7 @@ Rework count and hypothesis changes: none.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** every stage runs as an independent native subagent.
-- **Verified scope:** rows 1–9.
+- **Verified scope:** rows 1–12.
 - **Remaining risks / blocked requirements:** see «What is not true after this task».
-- **Next bounded action and owner:** `gp-ui-reviewer` re-check (U1), then `gp-qa`.
+- **Next bounded action and owner:** `gp-qa` (Q1), CI.
 - **Final state and reason:** reviewing.

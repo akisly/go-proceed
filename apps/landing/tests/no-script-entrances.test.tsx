@@ -2,7 +2,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
-  ENTRANCE_ATTRIBUTE, LineReveal, NO_SCRIPT_ENTRANCE_CSS, NodeLock, Reveal, Stagger, StaggerItem, TextBlurIn,
+  ENTRANCE_ATTRIBUTE, LineReveal, NO_SCRIPT_ENTRANCE_CSS, NodeLock, Reveal, ScrollStack, ScrollStackCard, Stagger,
+  StaggerItem, TextBlurIn,
 } from "@goproceed/ui/motion";
 
 // See design-contract.test.tsx: the layout calls `next/font/local` at module scope.
@@ -33,14 +34,15 @@ describe("entrances are shown at rest when scripting is off", () => {
         <NodeLock><p>Вузол</p></NodeLock>
         <TextBlurIn text="Проявлений текст" />
         <LineReveal text="Рядок за рядком" />
+        <ScrollStack><ScrollStackCard index={0} count={1}><p>Картка</p></ScrollStackCard></ScrollStack>
       </>,
     );
     // Every element rendered at opacity 0 carries the mark, and nothing else does
     // (gp-reviewer R1: every word that renders opacity 0 on the server).
     const hidden = [...html.matchAll(/<(?:div|span)([^>]*)>/g)].map((m) => m[1]!).filter((a) => /opacity:\s*0/.test(a));
-    expect(hidden).toHaveLength(7);
+    expect(hidden).toHaveLength(8);
     for (const attrs of hidden) expect(attrs).toContain(`${ENTRANCE_ATTRIBUTE}=""`);
-    expect(html.match(new RegExp(`${ENTRANCE_ATTRIBUTE}=""`, "g"))).toHaveLength(7);
+    expect(html.match(new RegExp(`${ENTRANCE_ATTRIBUTE}=""`, "g"))).toHaveLength(8);
   });
 
   it("the hero's CSS entrances carry the mark too, so the scriptless fold does not wait on an animation (U1)", () => {
