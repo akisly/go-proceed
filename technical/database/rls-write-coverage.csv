@@ -7,19 +7,19 @@ public,communication_attachments,goproceed_service,communication,INSERT|UPDATE,c
 public,communication_delivery_attempts,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_delivery_attempts: the service plane declaring A cannot insert an attempt of B,,
 public,communication_message_events,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_message_events: the service plane declaring A cannot insert an event of B,,
 public,communication_messages,goproceed_service,communication,INSERT|UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::communication_messages: the service plane declaring A cannot insert or update a message of B or move one there,,
-public,contract_version_rule_bindings,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,contract_versions,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,contracts,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,contract_version_rule_bindings,goproceed_app,contract_baseline,INSERT,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::contract_version_rule_bindings: an owner of A cannot bind a rule version into B,,
+public,contract_versions,goproceed_app,contract_baseline,INSERT|UPDATE,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::contract_versions: an owner of A cannot insert or update a version of B or move one there,,
+public,contracts,goproceed_app,contract_baseline,INSERT|UPDATE,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::contracts: an owner of A cannot insert or update a contract of B or move one there,,
 public,external_access_grants,goproceed_app,external_review,INSERT|UPDATE,gap,,BL-171,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,external_decision_batches,goproceed_app,external_review,INSERT,gap,,BL-171,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,external_sessions,goproceed_app,external_review,INSERT|UPDATE,gap,,BL-171,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,idempotency_records,goproceed_app,operational,INSERT,gap,,BL-172,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,import_batches,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,import_files,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,import_row_results,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,import_batches,goproceed_app,contract_baseline,INSERT|UPDATE,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::import_batches: an owner of A cannot insert or update an import batch of B or move one there,,
+public,import_files,goproceed_app,contract_baseline,INSERT,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::import_files: an owner of A cannot insert an import file into B or onto B's batch,,
+public,import_row_results,goproceed_app,contract_baseline,INSERT,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::import_row_results: an owner of A cannot insert a row result into B or onto B's batch or file,,
 public,invitations,goproceed_app,workspace_access,INSERT|UPDATE,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::invitations: an owner of A cannot insert or update an invitation of B,,
 public,legal_entities,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::legal_entities: an owner of A cannot insert a legal entity into B,,
-public,locations,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,locations,goproceed_app,contract_baseline,INSERT,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::locations: an owner of A cannot insert a location into B and holds no UPDATE,,
 public,memberships,goproceed_app,workspace_access,INSERT,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::memberships: an owner of A cannot join B, and no member can update a membership",,
 public,organizations,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::organizations: an owner of A cannot take B's id or point a new workspace at B's party,,
 public,own_legal_entity_profiles,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::own_legal_entity_profiles: an owner of A cannot insert B's own legal entity,,
@@ -43,7 +43,7 @@ public,requirement_library_items,goproceed_app,requirements,INSERT,gap,,BL-167,"
 public,requirement_occurrences,goproceed_app,requirements,INSERT,gap,,BL-167,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,requirement_rule_versions,goproceed_app,requirements,INSERT,gap,,BL-167,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,requirement_template_versions,goproceed_app,requirements,INSERT|UPDATE,gap,,BL-167,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,source_amount_resolutions,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,source_amount_resolutions,goproceed_app,contract_baseline,INSERT,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::source_amount_resolutions: an owner of A cannot insert a resolution into B or onto B's batch or row,,
 public,stage_closure_occurrences,goproceed_app,execution,INSERT,gap,,BL-168,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,stage_closures,goproceed_app,execution,INSERT,gap,,BL-168,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,statutory_act_version_quantities,goproceed_app,statutory,INSERT|UPDATE|DELETE,gap,,BL-169,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
@@ -57,9 +57,9 @@ public,telegram_member_link_intents,goproceed_service,communication,INSERT,cover
 public,telegram_requirement_choice_sessions,goproceed_service,communication,INSERT|UPDATE,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_requirement_choice_sessions: the service plane declaring A cannot insert or update a session of B or move one there,,
 public,telegram_requirement_choices,goproceed_service,communication,INSERT,covered,packages/testing/src/communication-write-rls.test.ts::communication cross-workspace write denial::telegram_requirement_choices: the service plane declaring A cannot insert a choice of B,,
 public,transaction_outbox,goproceed_app,operational,INSERT,gap,,BL-172,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,unit_definitions,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,unit_definitions,goproceed_app,contract_baseline,INSERT,covered,packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::unit_definitions: an owner of A cannot insert a unit into B and holds no UPDATE,,
 public,upload_intents,goproceed_app,evidence,INSERT,gap,,BL-170,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,valuation_allocations,goproceed_app,execution,INSERT,gap,,BL-168,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,work_assignments,goproceed_app,execution,INSERT|UPDATE,gap,,BL-168,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,work_items,goproceed_app,contract_baseline,INSERT|UPDATE|DELETE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,work_items,goproceed_app,contract_baseline,INSERT|UPDATE|DELETE,covered,"packages/testing/src/contract-baseline-write-rls.test.ts::contract_baseline cross-workspace write denial::work_items: an owner of A cannot insert, update or delete a line of B or move one there",,
 public,work_stages,goproceed_app,execution,INSERT|UPDATE,gap,,BL-168,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
