@@ -53,35 +53,6 @@ export async function POST(
     const bytes = new Uint8Array(await file.arrayBuffer());
     const contentHash = createHash("sha256").update(bytes).digest("hex");
 
-    // Format sniffing by magic bytes — never by filename/claimed type.
-    const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
-    const isCfb = bytes.length >= 2 && bytes[0] === 0xd0 && bytes[1] === 0xcf;
-    let detectedFormat: "xlsx" | "csv";
-    if (isZip) {
-      const g = guardXlsxContainer(bytes);
-      if (!g.ok) {
-        throw new HttpProblem(422, problem("IMPORT_FILE_UNSUPPORTED",
-          "Файл не пройшов перевірку безпеки.", {
-            requestId, retryable: false, userAction: "use_template_or_supported_format",
-            fieldErrors: g.errors.map((code) => ({ path: "file", message: code })),
-          }));
-      }
-      detectedFormat = "xlsx";
-    } else if (isCfb) {
-      throw new HttpProblem(422, problem("IMPORT_FILE_UNSUPPORTED",
-        "Застарілий або зашифрований формат Excel не підтримується. Збережіть файл як .xlsx.",
-        { requestId, retryable: false, userAction: "use_template_or_supported_format" }));
-    } else {
-      try {
-        new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, 4096));
-        detectedFormat = "csv";
-      } catch {
-        throw new HttpProblem(422, problem("IMPORT_FILE_UNSUPPORTED",
-          "Підтримуються лише файли XLSX та CSV.",
-          { requestId, retryable: false, userAction: "use_template_or_supported_format" }));
-      }
-    }
-
     const ctx = { actorUserId: userId, organizationId: null, requestId };
     const out = await withTenantTx(ctx, async (tx) => {
       // Plain select first: FOR UPDATE engages the UPDATE RLS policy and would
@@ -106,6 +77,39 @@ export async function POST(
             { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
         },
       }, async () => {
+        // Only an authorized caller reaches the container guard, which inflates
+        // every entry (DEV-087, gp-security S1): before this, any signed-in user
+        // could make the server inflate up to 100 MB per request, batch or none.
+        // It runs before the batch's row lock, inside the transaction and the
+        // idempotency advisory lock (gp-qa Q8).
+        let detectedFormat: "xlsx" | "csv";
+        // Format sniffing by magic bytes — never by filename/claimed type.
+        const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
+        const isCfb = bytes.length >= 2 && bytes[0] === 0xd0 && bytes[1] === 0xcf;
+        if (isZip) {
+          const g = guardXlsxContainer(bytes);
+          if (!g.ok) {
+            throw new HttpProblem(422, problem("IMPORT_FILE_UNSUPPORTED",
+              "Файл не пройшов перевірку безпеки.", {
+                requestId, retryable: false, userAction: "use_template_or_supported_format",
+                fieldErrors: g.errors.map((code) => ({ path: "file", message: code })),
+              }));
+          }
+          detectedFormat = "xlsx";
+        } else if (isCfb) {
+          throw new HttpProblem(422, problem("IMPORT_FILE_UNSUPPORTED",
+            "Застарілий або зашифрований формат Excel не підтримується. Збережіть файл як .xlsx.",
+            { requestId, retryable: false, userAction: "use_template_or_supported_format" }));
+        } else {
+          try {
+            new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, 4096));
+            detectedFormat = "csv";
+          } catch {
+            throw new HttpProblem(422, problem("IMPORT_FILE_UNSUPPORTED",
+              "Підтримуються лише файли XLSX та CSV.",
+              { requestId, retryable: false, userAction: "use_template_or_supported_format" }));
+          }
+        }
         const b = await tx.query(
           `select status from public.import_batches where workspace_id = $1 and id = $2 for update`,
           [workspaceId, batchId]);

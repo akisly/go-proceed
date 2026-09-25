@@ -219,8 +219,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-188](#bl-188) | P3 | open | The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only |
 | [BL-189](#bl-189) | P3 | open | An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction |
 | [BL-190](#bl-190) | P1 | open | Owner decision: audit the XLSX parses the pool bug may have substituted with another workbook |
-| [BL-191](#bl-191) | P2 | open | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
-| [BL-192](#bl-192) | P2 | open | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
+| [BL-191](#bl-191) | P2 | scheduled → DEV-087 | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
+| [BL-192](#bl-192) | P2 | scheduled → DEV-087 | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
 | [BL-193](#bl-193) | P3 | open | The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns |
 | [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
@@ -231,6 +231,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-200](#bl-200) | P3 | open | Three data-access rows describe external objects that do not exist |
 | [BL-201](#bl-201) | P3 | open | A readiness projection's scope reference has no key, so a service write can name another workspace's scope |
 | [BL-202](#bl-202) | P3 | open | An idempotency record's expiry is bounded only by its writer, so a caller could keep a stored response past its retention class |
+| [BL-203](#bl-203) | P3 | open | An approved unreadable file is approved by its path, so new content at that path passes the contactPoint guard unread |
+| [BL-204](#bl-204) | P3 | open | ExcelJS 4.4.0 cannot load an openpyxl workbook that carries a cell comment, so its import fails as malformed |
+| [BL-205](#bl-205) | P3 | open | An XLSX hyperlink or error cell imports as «[object Object]» |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2326,7 +2329,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-191"></a>
 ### BL-191 — P2 — The XLSX guard and JSZip read an archive's directory differently (INV-016)
 
-- **State:** open
+- **State:** scheduled → DEV-087
 - **Legacy cite:** none
 - **Why:** DEV-082's `gp-security` (S4), 2026-09-25; older than DEV-082. The guard (`xlsx-guard.ts`) checks the directory the EOCD declares; JSZip reads more:
   - **(a) Extra records.** JSZip keeps reading central-directory records while the signature matches. The guard checks only the EOCD's `count`, so extra records (a `xl/vbaProject.bin`, say) escape every check.
@@ -2345,7 +2348,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-192"></a>
 ### BL-192 — P2 — Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016)
 
-- **State:** open
+- **State:** scheduled → DEV-087
 - **Legacy cite:** none
 - **Why:** DEV-082's `gp-security` (S5), 2026-09-25; older than DEV-082.
   - **The gap.** JSZip compares an entry's inflated length with its declared `uncompressedSize` only after inflating all of it. The guard's bomb checks use the declared sizes.
@@ -2484,5 +2487,41 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **The fix.** A check `expires_at <= created_at + interval '400 days'` (the longest class), with a probe inserting a 401-day expiry and expecting 23514; or the TTL computed in the database.
   - **Ranking.** Ranked by DEV-086.
 - **Evidence:** `supabase/migrations/0002_audit_outbox_idempotency.sql`; `packages/database/src/idempotency.ts`; [DEV-086](tasks/DEV-086-operational-projection-write-denial.md).
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-203"></a>
+### BL-203 — P3 — An approved unreadable file is approved by its path, so new content at that path passes the contactPoint guard unread
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-087's `gp-security` (S2), 2026-09-25. `UNREADABLE_APPROVED_PATHS` in `scripts/validate-canonical-docs.mjs` exempts a path from the BL-079 guard. A later commit that overwrites an approved file — a regenerated test fixture, say — with a real workbook passes unread, and no review sees it. The design predates DEV-087, which added three fixtures to the list.
+  - **The fix.** Key the approval on path and git blob id (`git ls-files -s` already yields the blob), so any content change re-triggers review; a self-test that an approved path with another blob is refused.
+  - **Ranking.** Ranked by DEV-087.
+- **Evidence:** `scripts/validate-canonical-docs.mjs` (`UNREADABLE_APPROVED_PATHS`, `binaryBlobErrors`, `prospectingPathErrors`); [DEV-087](tasks/DEV-087-xlsx-guard-reads-what-the-parser-reads.md).
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-204"></a>
+### BL-204 — P3 — ExcelJS 4.4.0 cannot load an openpyxl workbook that carries a cell comment, so its import fails as malformed
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-087's `gp-qa` (Q5), 2026-09-25. ExcelJS 4.4.0 throws «Cannot read properties of undefined (reading 'comments')» on any workbook openpyxl writes with a cell comment (its `xl/comments/comment1.xml` part), so `parseXlsx` returns `XLSX_MALFORMED` for a genuine estimate. The container guard passes the file, before and after DEV-087; a LibreOffice workbook with a comment parses. Not caused by DEV-087. How often real estimates carry comments is unknown.
+  - **The fix.** Reproduce with a fixture, then either catch the load error per worksheet part and parse without comments, or upgrade ExcelJS (repeating DEV-087's JSZip reading), with the owner.
+  - **Ranking.** Ranked by DEV-087.
+- **Evidence:** `packages/domain/src/import/xlsx.ts`; DEV-087's gp-qa run (`openpyxl` 3.1.5 with a cell comment).
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-205"></a>
+### BL-205 — P3 — An XLSX hyperlink or error cell imports as «[object Object]»
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-087's `gp-qa` (Q6), 2026-09-25. `parseXlsx` reads a cell value that is neither a formula, rich text nor a date with `String(v)`. ExcelJS returns a hyperlink as `{ text, hyperlink }` and an error as `{ error }`, so the row's raw text becomes «[object Object]», and a later validation reports it as the cell's content. Unchanged since before DEV-087.
+  - **The fix.** Take `.text` for a hyperlink value and `.error` for an error value, with a test for each; `PARSER_VERSION` bumped.
+  - **Ranking.** Ranked by DEV-087.
+- **Evidence:** `packages/domain/src/import/xlsx.ts` (the value branch after rich text and dates).
 - **Depends on:** none.
 - **Deadline:** none recorded.
