@@ -21,7 +21,7 @@
   - `docs/BACKLOG.md` (BL-064), this record, and `docs/tasks/README.md`.
 - Read context: BL-064; `packages/domain/src/import/xlsx-guard.ts` (INV-016); `apps/app/app/v1/import-batches/[batchId]/validate/route.ts`.
 - Linked spec, ADR or earlier task: BL-064; INV-016.
-- Baseline: `origin/main` `1dec107f` (after #157).
+- Baseline: `origin/main` `1dec107f` (after #157); rebased onto `3b586956` (after #158, DEV-081).
 - Dependencies / constraints / out of scope:
   - The audit of hosted parses (BL-190) is the owner's decision: it reads several workspaces' data.
   - The older INV-016 gaps gp-security found (BL-191, BL-192) are out of scope.
