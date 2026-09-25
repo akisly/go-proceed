@@ -13,7 +13,7 @@
     - narrows the UPDATE grants on `external_sessions`, `external_access_grants` and `requirement_evidence_decision_heads` to the columns their writers set (F1; the heads' part of BL-183);
     - narrows the INSERT grants on the three external tables to the columns their writers write.
   - The external decision route reads and advances only its session's own head (DEV-080 S2).
-- State: reviewing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing` and `apps/app`, a migration that changes policies and narrows grants, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is `gp-architect` → owner decisions → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -91,7 +91,9 @@ Q8 (pushing `0109` to `goproceed-staging`) is the owner's and stays open with `0
 | 6 | Coordinator | Catalogs and docs:<br>• the write registry: 5 rows `covered`; the external rows and the heads row carry column-grant privileges in `WRITE_PRIVILEGES_SQL`'s format;<br>• the 5 keys removed from the baseline;<br>• DA-048 corrected; DA-050, DA-099, DA-223 and DA-224 updated; DA-235 (grants) and DA-236 (batches) added;<br>• INV-001 and INV-060 cite the file;<br>• `test-strategy.md` annotated;<br>• the `STATUS.md` migrations marker is `0109`;<br>• BL-171 and BL-182 scheduled; BL-172 and BL-183 annotated; BL-198, BL-199 and BL-200 (P3) filed.<br>The validator and `typecheck` pass | `git diff` | Reviews |
 | 7 | gp-security | PASS, no blocker or major, on `1a0384f6`.<br>• Every writer fits the narrowed grants column for column: occurrence grant issue (16 of the 17), revoke-reissue (its `FOR UPDATE`, the grant and session revokes, the successor's 17), rotation (the 10; its retirement sets `status`), the batch's 14, and both head advances; the Telegram path goes through `recordEvidenceDecision`. The exchange and `resolve_external_session` run as their owner; `goproceed_service` inherits `goproceed_app` and is narrowed with it.<br>• No granted column moves or forges a row of B.<br>• The `SET LOCAL ROLE` harness is sound: no policy reads `session_user`.<br>• F2 and F3 are correctly P3: the routes cannot reach them.<br>• `0109` is safe to apply before or after the code.<br>Findings S1–S5 (below) | Subagent report (session) | Fixes |
 | 8 | gp-reviewer | HOLD on R1 alone, on `1a0384f6`: the sweep was narrower than AC-2 claimed, and `0109` made DEV-080's `redh_update` WITH CHECK kill unobservable without saying so. The code, the migration and the tests are sound; every probe fails for the reason it asserts; the registry strings match `WRITE_PRIVILEGES_SQL`; the route's parameters bind in order. Findings R1–R9 (below) | Subagent report (session) | Fixes |
-| 9 | Coordinator | Fixes:<br>• **S1:** three probes: an external session issuing a link (policy), an external session's confined UPDATE of links (0 rows, B unchanged), a member's batch (policy).<br>• **R1:** a second sweep of 15 mutants on the three member policies and the two membership conjuncts, against both suites: 8 killed. The fixture then gained a suspended membership of A's owner in B, and a rerun of the four membership mutants killed both `m.status = 'active'` drops. Survivors, each unobservable across workspaces:<br>&nbsp;&nbsp;– `redh_update` WITH CHECK `true`, and without its project: `0109` withdrew UPDATE on the project and the tenant key, so the new row's project is the one USING admitted. This supersedes that part of DEV-080's AC-2; the move is now closed by privilege;<br>&nbsp;&nbsp;– `redh_update` USING without its project: A's owner decides on every project of A, and holds nothing in B;<br>&nbsp;&nbsp;– `audit_insert` and `outbox_insert` without `m.user_id = app.current_actor()`: the EXISTS reads `memberships` under its own SELECT policies, which admit the actor's own rows and the rows of a workspace it is active in, so B's memberships stay invisible.<br>Across the sweeps, 69 mutants, 57 killed, and the 12 survivors are all stated. The policies' md5 was the same before and after each sweep.<br>• **R2:** DA-050 reads `INSERT`, consumer `bff_external`. **R3:** INV-001, `0109`'s header and the objective name the five policies and the rotation's pin. **R4:** the decision and head registry rows name their external cases in `reason`. **R6:** DA-224, DA-235 and DA-048 worded. **R7:** `0109`'s rollback as separate grants; §3's planes. **R8** and **R5:** the file header. **R9:** the route's stale header annotated. **S4:** in BL-198's fix. **S5:** in DA-048.<br>7 of 7 pass; the validator and `typecheck` pass | `scratchpad/dev085-mutate-2.out`, `-3.out`; session output | gp-qa |
+| 9 | Coordinator | Fixes:<br>• **S1:** three probes: an external session issuing a link (policy), an external session's confined UPDATE of links (0 rows, B unchanged), a member's batch (policy).<br>• **R1:** a second sweep of 15 mutants on the three member policies and the two membership conjuncts, against both suites: 8 killed. The fixture then gained a suspended membership of A's owner in B, and a rerun of the four membership mutants killed both `m.status = 'active'` drops. Survivors, each unobservable across workspaces:<br>&nbsp;&nbsp;– `redh_update` WITH CHECK `true`, and without its project: `0109` withdrew UPDATE on the project and the tenant key, so the new row's project is the one USING admitted. This supersedes that part of DEV-080's AC-2; the move is now closed by privilege;<br>&nbsp;&nbsp;– `redh_update` USING without its project: A's owner decides on every project of A, and holds nothing in B;<br>&nbsp;&nbsp;– `audit_insert` and `outbox_insert` without `m.user_id = app.current_actor()`: the EXISTS reads `memberships` under its own SELECT policies, which admit the actor's own rows and the rows of a workspace it is active in, so B's memberships stay invisible.<br>Across the sweeps, 69 mutants, 57 killed, and the 12 survivors are all stated. `eag_update`'s lone capability was not replaced by «an active member»: that mutant lies between the original and survivor #7 (WITH CHECK `true`), so it survives too (gp-qa Q3). The policies' md5 was the same before and after each sweep.<br>• **R2:** DA-050 reads `INSERT`, consumer `bff_external`. **R3:** INV-001, `0109`'s header and the objective name the five policies and the rotation's pin. **R4:** the decision and head registry rows name their external cases in `reason`. **R6:** DA-224, DA-235 and DA-048 worded. **R7:** `0109`'s rollback as separate grants; §3's planes. **R8** and **R5:** the file header. **R9:** the route's stale header annotated. **S4:** in BL-198's fix. **S5:** in DA-048.<br>7 of 7 pass; the validator and `typecheck` pass | `scratchpad/dev085-mutate-2.out`, `-3.out`; session output | gp-qa |
+| 10 | gp-qa | AC-1 … AC-5 PASS on `180d4c74`; every finding fix confirmed.<br>• `external-review-write-rls` 7 of 7; the 16 citations to the two write suites, the two `reason` cells included, match their titles exactly.<br>• Its own sweep of all 69 mutants at HEAD against both suites: 57 killed, the same 12 survivors; every kill names an `it`, never `beforeAll`; md5 unchanged.<br>• `0109` in the database: the five WITH CHECKs, the column ACLs equal to the registry strings, and no whole-table UPDATE or INSERT on the narrowed tables for any `goproceed_%` role.<br>• The suspended membership changes no other case's meaning, and `afterAll` leaves nothing.<br>• The neighbouring suites pass: `requirements-write-rls`, `rls-coverage`, `external-review-rls`, `m5-external-rls`, `m5-external-schema`, `requirements-rls`, `outbox`, `privileges`.<br>• Q1–Q3 (below), wording only | Subagent report (session) | CI |
+| 11 | Coordinator | PR #166 CI green on `180d4c74` (run 36164517143: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database: `external-review-write-rls` 7 of 7, `requirements-write-rls` 9, `rls-coverage` 31, and `m5-external.int.test.ts` 28 of 28 with «reads and advances only the session's own head — insert, update and replay (DEV-085, BL-182 S2)». Merged in #166 (`f3f994b2`). Q1–Q3 fixed in the closure | CI job log | Done |
 
 ## Findings and rework
 
@@ -115,6 +117,9 @@ Q8 (pushing `0109` to `goproceed-staging`) is the owner's and stays open with `0
 | R7 | nit | `0109`'s header | The rollback's grant read as UPDATE on batches; §3's plane | Coordinator | Fixed |
 | R8 | nit | The file header | The session guard is not disabled | Coordinator | Fixed |
 | R9 | info | The route's header | «INV-007's replay is unreachable» stale since `0055` | Coordinator | Fixed: annotated |
+| Q1 | nit | INV-060, the test file's header | R3's wording left in two places | Coordinator | Fixed in the closure |
+| Q2 | info | DA-099 | Consumer `bff` beside an external writer | Coordinator | Fixed in the closure: `bff_external` |
+| Q3 | info | AC-2, row 9; DEV-080 | `eag_update`'s lone-capability replacement not run; DEV-080's `redh_update` kills not annotated | Coordinator | Fixed in the closure: row 9 says why it survives; DEV-080's AC-2 annotated |
 
 Rework count and hypothesis changes: none. The fixes are the findings' stated fixes, except that R1's also adds one fixture row (a suspended membership of A's owner in B), which only adds probes' reach and changes no product code; `gp-qa` checks it, and `gp-reviewer` does not rerun.
 
@@ -131,12 +136,12 @@ Rework count and hypothesis changes: none. The fixes are the findings' stated fi
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 each row cites one test meeting the minimum, on both planes | Yes | | | | |
-| AC-2 every listed mutation fails a test, or is stated | Yes | | | | |
-| AC-3 `0109`, the registry, the baseline, the DA rows, INV-001, INV-060 | Yes | | | | |
-| AC-4 the route's head statements and their test | Yes | | | | |
-| AC-5 validator and typecheck | Yes | | | | |
-| AC-6 CI green, the new suites in the log | Yes | | | | |
+| AC-1 each row cites one test meeting the minimum, on both planes | Yes | `180d4c74` | gp-qa 7 of 7, citations exact; CI 7 of 7 (rows 10, 11) | PASS | |
+| AC-2 every listed mutation fails a test, or is stated | Yes | `180d4c74` | 57 of 69 killed, reproduced in full by gp-qa; the 12 survivors stated (rows 5, 9, 10) | PASS | Local 17.6 stack |
+| AC-3 `0109`, the registry, the baseline, the DA rows, INV-001, INV-060 | Yes | `180d4c74` | gp-qa's database checks; `rls-coverage` 31 locally and on CI (rows 10, 11) | PASS | |
+| AC-4 the route's head statements and their test | Yes | `180d4c74` | gp-qa's reading of the bindings; the CI case passes (rows 10, 11) | PASS | The test cannot fail on the pre-fix route |
+| AC-5 validator and typecheck | Yes | `180d4c74` | validator OK; both typechecks exit 0 | PASS | Node 22 locally |
+| AC-6 CI green, the new suites in the log | Yes | `180d4c74` | run 36164517143: `verify` and `app-qa` success; both suites in the log | PASS | |
 
 ## Sources
 
@@ -145,8 +150,8 @@ Rework count and hypothesis changes: none. The fixes are the findings' stated fi
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents.
-- Verified scope: rows 1–9.
+- Review independence: `gp-architect`, `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
+- Verified scope: rows 1–11.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa`.
-- Final state and reason: reviewing.
+- Next bounded action and owner: BL-172's `idempotency_records` row, then BL-173. Pushing `0103` … `0109` to staging is the owner's.
+- Final state and reason: done — every required criterion PASS; #166 merged with CI green (row 11).

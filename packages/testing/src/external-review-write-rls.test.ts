@@ -36,8 +36,8 @@ import { APPROVER_ROLE, insertDecision, recordDecision, seedClosureWorld } from 
  * is the one that answers first on a migrated database (RI triggers fire in
  * name order), as in DEV-080 and DEV-084.
  *
- * 0109 (owner, 2026-09-25) made the external plane's write policies read the
- * session's workspace (BL-182), and narrowed the grants and decision heads'
+ * 0109 (owner, 2026-09-25) made the four external INSERT policies and
+ * redh_external_update's WITH CHECK read the session's workspace (BL-182), and narrowed the grants and decision heads'
  * UPDATE and the three external tables' INSERT to the columns their writers
  * write. The requirement_evidence_decisions and _heads rows stay cited to
  * requirements-write-rls.test.ts (DEV-080, the member plane); their external
