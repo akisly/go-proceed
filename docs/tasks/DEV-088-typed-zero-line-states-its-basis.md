@@ -25,7 +25,8 @@
 - **Linked spec, ADR or earlier task:** BL-022; ADR-006 decision 2.
 - **Baseline:** `313a402c`, which is `origin/main` after #170 plus the DEV-087 closure.
 - **Dependencies, constraints and out of scope:**
-  - Rows already stored keep what they hold: this task includes no backfill.
+  - No backfill. A typed zero line in a draft takes the basis on its next correction, since `work_items.update` re-derives and rewrites `price_basis`; published rows and untouched drafts keep null.
+  - The manual path is aligned to the importer, not the reverse: imported rows in published versions are immutable, so changing the importer would leave them as the divergent ones.
   - The importer is unchanged.
 - **Required acceptance criteria:**
   - AC-1: for a zero, a known and a missing price, `deriveLine` states the basis `import_batches.publish` states for the same line. A unit test proves it, and it fails on the baseline for the zero case.
@@ -46,17 +47,25 @@
 |---|---|---|---|---|
 | 1 | Coordinator | **The divergence, read.**<br>• `import_batches.publish` writes `mp.unitPrice ? priceBasis : null`, and `validateRow` sets `unitPrice` for a zero price too (state `zero`). So an imported zero line states the basis.<br>• `deriveLine` set `unitPrice` only for state `known`, and wrote `unitPrice === null ? null : pins.priceBasis`. So a typed zero line stated none.<br>• A missing price states none on both paths.<br>• The line manifest hash (`lineManifestHash`) does not include the basis, so publication hashes are unaffected. | Files above | Fix |
 | 2 | Coordinator | **The fix and its checks.**<br>• `deriveLine` now writes `input.unitPriceState === "missing" ? null : pins.priceBasis`.<br>• The unit test runs `validateRow` and `deriveLine` side by side for zero, known and missing. It passes 4 of 4, and against the baseline line it fails the two zero cases.<br>• One assertion in each integration suite checks the stored basis; these run on CI only.<br>• The app unit suite passes 532 tests, with 1 skipped (a DB-credential-gated evidence-service case), and `typecheck` is clean. | Session output | Reviews |
+| 3 | gp-reviewer | PASS on `9dc7e53b`, no blocker or major. The importer stores a basis for a zero price (the stored `{ scaled: "0" }` object is truthy); `state === "missing"` is exactly the importer's test for every state a typed line can reach; when `pins.priceBasis` is null both writers store null; **nothing reads `price_basis`** (the three writers, the column and fixtures only; every `select *` passes through `workItemView`, which has no basis); no hash, manifest, contract or OpenAPI includes it. R1–R5 (below) | Subagent report (session) | Fixes |
+| 4 | Coordinator | R1: both integration assertions pin `"net"`, the fixture's exclusive-tax basis, so the typed zero, typed known and imported zero lines are equal under the same pins. R2: the record says a draft's zero line takes the basis on its next correction, and why the manual path follows the importer. R5: coherent inclusive pins; the unused zero price removed. R3, R4 recorded. Unit test 4 of 4; `typecheck` clean | Session output | gp-qa |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1 | minor | The two integration assertions | Accepted net or gross; the import one held before the fix | Coordinator | Fixed: `"net"` |
+| R2 | minor | The record | «Rows keep what they hold» ignored the update route; the direction of alignment unexplained | Coordinator | Fixed |
+| R3 | info | The unit test | Restates the importer's rule | — | Recorded in «What is not true» |
+| R4 | info | `m2-fixture.ts` | Seeds the old rule | — | Recorded in «What is not true»; nothing reads the column |
+| R5 | nit | The unit test's pins | An exclusive contract with a gross basis; an unused price | Coordinator | Fixed |
 
 Rework count and hypothesis changes: none.
 
 ## What is not true after this task
 
-- Typed zero lines stored before this change keep a null basis; there is no backfill. Every such row is in a local or staging database: no customer data exists yet.
+- Typed zero lines in published versions, and drafts not corrected since, keep a null basis; there is no backfill, and nothing reads the column. Every such row is in a local or staging database: no customer data exists yet.
+- The unit test restates the importer's rule rather than sharing it, and `packages/testing/src/m2-fixture.ts` still seeds the old rule (gp-reviewer R3, R4); a shared `priceBasisFor(state, basis)` in `packages/domain` would close both.
 - Nothing in the schema ties `price_basis` to `unit_price_state`, so a future writer could diverge again. The unit test pins the two current writers.
 
 ## Acceptance evidence
@@ -75,8 +84,8 @@ None beyond the repository: no external library or service is involved.
 ## Completion / handoff
 
 - **Changed / inspected files:** see «Owning module».
-- **Review independence:** the reviews follow.
-- **Verified scope:** rows 1–2.
+- **Review independence:** `gp-reviewer` ran as an independent native subagent.
+- **Verified scope:** rows 1–4.
 - **Remaining risks / blocked requirements:** «What is not true after this task».
-- **Next bounded action and owner:** `gp-reviewer`.
+- **Next bounded action and owner:** `gp-qa`.
 - **Final state and reason:** reviewing.
