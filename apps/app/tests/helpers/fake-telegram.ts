@@ -17,7 +17,7 @@ export function fakeTelegramFetch(options: FakeResponse = {}): FakeTelegramFetch
     else calls.push({ url, init });
     const status = options.status ?? 200;
     if (url.includes("/file/bot")) {
-      const body = options.bytes === undefined ? new ArrayBuffer(3) : options.bytes.buffer as ArrayBuffer;
+      const body = options.bytes === undefined ? new ArrayBuffer(3) : new Uint8Array(options.bytes).buffer;
       return new Response(body, { status });
     }
     if (status !== 200) {
