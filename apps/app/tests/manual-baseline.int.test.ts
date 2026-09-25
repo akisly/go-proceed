@@ -207,6 +207,16 @@ describe("work_items.create succeeds on a draft", () => {
     // — which is what keeps an unvalued line out of the value-at-risk sum.
     expect((await zero.json()).workItem.netMinor).toBe("0");
     expect((await missing.json()).workItem.netMinor).toBe("0");
+    // A zero price states the version's basis, as an imported zero line does;
+    // only a missing price states none (DEV-088, BL-022).
+    expect((await addLine(contractVersionId, LINE)).status).toBe(201);
+    const bases = await q<{ source_key: string; price_basis: string | null }>(
+      `select source_key, price_basis from public.work_items
+        where contract_version_id = $1 order by source_key`, [contractVersionId]);
+    const basisOf = (key: string) => bases.find((b) => b.source_key === key)?.price_basis;
+    expect(basisOf("1.1")).toMatch(/^(net|gross)$/);
+    expect(basisOf("1.3")).toBe(basisOf("1.1"));
+    expect(basisOf("1.4")).toBeNull();
   });
 
   it("refuses a source amount outside the contract's pinned tolerance (INV-054)", async () => {

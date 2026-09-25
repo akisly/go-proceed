@@ -50,7 +50,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-019](#bl-019) | P3 | deferred (owner) | The service principal inherits the app role's table grants |
 | [BL-020](#bl-020) | P3 | open | Any service-plane session can reproduce an erasure without the registry or the audit row |
 | [BL-021](#bl-021) | P2 | closed → DEV-043 | A project access grant can be issued and never taken back |
-| [BL-022](#bl-022) | P2 | open | A hand-typed zero-priced line and an imported one store different provenance |
+| [BL-022](#bl-022) | P2 | scheduled → DEV-088 | A hand-typed zero-priced line and an imported one store different provenance |
 | [BL-023](#bl-023) | P2 | open | Nothing in `apps/app` is rate-limited, the external plane included |
 | [BL-024](#bl-024) | P2 | open | Blockers before any environment enables the Telegram webhook |
 | [BL-025](#bl-025) | P3 | open | Routes put English into `fieldErrors[].message`, and no rule says who owns that text |
@@ -469,7 +469,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-022"></a>
 ### BL-022 — P2 — A hand-typed zero-priced line and an imported one store different provenance
 
-- **State:** open
+- **State:** scheduled → DEV-088
 - **Legacy cite:** `TODOS.md` «a hand-typed zero-priced line and an imported one store different provenance»
 - **Why:** ADR-006 decision 2 and M1's exit gate require a hand-typed line to be indistinguishable in provenance from an imported one. A zero price stores `price_basis = null` when typed and the basis when imported.
 - **Evidence:** `apps/app/src/lib/manual-baseline.ts:253` `priceBasis: unitPrice === null ? null : pins.priceBasis,`.
