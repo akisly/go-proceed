@@ -219,8 +219,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-188](#bl-188) | P3 | open | The allocation-head definers reveal whether another workspace's root entry exists, and their EXECUTE is revoked from PUBLIC only |
 | [BL-189](#bl-189) | P3 | open | An admitted valuation allocation can name its closure at any later time, not only in the closure's own transaction |
 | [BL-190](#bl-190) | P1 | open | Owner decision: audit the XLSX parses the pool bug may have substituted with another workbook |
-| [BL-191](#bl-191) | P2 | open | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
-| [BL-192](#bl-192) | P2 | open | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
+| [BL-191](#bl-191) | P2 | scheduled → DEV-087 | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
+| [BL-192](#bl-192) | P2 | scheduled → DEV-087 | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
 | [BL-193](#bl-193) | P3 | open | The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns |
 | [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
@@ -2326,7 +2326,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-191"></a>
 ### BL-191 — P2 — The XLSX guard and JSZip read an archive's directory differently (INV-016)
 
-- **State:** open
+- **State:** scheduled → DEV-087
 - **Legacy cite:** none
 - **Why:** DEV-082's `gp-security` (S4), 2026-09-25; older than DEV-082. The guard (`xlsx-guard.ts`) checks the directory the EOCD declares; JSZip reads more:
   - **(a) Extra records.** JSZip keeps reading central-directory records while the signature matches. The guard checks only the EOCD's `count`, so extra records (a `xl/vbaProject.bin`, say) escape every check.
@@ -2345,7 +2345,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-192"></a>
 ### BL-192 — P2 — Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016)
 
-- **State:** open
+- **State:** scheduled → DEV-087
 - **Legacy cite:** none
 - **Why:** DEV-082's `gp-security` (S5), 2026-09-25; older than DEV-082.
   - **The gap.** JSZip compares an entry's inflated length with its declared `uncompressedSize` only after inflating all of it. The guard's bomb checks use the declared sizes.
