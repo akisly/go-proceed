@@ -56,7 +56,9 @@
 | 4 | gp-reviewer | Changes requested:<br>• R1 (major): `Buffer.prototype.slice` returns a view, so a `Buffer` input still handed ExcelJS the pool;<br>• R2 (medium): the record understated the impact (below);<br>• R3, R4 (low): BL-064 wording, the fake-Telegram reason;<br>• R5, R6 (nits): the test's assertion order, and step 7 checking no HTTP status | Subagent report (session), on `4f3f284c` | Fixes |
 | 5 | Coordinator | Fixes (Findings below):<br>• **Fix:** now `wb.xlsx.load(new Uint8Array(bytes).buffer)`: the typed-array constructor always copies exactly the input.<br>• **Test:** loops over a view and a pooled `Buffer`, asserting length and bytes before `r.ok`. It fails with the `slice()` variant (65536 ≠ 6460) and passes on the fix.<br>• **Node 24:** the domain `xlsx` tests pass 11 of 11 and the import tests 49 of 49.<br>• **Step 7:** it asserts `{http, code, status, failureCodes}` against `{200, undefined, "preview_ready", []}`.<br>• R2 was passed to `gp-security` | Session output | gp-security, gp-qa |
 | 6 | gp-security | PASS for the worktree fix, with conditions. S1 (major at `4f3f284c`, the `Buffer#slice` view) is R1, already fixed. S2 answers R2: another workbook left in recycled pool memory after the upload could be parsed in its place, possibly another workspace's, and stored as this batch's rows. The crafted over-read the old load allowed is closed by the fix, and no pool bytes reach a log. S3–S6 below | Subagent report (session), on `4f3f284c` and the worktree | Measure S2 |
-| 7 | Coordinator | **S2 measured** on the installed exceljs 4.4.0, alternating the two m1 fixture workbooks (7,359 and 7,342 bytes) through the DB round trip in one process:<br>• **Node 24.21.0, the old load:** of 3,000 parses, 2,314 returned their own rows, **58 returned the other workbook's rows**, and 628 failed;<br>• **Node 24.21.0, the fixed load:** 3,000 of 3,000 own rows;<br>• **Node 22.22.2, the old load:** 1,000 of 1,000 own rows.<br>The substitution is real, not hypothetical. The failure rate depends on what else the process allocates, so the tight loop's rate is not a production estimate.<br>**Fixes:** S3: `PARSER_VERSION` is `goproceed-import/1.0.1`. S6: the fake answers `new Uint8Array(options.bytes).buffer`. S2: BL-190 (P1, the owner's audit), and «What is not true» below. S4, S5: BL-191, BL-192 (P2) | Session output | gp-qa |
+| 7 | Coordinator | **S2 measured** on the installed exceljs 4.4.0, alternating the two m1 fixture workbooks (7,359 and 7,342 bytes as built on Node 22; one byte more each on Node 24) through the DB round trip in one process:<br>• **Node 24.21.0, the old load:** of 3,000 parses, 2,314 returned their own rows, **58 returned the other workbook's rows**, and 628 failed;<br>• **Node 24.21.0, the fixed load:** 3,000 of 3,000 own rows;<br>• **Node 22.22.2, the old load:** 1,000 of 1,000 own rows.<br>The substitution is real, not hypothetical. The failure rate depends on what else the process allocates, so the tight loop's rate is not a production estimate.<br>**Fixes:** S3: `PARSER_VERSION` is `goproceed-import/1.0.1`. S6: the fake answers `new Uint8Array(options.bytes).buffer`. S2: BL-190 (P1, the owner's audit), and «What is not true» below. S4, S5: BL-191, BL-192 (P2) | Session output | gp-qa |
+| 8 | gp-qa | AC-1, AC-2, AC-3 and AC-6 PASS on `927bbff9`; AC-4 PASS statically, its runtime on CI; AC-5 typecheck and validator PASS, CI pending.<br>• **Negative control:** both old loads (`bytes.slice().buffer`, `Buffer.from(bytes).buffer`) fail the regression test on Node 22 and on Node 24 («expected 65536 to be 6460»); the file was restored.<br>• **Import tests:** 49 of 49 on both Nodes.<br>• **Version coupling:** nothing but the frozen archive names `1.0.0`; no test pins the version or the manifest hash.<br>• **Row 7 re-measured:** Node 24 old load 2,110 own, **51 other workbook's**, 839 failed; fixed 3,000 own; Node 22 1,000 own.<br>• Q1–Q3 below | Subagent report (session) | Fix Q1; CI |
+| 9 | Coordinator | Q1 fixed: the BL-064 note my own edit had also appended to BL-127 is removed; «Root-caused by DEV-082» now appears only under BL-064. Q2 fixed. The validator passes | Session output | PR, CI |
 
 ## Findings and rework
 
@@ -74,6 +76,9 @@
 | S4 | medium | `xlsx-guard.ts` vs JSZip, pre-existing | Guard and parser read the directory differently | Owner | Deferred to BL-191 (P2) |
 | S5 | medium | JSZip inflation, pre-existing | Real inflation is unbounded | Owner | Deferred to BL-192 (P2) |
 | S6 | info | `fake-telegram.ts` | The same `.buffer` pattern in a test fake | Coordinator | Fixed |
+| Q1 | low | `docs/BACKLOG.md` BL-127 | The BL-064 recurrence note was appended to BL-127 too | Coordinator | Fixed (row 9) |
+| Q2 | nit | Row 7 | The fixture sizes are Node 22's | Coordinator | Fixed |
+| Q3 | info | The reproduction | `FIXED=1` exercises the fix's expression inline, not `parseXlsx` | — | No action: the in-repo test covers `parseXlsx` |
 
 Rework count and hypothesis changes: none.
 
@@ -97,8 +102,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: the root cause came from an independent subagent; `gp-reviewer` and `gp-security` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–7.
+- Review independence: the root cause came from an independent subagent; `gp-reviewer`, `gp-security` and `gp-qa` ran as independent native subagents.
+- Verified scope: rows 1–9.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa`; the owner for BL-190.
+- Next bounded action and owner: CI on the pull request; the owner for BL-190.
 - Final state and reason: implementing.
