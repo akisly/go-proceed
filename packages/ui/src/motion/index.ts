@@ -61,4 +61,5 @@ export { ArcField } from "./ArcField";
 export { ParticleSphere } from "./ParticleSphere";
 
 export { shouldReduce, useReduced } from "./use-reduced";
+export { ENTRANCE_ATTRIBUTE, NO_SCRIPT_ENTRANCE_CSS } from "./no-script";
 export { DURATION, EASE, STAGGER, SPRING, BLUR, REDUCED } from "./tokens";

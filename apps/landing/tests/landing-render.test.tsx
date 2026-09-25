@@ -259,7 +259,8 @@ describe("the home page's split, cards and fact band (DEV-026)", () => {
     // [R-02, and DEV-025's U-01 before it] One entrance keyed to the whole
     // column — ~1 300px below `wide` — leaves a blank fold under the heading.
     // The animated element must be the card's own wrapper, one per card.
-    const wrappers = [...scenes.matchAll(/<div class="grid" style="[^"]*opacity:0[^"]*"><article[^>]*data-scene="([a-z]+)"/g)].map((m) => m[1]);
+    // `data-entrance`: the wrapper is the `Reveal` that a scriptless reader's rule shows (DEV-091).
+    const wrappers = [...scenes.matchAll(/<div class="grid" data-entrance="" style="[^"]*opacity:0[^"]*"><article[^>]*data-scene="([a-z]+)"/g)].map((m) => m[1]);
     expect(wrappers).toEqual(["capture", "review", "act"]);
   });
 

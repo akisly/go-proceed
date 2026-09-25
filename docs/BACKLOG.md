@@ -144,7 +144,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
 | [BL-114](#bl-114) | P3 | open | The invitation redemption page (`invite#<token>`) is not built |
 | [BL-115](#bl-115) | P3 | open | A prefetching mail scanner may spend the one-time code the sign-in email carries |
-| [BL-116](#bl-116) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
+| [BL-116](#bl-116) | P2 | scheduled → DEV-091 | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
 | [BL-117](#bl-117) | P2 | closed → DEV-035 | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
 | [BL-119](#bl-119) | P2 | closed → DEV-035 | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
@@ -235,6 +235,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-204](#bl-204) | P3 | open | ExcelJS 4.4.0 cannot load an openpyxl workbook that carries a cell comment, so its import fails as malformed |
 | [BL-205](#bl-205) | P3 | open | An XLSX hyperlink or error cell imports as «[object Object]» |
 | [BL-206](#bl-206) | P3 | open | A workspace's timezone is stored unchecked and cannot be corrected |
+| [BL-207](#bl-207) | P3 | open | With scripting on but a landing chunk that fails to load, every entrance stays hidden |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1507,7 +1508,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-116"></a>
 ### BL-116 — P2 — Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0`
 
-- **State:** open
+- **State:** scheduled → DEV-091
 - **Legacy cite:** none
 - **Why:** ranked by DEV-027 (`gp-qa` Q-01). `Reveal`, `Stagger` and `StaggerItem` (`packages/ui/src/motion/`) server-render their hidden state inline (`opacity:0` and a transform), and only JavaScript ever clears it. A visitor whose scripts fail to load — a blocked CDN, a broken chunk, a reader mode, a crawler that does not execute — gets each page's h1, the home hero's lead and pills, the footer and the CSS grids, and nothing else; on `/pilot` that includes the form. DEV-026 recorded this («every `Reveal`/`Stagger` below the first heading stays hidden»); DEV-027 measured it and did not change it. The number is this branch's next free one (the validator requires a sequence without gaps); unmerged branches elsewhere already use BL-116…BL-118, so the entry is renumbered when the branches meet.
 - **Evidence:** `gp-qa`, 2026-09-19, working tree over `3601658`, the built pages with JavaScript disabled: text elements in `main` whose opacity chain is 0 — `/` 51 of 55 (the six sources, the fact tiles and the closing heading among them), `/product` 113 of 126, `/roles` 80 of 82, `/pilot` 32 of 41 (the form among them). The markup itself is complete (one h1, nav, main, footer, all six source codes).
@@ -2540,3 +2541,15 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `packages/contracts/src/workspaces.ts:5`, `organizations.ts:9`; `supabase/migrations/0001_core_tenancy.sql:12`, `0039`; `apps/app/src/lib/workspace-time.ts`.
 - **Depends on:** none for the refusal; an owner decision for a correction path.
 - **Deadline:** before a workspace is created outside Ukraine.
+
+<a id="bl-207"></a>
+### BL-207 — P3 — With scripting on but a landing chunk that fails to load, every entrance stays hidden
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-091 (BL-116) chose the `<noscript>` rule scoped to `data-entrance`, which a browser reads only with scripting off. A visitor whose scripts are allowed but whose chunk never arrives (a blocked CDN, a broken deploy, a content blocker that drops the bundle) still gets BL-116's page: the h1, the fold's CSS entrance, and every `Reveal`/`StaggerItem` at opacity 0, `/pilot`'s form among them.
+  - **The fix.** BL-116's other candidate: a small inline script in the document head marks the document, and a stylesheet rule shows `[data-entrance]` unless the hydrated app confirms it is running within a bound, or entrances start visible and are hidden only once the script is known to run. Either touches every page's first paint and an inline script's CSP story, so it takes `gp-reviewer`, `gp-ui-reviewer` and a harness pass that blocks the chunks.
+  - **Ranking.** Ranked by DEV-091.
+- **Evidence:** `packages/ui/src/motion/no-script.ts`; `apps/landing/app/layout.tsx`.
+- **Depends on:** none.
+- **Deadline:** before the landing is pointed at a production domain.
