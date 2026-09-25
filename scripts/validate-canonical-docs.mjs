@@ -1718,11 +1718,13 @@ export function isCommitRange(s) {
   return typeof s === "string" && /^[^\s-][^\s]*\.\.[^\s]+$/.test(s);
 }
 
+/** The `git log` arguments, a constant the self-test holds to the flags the guard's reading depends on. */
+export const COMMIT_RANGE_LOG_ARGS = Object.freeze(["log", "--format=", "--raw", "-z", "--no-abbrev", "--no-renames",
+  "--no-show-signature", "--diff-merges=separate", "--diff-filter=AMT", "--end-of-options"]);
+
 export function commitRangeEntries(range) {
   if (!isCommitRange(range)) throw new Error(`not a commit range: ${JSON.stringify(range)}`);
-  const out = execFileSync("git",
-    ["log", "--format=", "--raw", "-z", "--no-abbrev", "--no-renames", "--no-show-signature", "--diff-merges=separate",
-      "--diff-filter=AMT", "--end-of-options", range, "--"],
+  const out = execFileSync("git", [...COMMIT_RANGE_LOG_ARGS, range, "--"],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 30 });
   const seen = new Set();
   return parseRawLog(out).filter((e) => !seen.has(`${e.path}\0${e.blob}`) && seen.add(`${e.path}\0${e.blob}`));
@@ -1753,20 +1755,36 @@ export function commitRangeErrors(range, entries, readBlobs, ignoredOf = () => [
 }
 
 /**
+ * `git check-ignore -v -n -z` output — `<source> NUL <line> NUL <pattern> NUL
+ * <path> NUL` per path — reduced to the paths a `.gitignore` file ignores. As
+ * the index rule reads only `.gitignore` (`--exclude-per-directory`), a match
+ * from `.git/info/exclude` or a global excludes file is not counted, so the
+ * answer does not depend on the machine (DEV-090 gp-qa Q2); a negated pattern
+ * (`!…`) is the rule that un-ignores the path.
+ */
+export function gitignoredOf(out) {
+  const f = out.split("\0");
+  const ignored = [];
+  for (let i = 0; i + 3 < f.length; i += 4) {
+    const [source, , pattern, path] = f.slice(i, i + 4);
+    if ((source === ".gitignore" || source.endsWith("/.gitignore")) && !pattern.startsWith("!")) ignored.push(path);
+  }
+  return ignored;
+}
+
+/**
  * The paths the repository's `.gitignore` files ignore, read from the tree as
- * checked out. `--no-index`, since a path deleted later is not in the index;
- * no global excludes file, so the answer does not depend on the machine. Exit 1
- * is «none ignored»; anything else throws, and the caller fails closed.
+ * checked out. `--no-index`, since a path deleted later is not in the index.
+ * Exit 1 is «none ignored»; anything else throws, and the caller fails closed.
  */
 function ignoredPaths(paths) {
   if (paths.length === 0) return [];
-  const r = spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "--no-index", "-z", "--stdin"], {
+  const r = spawnSync("git", ["-c", "core.excludesFile=/dev/null", "check-ignore", "--no-index", "-v", "-n", "-z", "--stdin"], {
     cwd: ROOT, input: paths.join("\0") + "\0", encoding: "utf8", maxBuffer: 1 << 26,
   });
   if (r.error) throw r.error;
-  if (r.status === 1) return [];
-  if (r.status !== 0) throw new Error(`git check-ignore exited ${r.status}: ${r.stderr.trim()}`);
-  return r.stdout.split("\0").filter(Boolean);
+  if (r.status !== 0 && r.status !== 1) throw new Error(`git check-ignore exited ${r.status}: ${r.stderr.trim()}`);
+  return gitignoredOf(r.stdout);
 }
 
 function readBlobsBatch(entries) {
@@ -2462,6 +2480,14 @@ function selfTest() {
       if (!isCommitRange(good)) t.push(`history guard (refused ${good})`);
     }
     if (parseRawLog(`:100644 100644 ${blobA} ${blobB} M100\0x.md\0`).length !== 1) t.push("history guard (a status with a score)");
+    // The reading depends on these flags; a contributor's config must not change it (gp-qa Q1).
+    for (const flag of ["--no-renames", "--diff-merges=separate", "--no-show-signature", "--end-of-options", "--raw", "-z", "--no-abbrev"]) {
+      if (!COMMIT_RANGE_LOG_ARGS.includes(flag)) t.push(`history guard (git log without ${flag})`);
+    }
+    if (COMMIT_RANGE_LOG_ARGS.at(-1) !== "--end-of-options") t.push("history guard (--end-of-options not last before the range)");
+    const verbose = ".gitignore\0" + "1\0*.log\0a.log\0" + ".git/info/exclude\0" + "7\0x.txt\0x.txt\0" + "\0\0\0y.md\0"
+      + "apps/app/.gitignore\0" + "3\0!keep.env\0apps/app/keep.env\0" + "apps/app/.gitignore\0" + "2\0.env*\0apps/app/.env.local\0";
+    if (gitignoredOf(verbose).join() !== "a.log,apps/app/.env.local") t.push("history guard (ignore sources and negations)");
   }
 
   // ProZorro contactPoint guard (BL-081): the forms a data dump takes are
@@ -3019,7 +3045,12 @@ const BRANDING_DOCS = METADATA_DOCS;
 function main() {
   selfTest();
 
-  // `--commits <range>`: only the history guard (BL-124 item 2, DEV-090).
+  // `--commits <range>`: only the history guard (BL-124 item 2, DEV-090). The
+  // `--commits=<range>` spelling is refused, not read as tree mode (gp-qa Q3).
+  if (process.argv.some((a) => a.startsWith("--commits="))) {
+    console.error("canonical documentation: write `--commits <range>`, with a space");
+    process.exit(1);
+  }
   const at = process.argv.indexOf("--commits");
   if (at !== -1) {
     const range = process.argv[at + 1] ?? "";
