@@ -6,7 +6,7 @@
   - No user-visible change.
   - The 10 `contract_baseline` rows of `technical/database/rls-write-coverage.csv` become `covered`. Each cites a test in `packages/testing/src/contract-baseline-write-rls.test.ts`. The test shows that an owner of one workspace cannot insert, update, delete or move rows into another, in the shape the DEV-076 minimum sets.
   - Migration `0105` withdraws the UPDATE grants on `locations` and `unit_definitions` and drops their two policies. No route used either.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that withdraws grants and drops RLS policies, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is: `gp-architect` → owner decisions → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -75,6 +75,8 @@
 | 8 | Coordinator | S1: four mixed probes added. Each is refused by its own parent's composite foreign key, observed and then named:<br>• the binding's rule version → `…_requirement_rul_fkey`;<br>• the version's contract → `contract_versions_workspace_id_project_id_contract_id_fkey`;<br>• the contract's own party → `contracts_workspace_id_own_party_id_fkey`;<br>• the line's version → `work_items_workspace_id_project_id_contract_id_contract_ve_fkey`.<br>S4/S5: DA-216, DA-011 and DA-070 reworded. S2/S3 filed as BL-180 and BL-181 (P3). 10 of 10 pass | `381df843` | gp-reviewer |
 | 9 | gp-reviewer | No blocker or major. Every probe fails for the right reason; the minimum holds per privilege on all 10 rows; the catalogs agree; 32 of 32 adds up. Findings R1–R3 (below) | Subagent report (session), on `5622d140` | Fixes |
 | 10 | Coordinator | Fixes:<br>• R1: BL-179 widened to six data-access rows, plus the stale `units.manage` line.<br>• R3: `confined` returns the ids of A's changed rows, and the tests assert `[A.draft]`, `[A.contract]`, `[A.batch]` and `[A.draftLine]`.<br>• R2: six more mutations, all killed: the capability half of `cv_update`, `wi_update` and `wi_delete` made `true`, and their draft condition inverted (the last three killed by R3's id assertion).<br>The original 32 re-run on the final file: 32 of 32 killed; the policies' md5 was unchanged | `scratchpad/dev079-mutate-extra.out`, `dev079-mutate-2.out` | gp-qa |
+| 11 | gp-qa | AC-1 … AC-5 PASS on `93bd9433`; every finding fix confirmed.<br>• Its own sweeps: 32 of 32 and 6 of 6 killed, each failing only its own table's case.<br>• Positive control: re-granting UPDATE on `locations` fails exactly the `locations` case and the registry comparison.<br>• The `0105` self-check fires on nine negative controls; a rollback-then-reapply replay is clean.<br>• The inverted `wi_update` mutant fails on the ids alone, which confirms R3.<br>• It skipped `m1-rls-baseline.test.ts` (it calls `resetDb`).<br>• Observation: the sweeps' md5 aggregates `order by 1,2` (constants), so a match is sound evidence but a mismatch could be a false alarm; later sweeps order by table and policy | Subagent report (session) | CI log |
+| 12 | Coordinator | PR #154 CI green on `93bd9433` (run 36126202397: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database (`0105` and its self-check applied on a fresh chain):<br>• `contract-baseline-write-rls.test.ts` 10 of 10;<br>• `rls-coverage.test.ts` 31 of 31;<br>• `m1-rls-baseline.test.ts` 9 of 9;<br>• `contract-baseline-rls.test.ts` 8 of 8.<br>Merged in #154 (`bf8f8b7c`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -101,6 +103,11 @@ Rework count and hypothesis changes: no round (review findings fixed before QA).
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 each row cites one test meeting the minimum | Yes | `93bd9433` | gp-qa: five files 62 of 62, none skipped; CI: the new file 10 of 10 (rows 11, 12) | PASS | Cross-workspace minimum only |
+| AC-2 every clause mutation fails a test | Yes | `93bd9433` | 38 mutations, all killed; confirmed independently by gp-qa (rows 5, 10, 11) | PASS | Local 17.6 stack |
+| AC-3 `0105`, the registry, the baseline, the DA rows, INV-060 | Yes | `93bd9433` | the privileges and policies observed; the self-check and nine negative controls; the positive control; the registry comparison 31 of 31 on CI (rows 11, 12) | PASS | |
+| AC-4 validator and typecheck | Yes | `93bd9433` | `pnpm validate:canonical-docs` OK; `pnpm turbo run typecheck` 10 of 10 (also with `--force`) | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `93bd9433` | run 36126202397: `verify` and `app-qa` success | PASS | |
 
 ## Sources
 
@@ -109,8 +116,8 @@ Rework count and hypothesis changes: no round (review findings fixed before QA).
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–10.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` also independent.
+- Verified scope: rows 1–12.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the final revision.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner decides the push of `0103` … `0105` to `goproceed-staging`; BL-167 is the next stage.
+- Final state and reason: done — every required criterion PASS; #154 merged with CI green (row 12).
