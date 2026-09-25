@@ -19,16 +19,16 @@ import_batch.status,mapping,validated,row validation completes,per-row results r
 import_batch.status,validated,preview_ready,preview build,normalized preview persisted,docs/architecture/files-and-storage.md
 import_batch.status,preview_ready,published,explicit publish command,no blocking rows; tolerance respected or resolved (INV-054),docs/architecture/files-and-storage.md
 import_batch.status,preview_ready,abandoned,abandon command,imports.manage,docs/architecture/files-and-storage.md
-assignment.status,draft,active,activate command,assignments.manage,docs/domain/execution-and-evidence.md
+assignment.status,draft,active,activate command,assignments.manage; not written in v0.1: no command updates an assignment and supabase/migrations/0106 withdrew the UPDATE grant (DEV-081),docs/domain/execution-and-evidence.md
 project.status,draft,active,activate command,project.admin,Task 1 project field channel
 project_field_channel.state,unbound,connected,Telegram binding creation (Task 4),service integration,Task 1 project field channel
 project_field_channel.state,connected,active,project activation,project.admin,Task 1 project field channel
 project_field_channel.state,active,unhealthy,Telegram health check failure,service integration,Task 1 project field channel
 project_field_channel.state,unhealthy,active,Telegram health check recovery,service integration,Task 1 project field channel
-assignment.status,active,paused,pause command,assignments.manage,docs/domain/execution-and-evidence.md
-assignment.status,paused,active,resume command,assignments.manage,docs/domain/execution-and-evidence.md
-assignment.status,active,completed,complete command,assignments.manage,docs/domain/execution-and-evidence.md
-assignment.status,active,cancelled,cancel command,history retained; progress facts unaffected,docs/domain/execution-and-evidence.md
+assignment.status,active,paused,pause command,assignments.manage; not written in v0.1: no command updates an assignment and supabase/migrations/0106 withdrew the UPDATE grant (DEV-081),docs/domain/execution-and-evidence.md
+assignment.status,paused,active,resume command,assignments.manage; not written in v0.1: no command updates an assignment and supabase/migrations/0106 withdrew the UPDATE grant (DEV-081),docs/domain/execution-and-evidence.md
+assignment.status,active,completed,complete command,assignments.manage; not written in v0.1: no command updates an assignment and supabase/migrations/0106 withdrew the UPDATE grant (DEV-081),docs/domain/execution-and-evidence.md
+assignment.status,active,cancelled,cancel command,history retained; progress facts unaffected; not written in v0.1: no command updates an assignment and supabase/migrations/0106 withdrew the UPDATE grant (DEV-081),docs/domain/execution-and-evidence.md
 upload_intent.status,intent_authorized,staged,bytes received on the intent-bound key,single staging attempt key; no overwrite (INV-045); reserved for the v0.3 resumable protocol; not written in v0.1 (supabase/migrations/0015 permits the value; no code writes it),docs/architecture/files-and-storage.md
 upload_intent.status,staged,integrity_verified,server verifies size and hash,server-observed values match the intent; reserved for the v0.3 resumable protocol; not written in v0.1 (supabase/migrations/0015 permits the value; no code writes it),docs/architecture/files-and-storage.md
 upload_intent.status,integrity_verified,scan_pending,inspection starts,pinned scanner/policy version; reserved for the v0.3 resumable protocol; not written in v0.1 (supabase/migrations/0015 permits the value; no code writes it),docs/architecture/files-and-storage.md

@@ -65,7 +65,7 @@ interface Side {
   ws: string; user: string; member: string; project: string; contract: string; baseline: string;
   workItem: string; assignment: string; otherAssignment: string; stage: string; otherStage: string;
   fStage: string; vClosure: string; blockingA: string; blockingB: string; DA1: string; EB1: string;
-  root: string; party: string; tPub: string;
+  root: string; party: string; tPub: string; location: string;
 }
 
 /**
@@ -100,7 +100,7 @@ async function one<T extends Record<string, unknown>>(sql: string, params: unkno
  * accepted decision on blockingA and a waiver on blockingB (the closure
  * members' reliance); a committed closure with no members on the stage that
  * carries no occurrence; a committed root progress entry with no allocation;
- * and a published template for the assignment probe.
+ * and a published template and a location for the assignment probe.
  */
 async function seedSide(ws: string, user: string, suffix: string): Promise<Side> {
   const rules = await seedRulesWorld(admin, { workspaceId: ws, userId: user, suffix });
@@ -128,12 +128,15 @@ async function seedSide(ws: string, user: string, suffix: string): Promise<Side>
         template_hash, published_at, published_by_member_id, created_by_member_id)
      values ($1, 'dev081-set', 1, 'published', 'photo', '{"mimeTypes":["image/jpeg"],"maxByteSize":1024}'::jsonb,
              $2, now(), $3, $3) returning id`, [ws, HEX64, rules.memberId])).id;
+  const location = (await one<{ id: string }>(
+    `insert into public.locations (workspace_id, project_id, name, created_by)
+     values ($1, $2, 'Секція 1', $3) returning id`, [ws, rules.projectId, user])).id;
   return {
     ws, user, member: rules.memberId, project: rules.projectId, contract: rules.contractId,
     baseline: w.baselineVersionId, workItem: w.workItemId, assignment: w.assignmentId,
     otherAssignment: w.otherAssignmentId, stage: w.stageId, otherStage: w.otherStageId,
     fStage: w.foreignAssignmentStageId, vClosure: closure.closureId,
-    blockingA: w.blockingA, blockingB: w.blockingB, DA1, EB1, root, party, tPub,
+    blockingA: w.blockingA, blockingB: w.blockingB, DA1, EB1, root, party, tPub, location,
   };
 }
 
@@ -272,14 +275,16 @@ afterAll(async () => {
 });
 
 describe("execution cross-workspace write denial", () => {
-  it("work_assignments: an owner of A cannot assign work in B or onto B's baseline, party, member or template, and holds no UPDATE", async () => {
+  it("work_assignments: an owner of A cannot assign work in B or onto B's baseline, party, member, template or location, and holds no UPDATE", async () => {
     const insert = `insert into public.work_assignments
         (workspace_id, project_id, contract_id, contract_version_id, work_item_id, performer_party_id,
-         assignee_member_id, requirement_template_version_id, created_by_member_id)
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
-    const row = (s: Side, o: Partial<Record<"project" | "item" | "party" | "assignee" | "template" | "creator", string>> = {}) =>
+         assignee_member_id, requirement_template_version_id, created_by_member_id, location_id)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`;
+    // The route writes a client-supplied location (DEV-081 R3), and only the
+    // composite FK confines it.
+    const row = (s: Side, o: Partial<Record<"project" | "item" | "party" | "assignee" | "template" | "creator" | "location", string>> = {}) =>
       [s.ws, o.project ?? s.project, s.contract, s.baseline, o.item ?? s.workItem, o.party ?? s.party,
-       o.assignee ?? s.member, o.template ?? s.tPub, o.creator ?? s.member];
+       o.assignee ?? s.member, o.template ?? s.tPub, o.creator ?? s.member, o.location ?? s.location];
     expect(await insertOutcomes(insert, (s) => row(s), [
       row(A, { project: B.project }),
       row(A, { item: B.workItem }),
@@ -287,6 +292,7 @@ describe("execution cross-workspace write denial", () => {
       row(A, { assignee: B.member }),
       row(A, { template: B.tPub }),
       row(A, { creator: B.member }),
+      row(A, { location: B.location }),
     ]))
       .toEqual([
         refusedByPolicy,
@@ -296,6 +302,7 @@ describe("execution cross-workspace write denial", () => {
         byForeignKey("work_assignments_workspace_id_assignee_member_id_fkey"),
         byForeignKey("work_assignments_workspace_id_requirement_template_version_fkey"),
         byForeignKey("work_assignments_workspace_id_created_by_member_id_fkey"),
+        byForeignKey("work_assignments_workspace_id_project_id_location_id_fkey"),
         inserted,
       ]);
     expect(await confined("work_assignments", "update public.work_assignments set due_date = date '2026-10-01'"))
@@ -337,6 +344,9 @@ describe("execution cross-workspace write denial", () => {
       ["update public.work_stages set workspace_id = $1, project_id = $2, contract_id = $3, contract_version_id = $4, work_assignment_id = $5, created_by_member_id = $6, status = 'closed'",
         [WS_B, B.project, B.contract, B.baseline, B.assignment, B.member]],
       ["update public.work_stages set project_id = $1, status = 'closed'", [B.project]],
+      // Not work_assignment_id alone: the occurrences scoped to A's open stages
+      // hold a referenced-side NO ACTION check that answers first, for the wrong
+      // reason. The contract move breaks the same composite FK (DEV-081 R4).
       ["update public.work_stages set contract_id = $1, status = 'closed'", [B.contract]],
       ["update public.work_stages set created_by_member_id = $1, status = 'closed'", [B.member]],
     ], ["work_stages"]))
