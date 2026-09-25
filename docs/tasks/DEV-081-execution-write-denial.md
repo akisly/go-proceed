@@ -6,7 +6,7 @@
   - No user-visible change.
   - The 6 `execution` rows of `technical/database/rls-write-coverage.csv` become `covered`. Each cites a test in `packages/testing/src/execution-write-rls.test.ts` showing that an owner of one workspace cannot insert, update or move rows into another, in the shape the DEV-076 minimum sets.
   - Migration `0106` withdraws the `work_assignments` UPDATE grant and drops `wa_update`, which no command used.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that withdraws a grant and drops an RLS policy, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is `gp-architect` → owner decision → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -74,6 +74,8 @@
 | 8 | Coordinator | Fixes:<br>• S1: the entry's work item → `progress_entries_workspace_id_work_item_id_fkey`; the member's occurrence → `stage_closure_occurrences_occurrence_fkey`, both observed and then named.<br>• S2: `policy` now means only a new row's WITH CHECK refusal, and `privilege` only «permission denied for table».<br>• S5: DA-230 for `progress_allocation_heads`.<br>• S7: `0106`'s self-check covers every `goproceed_*` role; it passes, and a column UPDATE granted to `goproceed_worker` fires it.<br>• S3, S4, S6: filed as BL-187, BL-188 and BL-189 (P3).<br>6 of 6 pass | Session output | gp-reviewer |
 | 9 | gp-reviewer | PASS, no blocker or major. R1 and R2 were already fixed by S1 (row 8). Findings R3–R8 (below) | Subagent report (session), on `d2c8def8` | Fixes |
 | 10 | Coordinator | Fixes:<br>• R3: a location per side is seeded, and the assignment's `location_id` (written by the route from the client) is probed. B's location is refused by `work_assignments_workspace_id_project_id_location_id_fkey`, observed with a placeholder and then named;<br>• R4: a comment in the test explains why `work_assignment_id` is not moved alone: the occurrences scoped to A's open stages hold a referenced-side NO ACTION check that would answer first, for the wrong reason, and the `contract_id` move breaks the same composite FK;<br>• R5: row 5 now calls the unrun mutants survivors, and lists two more;<br>• R6: the rollback note is below;<br>• R7: the five assignment status rows of `transition-catalog.csv` are marked not written in v0.1;<br>• R8: INV-001 names the closures' frozen members.<br>6 of 6 pass; the validator passes | Session output | gp-qa |
+| 11 | gp-qa | AC-1, AC-3 and AC-4 PASS on `cd429b86`; every finding fix confirmed.<br>• `execution-write-rls.test.ts` 6 of 6, none skipped; each registry citation matches its test title exactly; no fixture rows remain and every user trigger is enabled afterwards.<br>• `0106`: `goproceed_app` holds `INSERT` and `SELECT` only, no role holds a column UPDATE, only `wa_insert` and `wa_select` remain, and the `schema_migrations` row exists. Its self-check passes, and three positive controls fire it (a worker column grant, an UPDATE policy, a revoked INSERT), each rolled back.<br>• `rls-coverage.test.ts` 31 of 31 and `execution-rls.test.ts` 3 of 3, each read first for `resetDb`.<br>• AC-2: confirmed from the sweep's scripts and outputs, and the policies' md5 is unchanged. Its own re-run at head was refused by the host's permission check, because the sweep alters policies on the local database. It was not worked around, and the coordinator did not run it in QA's place | Subagent report (session) | CI |
+| 12 | Coordinator | PR #158 CI green on `cd429b86` (run 36135056414: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database:<br>• `execution-write-rls.test.ts` 6 of 6;<br>• `rls-coverage.test.ts` 31 of 31;<br>• `execution-rls.test.ts` 3 of 3.<br>Merged in #158 (`3b586956`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -110,6 +112,11 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 each row cites one test meeting the minimum | Yes | `cd429b86` | gp-qa: 6 of 6, none skipped, citations exact; CI: 6 of 6 (rows 11, 12) | PASS | Member plane; deferred triggers exercised by the m3 suites |
+| AC-2 every listed mutation fails a test | Yes | `d2c8def8` | 31 of 32 killed; the survivor and the unrun mutants stated as unobservable (row 5); gp-qa confirmed the scripts, outputs and restored md5 (row 11) | PASS | The sweep predates `64995ddf` and `cd429b86`, which only add probes and narrow the classifier; the re-run at head was refused by the host's permission check and not run |
+| AC-3 `0106`, the registry, the baseline, the DA rows, INV-060 | Yes | `cd429b86` | gp-qa's database checks and positive controls; the comparison 31 of 31 locally and on CI (rows 11, 12) | PASS | Local 17.6 stack |
+| AC-4 validator and typecheck | Yes | `cd429b86` | `pnpm validate:canonical-docs` OK; `@goproceed/testing` typecheck exit 0 | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `cd429b86` | run 36135056414: `verify` and `app-qa` success | PASS | |
 
 ## Sources
 
@@ -118,8 +125,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–10.
+- Review independence: `gp-architect`, `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
+- Verified scope: rows 1–12.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa`.
-- Final state and reason: implementing.
+- Next bounded action and owner: BL-169 is the next stage. Pushing `0103` … `0106` to staging is the owner's.
+- Final state and reason: done — every required criterion PASS; #158 merged with CI green (row 12).
