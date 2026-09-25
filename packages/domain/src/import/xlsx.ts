@@ -27,8 +27,9 @@ export async function parseXlsx(
     // allocation pool (64 KiB on Node 24) for any upload under half its size,
     // so the parser used to read the workbook embedded among leftover bytes of
     // other allocations, and failed as malformed when they held a zip
-    // signature (DEV-082, BL-064).
-    await wb.xlsx.load(bytes.slice().buffer as ArrayBuffer);
+    // signature (DEV-082, BL-064). The typed-array constructor, not `slice()`:
+    // a Buffer passed in overrides `slice` to return a view of the same pool.
+    await wb.xlsx.load(new Uint8Array(bytes).buffer);
   } catch {
     return { ok: false, errors: ["XLSX_MALFORMED"] };
   }

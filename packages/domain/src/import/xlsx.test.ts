@@ -136,11 +136,16 @@ describe("parseXlsx", () => {
     const poolSize = Buffer.poolSize;
     Buffer.poolSize = 64 * 1024;
     try {
-      const r = await parseXlsx(view);
-      expect(r.ok).toBe(true);
-      const arg = load.mock.calls[0]![0] as ArrayBuffer;
-      expect(arg.byteLength).toBe(bytes.length);
-      expect(new Uint8Array(arg)).toEqual(bytes);
+      // A view into a larger buffer, and a pooled Node Buffer (whose `slice`
+      // returns a view of the pool, not a copy).
+      for (const input of [view, Buffer.from(bytes)]) {
+        load.mockClear();
+        const r = await parseXlsx(input);
+        const arg = load.mock.calls[0]![0] as ArrayBuffer;
+        expect(arg.byteLength).toBe(bytes.length);
+        expect(new Uint8Array(arg)).toEqual(bytes);
+        expect(r.ok).toBe(true);
+      }
     } finally {
       Buffer.poolSize = poolSize;
       load.mockRestore();
