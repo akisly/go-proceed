@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome.** On `/assignments/{assignmentId}`, a photo's «Отримано сервером» time and a review link's «Діє до» deadline are shown in the assignment's workspace's zone (`organizations.timezone`), with the zone's label. Until now both were formatted in a hard-coded `Europe/Kyiv`: right while every workspace is in Kyiv, silently wrong the day one is not. For today's workspaces, all `Europe/Kyiv`, the screen shows the same text as before.
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** Claude Code primary session, 2026-09-25.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why** (`agents/COORDINATION.md`): a `/v1` response contract gains a field, so `gp-architect` → implementation → `gp-reviewer`, `gp-ui-reviewer` (the change touches `apps/app/app` and `apps/app/src/components`), `gp-security` (a short scoped pass: the route mints signed read URLs) → `gp-qa`.
@@ -19,7 +19,7 @@
   - `apps/app/app/(dash)/assignments/[assignmentId]/page.tsx`;
   - `apps/app/src/lib/workspace-time.ts` and its test (new);
   - `apps/app/src/components/evidence/{evidence-card,issue-review-link,evidence-by-occurrence}.tsx` and their tests; `issue-review-link.issued.test.tsx` (new);
-  - `apps/app/tests/evidence-read.int.test.ts`;
+  - `apps/app/tests/evidence-read.int.test.ts` and `apps/app/tests/evidence-page.test.tsx` (new, gp-qa Q1);
   - `docs/BACKLOG.md` (BL-034, BL-206), this record, and `docs/tasks/README.md`.
 - **Read context:** `supabase/migrations/0001_core_tenancy.sql` (`timezone text not null default 'Europe/Kyiv'`), `0004` (`org_select`), `0039` (no UPDATE); `packages/contracts/src/{workspaces,organizations,me-context}.ts`; `apps/app/src/lib/authz.ts`; `technical/copy-catalog.csv` row `dash.evidence.link_expiry`; `technical/openapi/scope-v0.1.csv:44`.
 - **Linked spec, ADR or earlier task:** BL-034; Plan D slice D1 task 6 (the screen, and its fix round 1 that named the zone).
@@ -62,6 +62,8 @@
 | 10 | Coordinator | R1: a malformed instant is returned as given. R2: `Europe/Kiev` follows the default before UTC (`WORKSPACE_TIMEZONE_FALLBACKS`). R3: the test comment names the creation default. R6: `membershipInactive(requestId)` exported from `authz.ts` and used by `requireActiveMembership` and the route. Mutations: the NaN guard dropped (1 failed), the old name dropped (1 failed); restored. `src/lib` + evidence tests 479 passed, 1 skipped; `typecheck` 10/10 | Session output | gp-qa |
 | 11 | gp-qa | On `6405930b`: AC-1–AC-5, AC-7 PASS; AC-8 PASS with limits (the logged gate predates the R fixes: motion-audit, `typecheck --force` 10/10 and the app build re-run at the head; §6 on a fixture); AC-6 NOT RUN (CI's). App unit suite 544 passed, 1 skipped; evidence tests 35/35. Every stated fix confirmed. Its sweep killed M1–M10 and M14; M11 (the route hands Kyiv) is the integration test's, M12 is R4, M13 is Q1, M15 is Q2. Q1, Q2 (below) | Subagent report (session); `scratchpad/qa089/mutate.out` | CI; Q1 |
 | 12 | Coordinator | CI on `6405930b` green (run 36192766628: `verify`, `app-qa`). The `verify` log shows `tests/evidence-read.int.test.ts` (7 tests, the new zone case among them), `src/lib/workspace-time.test.ts` (7), `issue-review-link.issued.test.tsx` (2) and the three component files passing, in the app run of 137 files and 1532 tests, all passed. Q1: `tests/evidence-page.test.tsx` renders the page with the service mocked to return Warsaw and reads «11:30 GMT+2»; M13 (the page hands Kyiv) now fails it; restored. `typecheck` 10/10 | CI job 108261550110; session output | gp-qa re-check |
+| 13 | gp-qa | Re-check at `3294b162`: Q1's test passes 1/1 and M13 fails it (restored by sha256); AC-6 PASS on the `verify` log of run 36192766628 (`evidence-read.int.test.ts` has 7 cases at `6405930b`, 6 at the base, so the zone case ran); rows 11–12 and the Q1/Q2 rows accurate. AC-1–AC-8 PASS (AC-8 with limits). Nit: the edit list did not name `evidence-page.test.tsx` (named now) | Subagent report (session) | CI, merge |
+| 14 | Coordinator | CI green on `3294b162` (run 36194044134: `verify`, `app-qa`). The `verify` log shows `tests/evidence-page.test.tsx` (1), `tests/evidence-read.int.test.ts` (7), `src/lib/workspace-time.test.ts` (7) and `issue-review-link.issued.test.tsx` (2) passing, in the app run of 138 files and 1533 tests, all passed. #174 merged as `90517713` under the owner's standing order («мержи и давай дальше»). BL-034 closed → DEV-089 | [akisly/go-proceed#174](https://github.com/akisly/go-proceed/pull/174), `verify` job 108265668615 | Done |
 
 ## Findings and rework
 
@@ -95,14 +97,14 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 the contract field | Yes | | | | |
-| AC-2 the route's read, 403, signing unchanged | Yes | | | | |
-| AC-3 one formatter module | Yes | | | | |
-| AC-4 the fallback never throws, the label shown | Yes | | | | |
-| AC-5 unit, component, typecheck | Yes | | | | |
-| AC-6 the integration assertions on CI | Yes | | | | |
-| AC-7 docs valid, BL-034, BL-206 | Yes | | | | |
-| AC-8 §5 gate and §6 | Yes | | | | |
+| AC-1 the contract field | Yes | `3294b162` | gp-qa: required field, `.strict()` kept; removing it fails `typecheck` (M14) | PASS | `min(1)` itself untested (Q2) |
+| AC-2 the route's read, 403, signing unchanged | Yes | `3294b162` | gp-qa and gp-security, read: after authorization, in the transaction, verbatim; `membershipInactive()`; signing and `no-store` untouched. CI: the verbatim return | PASS | The zero-row 403 is not driven by a test (R4) |
+| AC-3 one formatter module | Yes | `3294b162` | `workspace-time.ts`: no directive, no imports; no constant in the components | PASS | — |
+| AC-4 the fallback never throws, the label shown | Yes | `3294b162` | Mutants M2–M6 (gp-qa) and the R1/R2 mutants (coordinator) killed | PASS | Old browser tzdata judged through Node's `Intl` |
+| AC-5 unit, component, typecheck | Yes | `6405930b`, `3294b162` | App unit suite 544 passed, 1 skipped (credential-gated); evidence tests 35/35; page test 1/1; `typecheck --force` 10/10 | PASS | — |
+| AC-6 the integration assertions on CI | Yes | `6405930b`, `3294b162` | `verify`: `evidence-read.int.test.ts` 7 passed on both heads; 1533/1533 on the last | PASS | The refusal's no-zone assertion is vacuous (R4) |
+| AC-7 docs valid, BL-034, BL-206 | Yes | `3294b162` + this closure | `validate:canonical-docs` OK; BL-206 filed; BL-034 closed → DEV-089 here | PASS | — |
+| AC-8 §5 gate and §6 | Yes | `f3a0660a` + tree; `6405930b` | Rows 4, 5, 8; motion-audit, `typecheck` and the app build re-run at `6405930b` by gp-qa | PASS | Assisted: §6 on fixtures, not the live page; the full `packages/testing` suite is CI's |
 
 ## Sources
 
@@ -114,7 +116,7 @@ Rework count and hypothesis changes: none.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** every stage runs as an independent native subagent.
-- **Verified scope:** rows 1–12.
+- **Verified scope:** rows 1–14.
 - **Remaining risks / blocked requirements:** «What is not true after this task».
-- **Next bounded action and owner:** `gp-qa` (Q1).
-- **Final state and reason:** reviewing.
+- **Next bounded action and owner:** none here; BL-206 (the stored zone's check and correction) is open.
+- **Final state and reason:** done: every acceptance criterion PASS, merged in #174 (`90517713`).

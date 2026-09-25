@@ -62,7 +62,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-031](#bl-031) | P2 | closed → DEV-037 | Purge claims are not fenced |
 | [BL-032](#bl-032) | P2 | closed → DEV-038 | A deactivated member cannot abandon their own upload through the route |
 | [BL-033](#bl-033) | P2 | closed → DEV-034 | `evidence-storage.ts` puts raw storage keys into error messages |
-| [BL-034](#bl-034) | P2 | scheduled → DEV-089 | The evidence screen formats times in a hard-coded zone, not the workspace's |
+| [BL-034](#bl-034) | P2 | closed → DEV-089 | The evidence screen formats times in a hard-coded zone, not the workspace's |
 | [BL-035](#bl-035) | P3 | open | `apps/app` has no application logging, so «never in the logs» cannot be asserted |
 | [BL-036](#bl-036) | P3 | closed → DEV-039 | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
 | [BL-037](#bl-037) | P3 | open | Evidence groups are labelled by, and ordered by, a bare occurrence UUID |
@@ -599,10 +599,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-034"></a>
 ### BL-034 — P2 — The evidence screen formats times in a hard-coded zone, not the workspace's
 
-- **State:** scheduled → DEV-089
+- **State:** closed → DEV-089
 - **Legacy cite:** `TODOS.md` «against a hardcoded default zone, not the workspace's own»
 - **Why:** correct while every workspace is `Europe/Kyiv`, silently wrong the day a second zone exists.
-- **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx:54` and `:90` (`WORKSPACE_TIMEZONE_DEFAULT`); the same default in `issue-review-link.tsx:70`; `packages/contracts/src/evidence.ts` carries no timezone; `organizations.timezone` exists since `0001`.
+- **Evidence:** before DEV-089, `apps/app/src/components/evidence/evidence-card.tsx:54` and `:90` (`WORKSPACE_TIMEZONE_DEFAULT`); the same default in `issue-review-link.tsx:70`; `packages/contracts/src/evidence.ts` carries no timezone; `organizations.timezone` exists since `0001`.
 - **Depends on:** threading the column through the evidence response or the dashboard's context.
 - **Deadline:** before a second timezone exists.
 
