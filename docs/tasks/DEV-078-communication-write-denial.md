@@ -6,7 +6,7 @@
   - No user-visible change.
   - The `communication` rows of `technical/database/rls-write-coverage.csv` become `covered`. Each cites a test in `packages/testing/src/communication-write-rls.test.ts`. The test shows that the service plane cannot insert, update or move a row into a workspace other than the one it declared, nor write when it declares none, in the shape the DEV-076 minimum sets.
   - Migration `0104` withdraws the four service write grants that only `SECURITY DEFINER` functions use. After it, the registry holds 10 communication rows, not 11: `telegram_member_links` keeps no write.
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that withdraws grants, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is: `gp-architect` → owner decisions → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -69,6 +69,8 @@
 | 7 | gp-security | PASS, no blocker or major. The review confirmed four things:<br>• `0104` closes real in-tenant surface: a binding or link could be written without its intent, or an intent un-consumed;<br>• it breaks no flow, because the definers are owned by `postgres`, their search path is fixed, and no FORCE RLS applies;<br>• the grants cannot return through `goproceed_app`;<br>• the probes prove the confinement.<br>Findings S1–S6 (below) | Subagent report (session), on `5f4759d3` | Fixes |
 | 8 | gp-reviewer | No blocker or major. Every probe fails for the right reason; the minimum holds per privilege on all 10 rows; the catalogs agree; the mutation arithmetic is right. Findings R1–R9 (below) | Subagent report (session), on `5f4759d3` | Fixes |
 | 9 | Coordinator | Fixes applied (see the findings table). The media-group upsert now also asserts «(USING expression)». Under `USING (true)` on media groups the file still fails, first at the UPDATE probe. The message-upsert probe (R3) asserts the product statement's silent zero rows with B unchanged. `0104` was re-applied by hand as `postgres` (R9); the self-check now also asserts the kept INSERT and SELECT. After the fixes: the new file 11 of 11; with `rls-coverage`, `communication-rls`, `telegram-rls`, `telegram-erasure`, `privileges` and `m5-external-rls`, 124 of 124; the validator passes | Session output | gp-qa, CI |
+| 10 | gp-qa | Results on `d765c4ed`:<br>• AC-1 to AC-4 PASS. AC-5 PASS by status; QA could not read the CI log text through the proxy.<br>• Its own sweep matches row 5: 30 mutations, 25 killed by the file and 5 by `communication-rls.test.ts`; the policies' md5 was unchanged afterwards.<br>• With the UPDATE probe removed, the «(USING expression)» assertion alone kills `USING (true)` on media groups.<br>• The `0104` self-check fires on five negative controls.<br>• A local probe of both consume definers as `goproceed_service` returned `connected` and `linked`.<br>• Every finding fix is confirmed; S3 / R1 was left to the CI log | Subagent report (session) | CI log |
+| 11 | Coordinator | PR #152 CI green on `d765c4ed` (run 36117962626: `verify`, `app-qa`). The `verify` log shows the suites run on CI's migrated database (`supabase db reset`, so `0104` and its self-check applied on a fresh chain):<br>• `telegram-bindings.int.test.ts`, which drives both consume definers: 8 of 8, none skipped;<br>• `communication-write-rls.test.ts`: 11 of 11;<br>• `rls-coverage.test.ts`: 31 of 31;<br>• `telegram-erasure.test.ts`: 38 of 38.<br>This closes S3 / R1. Merged in #152 (`b957850d`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -76,7 +78,7 @@
 |---|---|---|---|---|---|
 | S1 / R4 | low / minor | DA-203, DA-145; the bindings UPDATE grant | The notes said a binding changes through the definer; no product statement updates one, and the grant exists for row locks only. The full grant still admits an in-workspace chat re-point and `disconnected_at` | Coordinator; owner for the narrowing | Fixed: DA-203 (access path names the evidence read; `bff_worker`) and DA-145 reworded. Narrowing the grant deferred to BL-175 (P3; the owner kept the full grant) |
 | S2 / R2 | low / minor | The media-group upsert probe | `reason: policy` did not show that the USING clause refused | Coordinator | Fixed: asserts «(USING expression)»; DA-207 and the comment reworded |
-| S3 / R1 | medium (verification) / minor | AC-3 | The consuming definers were argued unaffected, not run: `telegram-bindings.int.test.ts` needs `APP_DB_URL` and `SERVICE_DB_URL` | gp-qa | Open: to be shown from the PR's CI log that the suite ran and passed |
+| S3 / R1 | medium (verification) / minor | AC-3 | The consuming definers were argued unaffected, not run: `telegram-bindings.int.test.ts` needs `APP_DB_URL` and `SERVICE_DB_URL` | Coordinator, gp-qa | Closed: 8 of 8 on CI, none skipped (row 11); gp-qa's local definer probe passed (row 10) |
 | S4 / R3 | info / minor | The message and media-group arbiters without a tenant column | The product's message upsert answers 0 rows for B's (binding, message id), not 23503: an existence oracle the product cannot reach | Coordinator | Probe added (0 rows, B unchanged); the tenant column in both arbiters deferred to BL-176 (P3) |
 | S5 / R5 / R6 | nit | `0104` header and self-check; DA-204, DA-205 | «Additive»; rollback without its catalog half; «writes these tables»; retention's delete unnamed; the kept grants unasserted | Coordinator | Fixed |
 | S6 | info | `allowed_occurrence_ids`, `telegram_occurrence_snapshot` | Unchecked `uuid[]` references can name another workspace's occurrences; inert today; predates DEV-078 | Owner | Deferred to BL-177 (P3) |
@@ -96,6 +98,11 @@ Rework count and hypothesis changes: no round (review findings fixed before QA).
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 each row cites one test meeting the minimum | Yes | `d765c4ed` | gp-qa: the seven files 124 of 124, none skipped; CI: the new file 11 of 11 (rows 10, 11) | PASS | |
+| AC-2 three mutations per policy | Yes | `d765c4ed` | 30 mutations: 25 killed by the file, 5 `USING (true)` on INSERT-only tables killed by `communication-rls.test.ts`; confirmed independently by gp-qa (rows 5, 10) | PASS | Local 17.6 stack |
+| AC-3 `0104`, the definers, the catalogs | Yes | `d765c4ed` | the privileges observed; the self-check and its negative controls; `telegram-bindings.int.test.ts` 8 of 8 and `telegram-erasure.test.ts` 38 of 38 on CI; the registry comparison 31 of 31 (rows 10, 11) | PASS | |
+| AC-4 validator and typecheck | Yes | `d765c4ed` | `pnpm validate:canonical-docs` OK; `pnpm turbo run typecheck` 10 of 10 | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `d765c4ed` | run 36117962626: `verify` and `app-qa` success | PASS | |
 
 ## Sources
 
@@ -104,8 +111,8 @@ Rework count and hypothesis changes: no round (review findings fixed before QA).
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–9.
+- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` also independent.
+- Verified scope: rows 1–11.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa` on the final revision, with the CI log for S3 / R1.
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner decides the push of `0103` and `0104` to `goproceed-staging`; BL-166 is the next stage.
+- Final state and reason: done — every required criterion PASS; #152 merged with CI green (row 11).
