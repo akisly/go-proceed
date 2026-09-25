@@ -27,7 +27,8 @@
 - Owning module and allowed edit paths:
   - `packages/domain/src/import/xlsx-guard.ts`, `xlsx.test.ts`, `version.ts`, and `__fixtures__/` (three workbooks, new);
   - `apps/app/app/v1/import-batches/[batchId]/files/route.ts` and `apps/app/tests/imports.int.test.ts` (gp-security S1);
-  - `scripts/validate-canonical-docs.mjs` (`UNREADABLE_APPROVED_PATHS` only, owner);
+  - `scripts/validate-canonical-docs.mjs` (`UNREADABLE_APPROVED_PATHS` and its comment only, owner);
+  - `docs/BACKLOG.md` (BL-203 new);
   - `technical/database/invariant-catalog.csv` (INV-016);
   - `docs/BACKLOG.md` (BL-191, BL-192), this record, and `docs/tasks/README.md`.
 - Read context:
@@ -76,6 +77,7 @@
 | 6 | gp-reviewer | HOLD on `e8e3f9f9`: R1, the claim that genuine workbooks pass rested only on JSZip-written ones; R2, the overlap test passed on a name mismatch. Every other point traced against JSZip matched. Findings R1–R7 (below) | Subagent report (session) | Fixes |
 | 7 | Coordinator | Fixes:<br>• **S1:** the upload route's format sniffing and guard moved inside the idempotent command, after `authorize`, before the batch is locked; an integration case (CI only) posts a bomb as a `project.view`-only member (403), as a user with no membership (404), and to a batch that does not exist (404);<br>• **S2, R3:** a name JSZip's `utils.resolve` would rewrite is refused; three names tested;<br>• **S3, R4:** the header states the pako-equals-zlib assumption; a genuine workbook is inflated three times (the upload's guard, the validate's guard, JSZip), and `chunkSize` now equals the ceiling, so the guard's output lands in one buffer and its peak is the entry, not twice it;<br>• **I4:** a test pins JSZip 3.10.1;<br>• **R1:** three workbooks from other writers checked in and parsed: **LibreOffice Calc 24.2.7** (data descriptors, the UTF-8 flag), **openpyxl 3.1.5** on Python 3.11 (zipfile), and the LibreOffice file **repacked by Info-ZIP Zip 3.0 through a pipe** (data descriptors, 0x5455 and 0x7875 extra fields, stored directory entries); plus hand-built accepted shapes (a descriptor, 0x5455 and 0x000a extras, duplicate names);<br>• **R2:** the overlap case uses one name; with the overlap check removed it fails;<br>• **R5:** a signature in the final 21 bytes, and a disk-1 end record, refused;<br>• **R7:** `ignoreBOM` makes the guard's names byte-exact; the stricter refusals are kept and listed below.<br>`xlsx.test.ts` 26 of 26; `typecheck` clean for domain and app | Session output | gp-qa |
 | 8 | Coordinator | PR #170's first `verify` failed at `validate:canonical-docs`: the BL-079 contactPoint guard refuses the three fixtures as tracked spreadsheets it cannot read. The local validator had passed before they were staged, since it reads tracked files. The guard's clause for a pushed file is to stop and ask the owner; the stage stopped, said so on the PR, and asked. The fixtures hold the three synthetic rows and each writer's metadata («LibreOffice/24.2.7.2», «openpyxl», timestamps), no person. **Owner: approve.** The three paths are in `UNREADABLE_APPROVED_PATHS` with that reason; the validator passes | CI job log; PR comment; session output | gp-security (the approval) |
+| 9 | gp-security | The approval: exact literal paths in a `Set`, checked with `Set.has` against `git ls-files` paths; nothing else exempted; the reason accurate. HOLD on procedure only (S1): it could not inflate `openpyxl.xlsx`. The coordinator dumped every part of **the three committed blobs** (`git show f91d1ae4:…`): cell text is only the seven strings «Назва, Од, К-сть, Ціна, Мурування, м2, Штукатурення» with 10, 199.99, 5.5 and 150; `docProps` holds `dc:creator` «openpyxl» or empty, timestamps and the writer names; the sheet is «Кошторис» or «koshtorys»; no comment; every Info-ZIP `ux` field is uid 0, gid 0. S1 is cleared as the reviewer set out. S2 (approval binds the path, not the content) filed as BL-203 (P3); S3 and S4 worded | `scratchpad/fxdump/dump.txt`; subagent report (session) | gp-qa |
 
 ## Findings and rework
 
@@ -94,6 +96,10 @@
 | R4 | minor | Inflation count and peak | Three inflations; peak twice the entry | Coordinator | Record corrected; `chunkSize` halves the guard's peak |
 | R5 | nit | End-record and disk cases | The baseline-divergent tail signature and a multi-disk record untested | Coordinator | Fixed |
 | R6 | nit | Row 2, row 3, Sources | `max(1, declared)`; the counts; no zlib doc URL | Coordinator | Fixed |
+| S1′ | procedure | The approval review | `openpyxl.xlsx` not read at part level | Coordinator | Cleared: every part of the three committed blobs dumped (row 9) |
+| S2′ | minor | `UNREADABLE_APPROVED_PATHS` | Bound to the path, not the content | Owner | Deferred to BL-203 (P3) |
+| S3′ | nit | The list's header comment | «holds one file» stale | Coordinator | Fixed |
+| S4′ | info | The entry's reason | Archiver metadata unnamed | Coordinator | Fixed |
 | R7 | info | Refusals stricter than JSZip | Bytes after the comment, a trailing or overrunning extra block, an inert zip64 extra field, a Unicode Path field with the UTF-8 flag set, a zero-length deflate entry, non-UTF-8 names | — | Kept: none is known from a mainstream writer, and each is refused rather than read |
 
 Rework count and hypothesis changes: none.

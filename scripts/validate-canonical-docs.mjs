@@ -1571,8 +1571,9 @@ export function decodeTrackedText(buf) {
  *     earlier sessions wrote `candidates.txt` and merged lists there. An
  *     allowlist, because a denylist of data extensions always misses one.
  *
- * THE APPROVED LIST HOLDS ONE FILE, with its reason. A file joins it WITH ITS
- * REASON on the line above, and `gp-security` reviews the addition. Images are
+ * EACH FILE ON THE APPROVED LIST carries its reason on the line above it. A
+ * file joins it with that reason, and `gp-security` reviews the addition. The
+ * approval binds the path, not the content: BL-203. Images are
  * not read by any rule.
  */
 export const UNREADABLE_APPROVED_PATHS = new Set([
@@ -1586,7 +1587,8 @@ export const UNREADABLE_APPROVED_PATHS = new Set([
   // («Назва / Мурування / Штукатурення», no person), by LibreOffice Calc
   // 24.2.7, openpyxl 3.1.5 and an Info-ZIP 3.0 streamed repack: the evidence
   // that the XLSX guard passes real writers other than JSZip. Their only other
-  // text is each writer's own metadata. Owner, 2026-09-25 (DEV-087).
+  // content is writer and archiver metadata (versions, timestamps, uid/gid 0).
+  // Owner, 2026-09-25; each part read by gp-security's review (DEV-087).
   "packages/domain/src/import/__fixtures__/infozip-streamed.xlsx",
   "packages/domain/src/import/__fixtures__/libreoffice.xlsx",
   "packages/domain/src/import/__fixtures__/openpyxl.xlsx",

@@ -231,6 +231,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-200](#bl-200) | P3 | open | Three data-access rows describe external objects that do not exist |
 | [BL-201](#bl-201) | P3 | open | A readiness projection's scope reference has no key, so a service write can name another workspace's scope |
 | [BL-202](#bl-202) | P3 | open | An idempotency record's expiry is bounded only by its writer, so a caller could keep a stored response past its retention class |
+| [BL-203](#bl-203) | P3 | open | An approved unreadable file is approved by its path, so new content at that path passes the contactPoint guard unread |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2484,5 +2485,17 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **The fix.** A check `expires_at <= created_at + interval '400 days'` (the longest class), with a probe inserting a 401-day expiry and expecting 23514; or the TTL computed in the database.
   - **Ranking.** Ranked by DEV-086.
 - **Evidence:** `supabase/migrations/0002_audit_outbox_idempotency.sql`; `packages/database/src/idempotency.ts`; [DEV-086](tasks/DEV-086-operational-projection-write-denial.md).
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-203"></a>
+### BL-203 — P3 — An approved unreadable file is approved by its path, so new content at that path passes the contactPoint guard unread
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-087's `gp-security` (S2), 2026-09-25. `UNREADABLE_APPROVED_PATHS` in `scripts/validate-canonical-docs.mjs` exempts a path from the BL-079 guard. A later commit that overwrites an approved file — a regenerated test fixture, say — with a real workbook passes unread, and no review sees it. The design predates DEV-087, which added three fixtures to the list.
+  - **The fix.** Key the approval on path and git blob id (`git ls-files -s` already yields the blob), so any content change re-triggers review; a self-test that an approved path with another blob is refused.
+  - **Ranking.** Ranked by DEV-087.
+- **Evidence:** `scripts/validate-canonical-docs.mjs` (`UNREADABLE_APPROVED_PATHS`, `binaryBlobErrors`, `prospectingPathErrors`); [DEV-087](tasks/DEV-087-xlsx-guard-reads-what-the-parser-reads.md).
 - **Depends on:** none.
 - **Deadline:** none recorded.
