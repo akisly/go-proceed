@@ -75,7 +75,10 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
     steps:
+      # Full history, for the prospecting guard over the commits this change
+      # adds (below): the default depth of 1 holds only the merge commit.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with: { version: 9.12.0 }
@@ -90,6 +93,23 @@ jobs:
       # rather than after a full local-stack boot. Needs no database and no
       # build — it reads the tree.
       - run: pnpm validate:canonical-docs
+
+      # The prospecting guard over every commit this change adds, not only the
+      # tree it ends on (BL-124 item 2, DEV-090): a dump committed and deleted
+      # on the same branch passes the gate above and stays in the history. A
+      # pull request is checked out as its merge commit, so HEAD^1 is the base
+      # and HEAD^2 the branch's head; a push to main adds before..HEAD. A range
+      # git cannot resolve (a rewritten `before`) fails the step. The values
+      # come through env, never interpolated into the script. A trigger added
+      # later (workflow_dispatch, merge_group) has no `before`: the empty range
+      # is refused and the step fails, until it is given a range of its own.
+      - name: prospecting guard over the commits this change adds
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then range="HEAD^1..HEAD^2"; else range="$BEFORE..HEAD"; fi
+          node scripts/validate-canonical-docs.mjs --commits "$range"
 
       # Agent profiles gate. `.claude/agents` and `.codex/agents` are generated
       # from `agents/` by scripts/sync-agents.py; this fails when a generated
