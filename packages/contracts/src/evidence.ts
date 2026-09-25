@@ -35,6 +35,17 @@ export const evidenceObjectView = z.object({
 }).strict();
 
 export const assignmentEvidenceResponse = z.object({
+  /**
+   * The assignment's workspace's stored presentation zone
+   * (`organizations.timezone`), verbatim and NOT validated (DEV-089, BL-034):
+   * creation accepts any string (BL-206), and a refine here would turn one bad
+   * stored value into a failed read of every photo and signed URL. The screen
+   * formats `serverReceivedAt` and a link's expiry in it, falling back when
+   * the runtime does not recognise it (`apps/app/src/lib/workspace-time.ts`).
+   * Named for the workspace, not `timezone`: `technical/openapi.yaml` already
+   * describes a project `timezone` the schema does not have.
+   */
+  workspaceTimezone: z.string().min(1),
   groups: z.array(z.object({
     /**
      * NULL IS A REAL GROUP, NOT A DEFECT. `upload_intents.requirement_occurrence_id`

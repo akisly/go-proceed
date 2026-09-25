@@ -7,6 +7,7 @@ import {
 } from "@goproceed/ui/components";
 
 import { issueReviewLink } from "../../services/grants.service";
+import { formatWorkspaceTime } from "../../lib/workspace-time";
 
 /**
  * «Відправити на перевірку» — the control that issues an external review link
@@ -56,26 +57,15 @@ import { issueReviewLink } from "../../services/grants.service";
  */
 
 /**
- * The workspace's own timezone. SAME STAND-IN, SAME REASON, AND DELIBERATELY
- * NOT IMPORTED FROM `evidence-card.tsx`: that module is a server component
- * file, and importing its formatter here would pull it — and its `lucide-react`
- * icon — into this screen's client bundle to reuse four lines. The real fix
- * for both call sites is the same one already filed in `TODOS.md`'s "Surfaced
- * by Plan D slice D1 task 6" entry: thread the caller's actual workspace
- * `timezone` through instead of defaulting it. Until then the zone is named
- * explicitly and SHOWN (`timeZoneName`), because a time that does not say
- * which zone it is in is a time that can be silently misread — and this one is
- * a deadline.
+ * The link's expiry — a deadline — in the workspace's own zone (DEV-089,
+ * BL-034), the one the evidence read returns and the page threads down. This
+ * formats in the VIEWER's browser, so the zone is named explicitly and shown
+ * (`timeZoneName`), and `src/lib/workspace-time.ts` — a module with no
+ * imports, so it adds nothing to this bundle — falls back to UTC when even the
+ * default is unknown to an old browser's tzdata.
  */
-const WORKSPACE_TIMEZONE_DEFAULT = "Europe/Kyiv";
-
-export function formatExpiresAt(iso: string): string {
-  return new Date(iso).toLocaleString("uk-UA", {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-    timeZone: WORKSPACE_TIMEZONE_DEFAULT,
-    timeZoneName: "short",
-  });
+export function formatExpiresAt(iso: string, timeZone: string): string {
+  return formatWorkspaceTime(iso, timeZone);
 }
 
 /** THE SENTENCE INV-044 REQUIRES, verbatim from the task brief. */
@@ -105,7 +95,7 @@ type State =
   | { phase: "issued"; link: ExternalLinkDelivery }
   | { phase: "failed"; message: string };
 
-export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
+export function IssueReviewLink({ occurrenceId, timeZone }: { occurrenceId: string; timeZone: string }) {
   // Minted here, not inside `Field` — the shadcn family is presentational and
   // does not mint ids the way the retired render-prop `Field` did internally.
   const emailId = useId();
@@ -170,7 +160,7 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
           <p className="text-data font-medium text-ink">{ONE_TIME_LINK_NOTICE}</p>
           <p className="break-all font-mono text-meta text-ink">{state.link.url}</p>
           <p className="text-meta text-ink-muted">
-            Діє до {formatExpiresAt(state.link.expiresAt)}. Надішліть його одержувачу самостійно.
+            Діє до {formatExpiresAt(state.link.expiresAt, timeZone)}. Надішліть його одержувачу самостійно.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

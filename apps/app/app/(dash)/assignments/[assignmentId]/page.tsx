@@ -88,5 +88,11 @@ export default async function AssignmentEvidencePage({ params }: EvidencePagePro
   }
   if (result.kind === "error") return <ShellFatalError />;
   if (result.evidence.groups.length === 0) return <NoEvidenceEmptyState />;
-  return <EvidenceByOccurrence assignmentId={assignmentId} groups={result.evidence.groups} />;
+  return (
+    <EvidenceByOccurrence
+      assignmentId={assignmentId}
+      groups={result.evidence.groups}
+      timeZone={result.evidence.workspaceTimezone}
+    />
+  );
 }

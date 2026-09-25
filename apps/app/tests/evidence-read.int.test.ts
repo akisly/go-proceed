@@ -205,6 +205,24 @@ describe("GET /v1/assignments/{id}/evidence", () => {
     expect(bound?.evidence[0]?.readUrl).toMatch(/^https?:\/\//);
     expect(bound?.evidence[1]?.readUrl).toMatch(/^https?:\/\//);
     expect(fallback?.evidence[0]?.readUrl).toMatch(/^https?:\/\//);
+
+    // The zone the screen formats every time in (DEV-089, BL-034): the
+    // workspace's stored one, here the creation default (`createWorkspaceRequest`).
+    const stored = await q<{ timezone: string }>(
+      "select timezone from public.organizations where id = $1", [fx.workspaceId]);
+    expect(body.workspaceTimezone).toBe(stored[0]!.timezone);
+    expect(body.workspaceTimezone).toBe("Europe/Kyiv");
+  });
+
+  it("returns the workspace's stored zone verbatim, a non-default one and one no runtime knows alike (DEV-089)", async () => {
+    // The BFF has no UPDATE on organizations (0039); the fixture's admin
+    // connection sets what creation would have stored.
+    for (const zone of ["Europe/Warsaw", "Not/AZone"]) {
+      await q("update public.organizations set timezone = $2 where id = $1", [fx.workspaceId, zone]);
+      const res = await getEvidence(assignmentId);
+      expect(res.status, await res.clone().text()).toBe(200);
+      expect(assignmentEvidenceResponse.parse(await res.json()).workspaceTimezone).toBe(zone);
+    }
   });
 
   it("sends no-store, because the body carries bearer capabilities", async () => {
@@ -281,7 +299,10 @@ describe("GET /v1/assignments/{id}/evidence", () => {
     current = B;
     const res = await getEvidence(assignmentId);
     expect(res.status).toBe(404);
-    expect((await res.json()).code).toBe("RESOURCE_NOT_FOUND");
+    const body = await res.json();
+    expect(body.code).toBe("RESOURCE_NOT_FOUND");
+    // A refusal names no workspace zone (DEV-089).
+    expect(body).not.toHaveProperty("workspaceTimezone");
   });
 });
 

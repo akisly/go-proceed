@@ -1,6 +1,7 @@
 import { ImageOff } from "lucide-react";
 import type { EvidenceObjectView } from "@goproceed/contracts";
 import { captureTimeTrustLabel, originMethodLabel } from "../../lib/evidence-labels";
+import { formatWorkspaceTime } from "../../lib/workspace-time";
 
 /**
  * One evidence object — the unit ПТВ scans this whole screen to find. Four
@@ -38,61 +39,27 @@ import { captureTimeTrustLabel, originMethodLabel } from "../../lib/evidence-lab
  */
 
 /**
- * The workspace's own timezone — modelled in the product
- * (`packages/contracts/src/workspaces.ts:5`'s `createWorkspaceRequest` and
- * `organizations.ts:9`'s `createOrganizationRequest`, both
- * `timezone: z.string()…default("Europe/Kyiv")`) but NOT carried on
- * `assignmentEvidenceResponse` (`packages/contracts/src/evidence.ts`) — this
- * screen has no per-workspace value to read `serverReceivedAt` against.
- * Named as a constant, not inlined, so the reader can tell this is standing
- * in for a real per-workspace value rather than an arbitrary literal — and
- * so `evidence-card.test.tsx` can assert against it directly. The real fix
- * (threading the caller's actual workspace `timezone` through to this
- * screen) is filed in `TODOS.md`'s "Surfaced by Plan D slice D1 task 6"
- * entry, not solved here.
- */
-export const WORKSPACE_TIMEZONE_DEFAULT = "Europe/Kyiv";
-
-/**
- * FIX ROUND 1, CRITICAL: this used to call `toLocaleString("uk-UA",
- * { dateStyle, timeStyle })` with NO `timeZone` — silently correct on a
- * developer's own Kyiv machine and silently WRONG in production, where
- * Vercel's runtime clock is UTC. `evidence-card.tsx` carries no
- * `"use client"` anywhere in this tree (grep-verified), so this function
- * always runs on the SERVER, in the server process's own zone — unlike
- * `app/(app)/a/[assignmentId]/capture.tsx:50`'s [deleted 2026-09-23, DEV-035] superficially identical
- * `formatClaimed`, which this file's previous header wrongly called "the
- * same one-line helper": that file IS `"use client"`, so it runs in the
- * VIEWER's own browser zone. Copying the one-liner without copying the
- * execution context copied the wrong half of it — a photo received at
- * 09:30Z would have rendered as "09:30" instead of "12:30", with nothing on
- * screen to say a zone was even involved, which is exactly the kind of
- * silently-wrong fact this screen exists to stop ПТВ from retyping.
+ * `serverReceivedAt`, in the workspace's own zone (DEV-089, BL-034) — the one
+ * `GET /v1/assignments/{assignmentId}/evidence` returns as
+ * `workspaceTimezone`, threaded down from the page. It was a hard-coded
+ * `Europe/Kyiv` until then: right while every workspace was in Kyiv, silently
+ * wrong the day one was not.
  *
- * Fixed by naming `timeZone` explicitly (`WORKSPACE_TIMEZONE_DEFAULT` above)
- * AND appending `timeZoneName: "short"` so the zone is visible on screen —
- * a time can be MISLABELLED as which zone it is in only if no zone is shown
- * at all; showing one, even a stand-in default, makes that impossible.
- * `timeZoneName` cannot combine with the `dateStyle`/`timeStyle` shorthand
- * (`Invalid option : option` — checked against the installed Node/ICU), so
- * the format is spelled out with explicit component options instead; the
- * values below reproduce `dateStyle: "medium", timeStyle: "short"`'s exact
- * visual shape (checked: "22 серп. 2026 р., 12:30" either way) with
- * `timeZoneName` now addable. `"short"`, not `"shortOffset"`/`"long"`:
- * `Intl` resolves it to "GMT+3"/"GMT+2" correctly across Kyiv's own DST
- * transition (checked for both an August and a January date) — a hardcoded
- * offset would have been wrong for half the year.
+ * FIX ROUND 1, CRITICAL, KEPT ON RECORD: this used to call
+ * `toLocaleString("uk-UA", { dateStyle, timeStyle })` with NO `timeZone` —
+ * silently correct on a developer's own Kyiv machine and silently WRONG in
+ * production, where Vercel's runtime clock is UTC. This file carries no
+ * `"use client"`, so it formats on the SERVER, in the server process's zone;
+ * a photo received at 09:30Z would have rendered as "09:30" instead of
+ * "12:30", with nothing on screen to say a zone was involved. The zone is
+ * now always named and always shown; `src/lib/workspace-time.ts` owns both,
+ * and the fallback when the stored zone is not one the runtime knows.
  */
-export function formatReceivedAt(iso: string): string {
-  return new Date(iso).toLocaleString("uk-UA", {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-    timeZone: WORKSPACE_TIMEZONE_DEFAULT,
-    timeZoneName: "short",
-  });
+export function formatReceivedAt(iso: string, timeZone: string): string {
+  return formatWorkspaceTime(iso, timeZone);
 }
 
-export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
+export function EvidenceCard({ item, timeZone }: { item: EvidenceObjectView; timeZone: string }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-panel border border-line bg-surface">
       {/* FIX ROUND 1: `aspect-[4/3]`, corrected from a fixed `h-56`
@@ -154,7 +121,7 @@ export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
       <dl className="flex flex-col gap-2 p-3 text-meta">
         <div className="flex items-baseline justify-between gap-2">
           <dt className="text-ink-muted">Отримано сервером</dt>
-          <dd className="tabular text-ink">{formatReceivedAt(item.serverReceivedAt)}</dd>
+          <dd className="tabular text-ink">{formatReceivedAt(item.serverReceivedAt, timeZone)}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-2">
           <dt className="text-ink-muted">Спосіб фіксації</dt>

@@ -42,7 +42,7 @@ describe("EvidenceByOccurrence — the null group is a real group, not an empty 
       { occurrenceId: null, evidence: [item()] },
     ];
     const html = renderToStaticMarkup(
-      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Kyiv" />,
     );
     expect(html).toContain("Без прив&#x27;язки до вимоги");
     expect(html).not.toContain("Немає доказів");
@@ -54,7 +54,7 @@ describe("EvidenceByOccurrence — the null group is a real group, not an empty 
       { occurrenceId: null, evidence: [item({ evidenceObjectId: "bbbbbbbb-0000-4000-8000-000000000001" })] },
     ];
     const html = renderToStaticMarkup(
-      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Kyiv" />,
     );
     const occurrenceHeading = html.indexOf("Вимога");
     const nullHeading = html.indexOf("Без прив&#x27;язки до вимоги");
@@ -74,7 +74,7 @@ describe("EvidenceByOccurrence — the null group is a real group, not an empty 
       { occurrenceId: "11111111-1111-4111-8111-111111111111", evidence: [item()] },
     ];
     const html = renderToStaticMarkup(
-      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Kyiv" />,
     );
     const nullHeading = html.indexOf("Без прив&#x27;язки до вимоги");
     const occurrenceHeading = html.indexOf("Вимога");
@@ -90,7 +90,7 @@ describe("EvidenceByOccurrence — the review-link control is scoped to an occur
       { occurrenceId: "11111111-1111-4111-8111-111111111111", evidence: [item()] },
     ];
     const html = renderToStaticMarkup(
-      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Kyiv" />,
     );
     expect(html).toContain("Відправити на перевірку");
   });
@@ -106,7 +106,7 @@ describe("EvidenceByOccurrence — the review-link control is scoped to an occur
       { occurrenceId: null, evidence: [item()] },
     ];
     const html = renderToStaticMarkup(
-      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Kyiv" />,
     );
     expect(html).not.toContain("Відправити на перевірку");
     expect(html).toContain("Без прив&#x27;язки до вимоги");
@@ -119,7 +119,7 @@ describe("EvidenceByOccurrence — the review-link control is scoped to an occur
       { occurrenceId: null, evidence: [item()] },
     ];
     const html = renderToStaticMarkup(
-      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Kyiv" />,
     );
     // Two occurrence groups, two controls; the null group adds none. FOUR and
     // not two because the string appears TWICE per control — once as the
@@ -128,5 +128,19 @@ describe("EvidenceByOccurrence — the review-link control is scoped to an occur
     // drops one of the two would fail here, and the reader should be able to
     // tell that from a wrong count without opening the component.
     expect(html.split("Відправити на перевірку").length - 1).toBe(4);
+  });
+});
+
+describe("EvidenceByOccurrence — every time is in the workspace's zone (DEV-089, BL-034)", () => {
+  it("hands the zone it is given to each card", () => {
+    const groups: AssignmentEvidenceResponse["groups"] = [
+      { occurrenceId: null, evidence: [item()] },
+    ];
+    const html = renderToStaticMarkup(
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} timeZone="Europe/Warsaw" />,
+    );
+    // 09:30Z in August: 11:30 in Warsaw, 12:30 in Kyiv, the old hard-coded zone.
+    expect(html).toContain("11:30");
+    expect(html).not.toContain("12:30");
   });
 });

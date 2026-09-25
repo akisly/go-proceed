@@ -5,11 +5,12 @@ import { IssueReviewLink, ONE_TIME_LINK_NOTICE, formatExpiresAt } from "./issue-
 
 /**
  * `renderToStaticMarkup`, no DOM — the same approach `evidence-card.test.tsx`
- * and `evidence-by-occurrence.test.tsx` already use here, and the only one
- * available: `apps/app`'s vitest has neither jsdom nor a DOM testing library.
- * So what this file can prove is the FIRST render (the form) and the two pure
- * exports; the pressed-button path — pending, issued, refused — is proven in
- * two other places instead, and neither is a substitute for the other:
+ * and `evidence-by-occurrence.test.tsx` already use here. So what this file
+ * can prove is the FIRST render (the form) and the two pure exports; the
+ * issued block's deadline, in the zone it is handed, is pressed through in
+ * jsdom by `issue-review-link.issued.test.tsx` (DEV-089). The pressed-button
+ * path — pending, issued, refused — is otherwise proven in two other places,
+ * and neither is a substitute for the other:
  * `grants.service.test.ts` pins every outcome of the call with an injected
  * fetch, and `qa/field.mjs`'s seventh audit presses the real button in a real
  * browser against a real route and then opens the resulting link in a second,
@@ -37,7 +38,7 @@ describe("the INV-044 sentence", () => {
 });
 
 describe("the form, before anything is pressed", () => {
-  const html = renderToStaticMarkup(<IssueReviewLink occurrenceId={OCCURRENCE} />);
+  const html = renderToStaticMarkup(<IssueReviewLink occurrenceId={OCCURRENCE} timeZone="Europe/Kyiv" />);
 
   it("offers the control under the label the whole task is named for", () => {
     expect(html).toContain("Відправити на перевірку");
@@ -75,11 +76,17 @@ describe("formatExpiresAt", () => {
   it("renders the deadline in the workspace's zone, not the server process's", () => {
     // 09:00 UTC in August is 12:00 in Kyiv (EEST, UTC+3). Vercel's runtime
     // clock is UTC; a browser's is the viewer's. Neither may decide this.
-    expect(formatExpiresAt("2026-08-29T09:00:00.000Z")).toContain("12:00");
+    expect(formatExpiresAt("2026-08-29T09:00:00.000Z", "Europe/Kyiv")).toContain("12:00");
   });
 
   it("shows which zone it is in, so a deadline cannot be silently misread", () => {
-    expect(formatExpiresAt("2026-08-29T09:00:00.000Z")).toContain("GMT+3");
-    expect(formatExpiresAt("2026-01-15T09:00:00.000Z")).toContain("GMT+2");
+    expect(formatExpiresAt("2026-08-29T09:00:00.000Z", "Europe/Kyiv")).toContain("GMT+3");
+    expect(formatExpiresAt("2026-01-15T09:00:00.000Z", "Europe/Kyiv")).toContain("GMT+2");
+  });
+
+  it("renders the deadline in the zone it is handed (DEV-089, BL-034)", () => {
+    // 09:00Z in August is 11:00 in Warsaw (CEST, UTC+2).
+    expect(formatExpiresAt("2026-08-29T09:00:00.000Z", "Europe/Warsaw")).toContain("11:00");
+    expect(formatExpiresAt("2026-08-29T09:00:00.000Z", "Europe/Warsaw")).toContain("GMT+2");
   });
 });
