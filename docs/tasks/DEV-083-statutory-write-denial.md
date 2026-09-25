@@ -7,7 +7,7 @@
   - The 4 `statutory` rows of `technical/database/rls-write-coverage.csv` become `covered`. Each cites a test in `packages/testing/src/statutory-write-rls.test.ts` showing that an owner of one workspace cannot insert, update or move rows into another, in the shape the DEV-076 minimum sets.
   - Migration `0107` does two things:
     - it withdraws UPDATE and DELETE on the two act-content tables, which no command used, and makes their policies INSERT-only;
-    - it makes `sav_insert` admit a draft only, so a version can no longer be born `frozen` past the render, the hash and the completeness check.
+    - it makes `sav_insert` admit a draft only, so a version can no longer be born `frozen` past the version guard's date checks and the deferred completeness check. The render and the content hash stay the freeze route's alone: no database check binds them, and an UPDATE by raw SQL skips them as an INSERT did (gp-security S1).
 - State: implementing
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
@@ -76,11 +76,16 @@
 | 5 | Coordinator | 28 mutations, each applied to one policy and restored from its `pg_policies` text; the policies' md5 was identical before and after.<br>• **First sweep: 23 of 28.** It found a masking my own harness made: the probed act and version INSERTs were the fixture's statements, which end in `RETURNING id`. A RETURNING applies the SELECT policy to the new row, and its refusal reads exactly like the INSERT policy's, so `WITH CHECK (true)` and the project drop on `sa_insert`, and the capability made `true` and the project drop on `sav_insert`, survived.<br>• **The fix:** the file probes the two statements without their RETURNING.<br>• **Second sweep: 27 of 28**, each failing only its own table's case:<br>&nbsp;&nbsp;– `WITH CHECK (true)`, the capability inverted and the project scope dropped, on `sa_insert`, `savq_insert` and `savs_insert`;<br>&nbsp;&nbsp;– on `sav_insert`, those three plus its draft arm made `true` or inverted;<br>&nbsp;&nbsp;– on `sav_update`: `USING (true)`, `WITH CHECK (true)`, each clause's status arm made `true` or inverted, WITH CHECK's narrowed to `draft`, each capability made `true` or inverted, and WITH CHECK's project scope dropped.<br>One survivor, which cannot be observed across workspaces: the project scope dropped from `sav_update`'s USING. A's rows are in A's project, and B's fall away on the workspace | `scratchpad/dev083-mutate.out`, `dev083-mutate-2.out` | Catalogs |
 | 6 | Coordinator | Catalogs and docs:<br>• the write registry: 4 rows `covered`, with the content tables now `INSERT`;<br>• the 4 keys removed from the baseline;<br>• DA-231 … DA-234 added, for the 4 tables that had no row;<br>• INV-001 and INV-060 cite the file; INV-015's enforcement names the version UPDATE the freeze needs and `0107`;<br>• the `STATUS.md` migrations marker is `0107`;<br>• BL-169 scheduled; BL-193 (the version UPDATE's narrowing), BL-194 (no status arm on the content INSERT policies) and BL-195 (the entity and relationship catalogs) filed, P3.<br>The validator, `typecheck` and `rls-coverage.test.ts` 31 of 31 pass. The earlier write suites use RETURNING only in admin fixtures, never in a probed statement | `git diff` | Reviews |
 | 7 | Coordinator | The suites that touch these tables and do not reset, run one at a time against the local database at `0107`: `m4-act-rls` 12 of 12, `m5-external-rls` 10 of 10, `m5-external-schema` 42 of 42. `m4-act-schema` failed 1 of 58 on its grant assertion, which pinned UPDATE and DELETE on the content tables. It now asserts SELECT and INSERT held and UPDATE and DELETE withheld, and passes 58 of 58 | Session output | Reviews |
+| 8 | gp-security | PASS, no blocker or major. 0107 narrows privileges and breaks no flow: compose inserts only a draft and never edits content; freeze updates and locks the version alone; no definer, job or the external exchange writes these tables. Reads are unchanged, since the select policies cover what the FOR ALL policies' USING added. Across workspaces, the composite FKs and the capability refuse everything with every guard off. Findings S1–S3 (below) | Subagent report (session) | Fixes |
+| 9 | Coordinator | Fixes: S1, the claim about what a born-frozen INSERT skipped, corrected in 0107's comment, the objective and BL-194. S2 recorded in BL-194 with its fix and test. S3: the file asserts no probed INSERT carries a RETURNING. 4 of 4 pass | Session output | gp-reviewer |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1 | low | 0107's comment, this record | «past the render, the content hash»: the render and the hash are the route's alone, on either path | Coordinator | Fixed: wording (row 9) |
+| S2 | low | `app.guard_statutory_act_content()` (0047), pre-existing | A content INSERT can race a freeze and land in a frozen version (raw SQL, one workspace) | Owner | Deferred to BL-194 (P3), with its fix and test |
+| S3 | info | The file's RETURNING strip | A fixture change could silently re-mask the policies | Coordinator | Fixed: asserted in `beforeAll` |
 
 Rework count and hypothesis changes: none.
 
@@ -106,7 +111,7 @@ Rework count and hypothesis changes: none.
 
 - Changed / inspected files: see «Owning module».
 - Review independence: `gp-architect` ran as an independent native subagent; `gp-reviewer`, `gp-security` and `gp-qa` are pending.
-- Verified scope: rows 1–7.
+- Verified scope: rows 1–9.
 - Remaining risks / blocked requirements: «What is not true after this task».
 - Next bounded action and owner: `gp-reviewer` and `gp-security`.
 - Final state and reason: implementing.

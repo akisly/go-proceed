@@ -222,7 +222,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-191](#bl-191) | P2 | open | The XLSX guard and JSZip read an archive's directory differently (INV-016) |
 | [BL-192](#bl-192) | P2 | open | Real inflation of an XLSX entry is unbounded; the bomb checks trust declared sizes (INV-016) |
 | [BL-193](#bl-193) | P3 | open | The application role's UPDATE on `statutory_act_versions` is whole-table where the freeze sets ten columns |
-| [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed |
+| [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
 <!-- index:end -->
 
@@ -2363,14 +2363,15 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-194"></a>
-### BL-194 — P3 — The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed
+### BL-194 — P3 — The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze
 
 - **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-083's `gp-architect`, 2026-09-25.
   - **The gap.** `savq_insert` and `savs_insert` (0107) ask the capability only. A frozen version's content is refused by `app.guard_statutory_act_content()` (BEFORE INSERT) alone, against 0047's own principle for `sav_update` that a guard should not be the only defence.
   - **Its bounds.** Inside one workspace: the composite foreign keys pin the version to the row's workspace and project.
-  - **The fix.** An `EXISTS` over the version's status in both WITH CHECKs, which must read the version under the actor's RLS as the guard already does; `gp-architect` to weigh the policy-reads-parent cost.
+  - **A race (DEV-083 gp-security S2, from locking semantics, not reproduced).** The guard reads the version's status with a plain SELECT. A content INSERT that reads `draft` while a freeze holds the version `FOR UPDATE` waits on its foreign-key check, then commits after the freeze: the frozen version gains content its `content_hash` does not cover (INV-015), and every later render refuses. It needs raw SQL on the application plane; no route inserts content into an existing version. A status arm in the policy alone would not close it — the policy reads the same snapshot.
+  - **The fix.** The guard's read taken `FOR KEY SHARE` (so a frozen or locked version is waited for and then hidden by `sav_update`'s USING), and a status arm in both WITH CHECKs; `gp-architect` to weigh the policy-reads-parent cost. The test: two connections as `goproceed_app` — A locks a draft, B inserts a signatory, A freezes and commits; B fails and the content is unchanged.
   - **Ranking.** Ranked by DEV-083.
 - **Evidence:** `supabase/migrations/0107_the_act_content_no_command_edits.sql`; `supabase/migrations/0047_the_act_assembled_from_recorded_facts.sql` (the guard, and §10's note on `sav_update`).
 - **Depends on:** `gp-architect`.

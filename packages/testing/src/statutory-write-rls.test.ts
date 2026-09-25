@@ -306,6 +306,9 @@ const FREEZE_SET = `status = 'frozen', frozen_at = timestamptz '${FROZEN_AT}', f
   frozen_project_name = 'Приклад-об''єкт', source_project_version = 1, draft_version = 2`;
 
 beforeAll(async () => {
+  // Every probed INSERT reads no column back (gp-security S3): a fixture change
+  // that brought a RETURNING back would mask the policies again.
+  for (const sql of [ACT_WRITE, VERSION_WRITE, QUANTITY_INSERT, SIGNATORY_INSERT]) expect(sql).not.toMatch(/returning/i);
   admin = await adminClient();
   await dropWorkspaces(admin, BOTH);
   A = await seedSide(WS_A, USER_A, "DEV083-A");

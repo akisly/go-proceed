@@ -14,10 +14,12 @@
 --    the owner.
 --
 -- 2. The version. sav_insert asked only the capability, so a composer could
---    INSERT a version already `frozen` — past the render, the content hash,
---    the guard's frozen_at and registry-date checks and the completeness check,
---    all of which fire on UPDATE only. Compose inserts `draft` alone. The
---    policy now says so, as ws_insert opens a stage only (0045).
+--    INSERT a version already `frozen` — past the guard's frozen_at and
+--    registry-date checks and the deferred completeness check, which fire on
+--    UPDATE only. (The render and the content hash are the freeze route's
+--    alone: no database check binds them, on either path.) Compose inserts
+--    `draft` alone. The policy now says so, as ws_insert opens a stage only
+--    (0045).
 --
 -- DEV-083 (BL-169) found both while writing the cross-workspace write-denial
 -- tests the DEV-076 minimum asks of every covered row that holds a write. The
