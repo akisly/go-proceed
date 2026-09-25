@@ -272,7 +272,10 @@ artifact the first time it is pasted into a bug report.
   change (at least one: a statement that fails proves nothing), with the other
   workspace's rows read back unchanged as admin; and,
   where the principal can update the tenant key or a parent column, its own
-  row refused when moved into the other workspace. A trigger's refusal does
+  rows refused when moved into the other workspace, by an `UPDATE` that also
+  reads no column (with a `WHERE`, the `SELECT` policy applied to the new row
+  refuses the move even under `WITH CHECK (true)`, so it would mask the policy
+  under test; DEV-077). A trigger's refusal does
   not count (`DISABLE TRIGGER USER` for the assertion, or the unused grant
   revoked). A write row may not cite its read row's own test. The 65 rows that
   held a write on that day are gaps, BL-164 … BL-173, due before real customer

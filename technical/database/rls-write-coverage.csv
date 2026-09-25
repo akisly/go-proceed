@@ -17,23 +17,23 @@ public,idempotency_records,goproceed_app,operational,INSERT,gap,,BL-172,"no cros
 public,import_batches,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,import_files,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,import_row_results,goproceed_app,contract_baseline,INSERT,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,invitations,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,legal_entities,goproceed_app,workspace_access,INSERT,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,invitations,goproceed_app,workspace_access,INSERT|UPDATE,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::invitations: an owner of A cannot insert or update an invitation of B,,
+public,legal_entities,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::legal_entities: an owner of A cannot insert a legal entity into B,,
 public,locations,goproceed_app,contract_baseline,INSERT|UPDATE,gap,,BL-166,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,memberships,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,organizations,goproceed_app,workspace_access,INSERT,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,own_legal_entity_profiles,goproceed_app,workspace_access,INSERT,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,parties,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,party_contacts,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,party_legal_profiles,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,memberships,goproceed_app,workspace_access,INSERT,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::memberships: an owner of A cannot join B, and no member can update a membership",,
+public,organizations,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::organizations: an owner of A cannot take B's id or point a new workspace at B's party,,
+public,own_legal_entity_profiles,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::own_legal_entity_profiles: an owner of A cannot insert B's own legal entity,,
+public,parties,goproceed_app,workspace_access,INSERT|UPDATE,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::parties: an owner of A cannot insert, update or move a party into B",,
+public,party_contacts,goproceed_app,workspace_access,INSERT|UPDATE,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::party_contacts: an owner of A cannot insert, update or move a contact into B",,
+public,party_legal_profiles,goproceed_app,workspace_access,INSERT|UPDATE,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::party_legal_profiles: an owner of A cannot insert, update or move a legal profile into B",,
 public,progress_entries,goproceed_app,execution,INSERT,gap,,BL-168,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,project_access_grants,goproceed_app,workspace_access,INSERT|UPDATE(revoked_at version),gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,project_field_channels,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,project_parties,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,project_responsibility_assignment_ends,goproceed_app,workspace_access,INSERT,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,project_responsibility_assignments,goproceed_app,workspace_access,INSERT,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,project_access_grants,goproceed_app,workspace_access,INSERT|UPDATE(revoked_at version),covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::project_access_grants: an owner of A cannot grant on B's project or change B's grants,,
+public,project_field_channels,goproceed_app,workspace_access,INSERT|UPDATE,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::project_field_channels: an owner of A cannot open, update, move or lock a channel into B",,
+public,project_parties,goproceed_app,workspace_access,INSERT|UPDATE,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::project_parties: an owner of A cannot insert, update or move a project party into B",,
+public,project_responsibility_assignment_ends,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::project_responsibility_assignment_ends: an owner of A cannot end B's assignment,,
+public,project_responsibility_assignments,goproceed_app,workspace_access,INSERT,covered,packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::project_responsibility_assignments: an owner of A cannot assign on B's project or to B's member,,
 public,project_sourced_requirement_items,goproceed_app,requirements,INSERT,gap,,BL-167,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
-public,projects,goproceed_app,workspace_access,INSERT|UPDATE,gap,,BL-164,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
+public,projects,goproceed_app,workspace_access,INSERT|UPDATE,covered,"packages/testing/src/workspace-access-write-rls.test.ts::workspace_access cross-workspace write denial::projects: an owner of A cannot insert, update or move a project into B",,
 public,readiness_projection,goproceed_service,projection,INSERT|UPDATE|DELETE,gap,,BL-173,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,requirement_evidence_decision_heads,goproceed_app,requirements,INSERT|UPDATE,gap,,BL-167,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
 public,requirement_evidence_decisions,goproceed_app,requirements,INSERT,gap,,BL-167,"no cross-workspace write-denial test cited yet (DEV-076, BL-099)"
