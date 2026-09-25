@@ -8,7 +8,7 @@
   - Migration `0107` does two things:
     - it withdraws UPDATE and DELETE on the two act-content tables, which no command used, and makes their policies INSERT-only;
     - it makes `sav_insert` admit a draft only, so a version can no longer be born `frozen` past the version guard's date checks and the deferred completeness check. The render and the content hash stay the freeze route's alone: no database check binds them, and an UPDATE by raw SQL skips them as an INSERT did (gp-security S1).
-- State: implementing
+- State: done
 - Coordinator: Claude Code primary session, 2026-09-25.
 - Execution mode: independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - Selected route and why (`agents/COORDINATION.md`): the change touches executed code under `packages/testing`, a migration that withdraws grants and replaces RLS policies, catalogs the validator reads, and `technical/data-access-surface.csv`. The route is `gp-architect` → owner decisions → implementation → mutations → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -80,6 +80,8 @@
 | 9 | Coordinator | Fixes: S1, the claim about what a born-frozen INSERT skipped, corrected in 0107's comment, the objective and BL-194. S2 recorded in BL-194 with its fix and test. S3: the file asserts no probed INSERT carries a RETURNING. 4 of 4 pass | Session output | gp-reviewer |
 | 10 | gp-reviewer | PASS, no blocker or major. Every probe fails for the reason it asserts; the born-frozen probe is also 0107's regression test; the minimum is met on every row; the kills and the survivor are right. Findings R1–R5 (below). Noted as a coverage limit, not a finding: a capability evaluated on the declared workspace rather than the row's would be refused only by the composite keys | Subagent report (session) | Fixes |
 | 11 | Coordinator | R1–R5 fixed (below). 4 of 4 pass; `m4-act-schema` 58 of 58; typecheck and the validator pass | Session output | gp-qa |
+| 12 | gp-qa | AC-1 … AC-4 PASS on `77bf6ac5`; every finding fix confirmed.<br>• `statutory-write-rls` 4 of 4, none skipped; citations match the titles exactly.<br>• Its own sweep at the final head: 27 of 28, each failing only its own table's case, with the policies' md5 unchanged.<br>• `0107` in the database: `SELECT|INSERT` on the content, `savq_insert`/`savs_insert`, `sav_insert` with the draft arm, the `schema_migrations` row. Its self-check passes, and nine positive controls fire it, each rolled back.<br>• A validator control: an altered citation and a row turned back to `gap` are both reported.<br>• `m4-act-schema` 58, `m4-act-rls` 12, `m5-external-rls` 10, `m5-external-schema` 42, `rls-coverage` 31, each read first for `resetDb`.<br>• N1 (info): the self-check matches the draft arm as a substring, so `status = 'draft' OR …` would pass it; the probes and the sweep guard the arm. N2 (nit): an m4 test title still says «composing is iterative»; the comment explains it | Subagent report (session) | CI |
+| 13 | Coordinator | PR #162 CI green on `77bf6ac5` (run 36142696197: `verify`, `app-qa`). The `verify` log shows, on CI's migrated database: `statutory-write-rls.test.ts` 4 of 4, `m4-act-schema.test.ts` 58 of 58, `m4-act-rls.test.ts` 12 of 12, `m5-external-rls.test.ts` 10 of 10, `rls-coverage.test.ts` 31 of 31. Merged in #162 (`5e16f60b`) | CI job log | Done |
 
 ## Findings and rework
 
@@ -93,6 +95,8 @@
 | R3 | nit | 0107's rollback note | Missed the schema test, INV-015, the DA rows and the role's name | Coordinator | Fixed, in the comment and «What is not true» |
 | R4 | nit | `m4-act-schema.test.ts`, the FREEZE_SET comment | Stale rationale; nine of ten columns | Coordinator | Fixed |
 | R5 | nit | The `statutory_act_id` move | Breaks two keys; which answers is trigger order | Coordinator | Fixed: comment |
+| N1 | info | 0107's self-check | Matches the draft arm as a substring | — | No action: the probes and the sweep guard the arm; 0107 is applied |
+| N2 | nit | An `m4-act-schema` test title | «composing is iterative» after 0107 | — | No action: the comment explains it |
 
 Rework count and hypothesis changes: none.
 
@@ -109,6 +113,11 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| AC-1 each row cites one test meeting the minimum | Yes | `77bf6ac5` | gp-qa 4 of 4, none skipped, citations exact; CI 4 of 4 (rows 12, 13) | PASS | Member plane |
+| AC-2 every listed mutation fails a test | Yes | `77bf6ac5` | 27 of 28 killed, confirmed by gp-qa's own sweep at the final head; the survivor stated (rows 5, 12) | PASS | Local 17.6 stack |
+| AC-3 `0107`, the registry, the baseline, the DA rows, INV-015, INV-060 | Yes | `77bf6ac5` | gp-qa's database checks and positive controls; the comparison 31 of 31 locally and on CI (rows 12, 13) | PASS | |
+| AC-4 validator and typecheck | Yes | `77bf6ac5` | validator OK; `@goproceed/testing` typecheck exit 0 | PASS | Node 22 locally |
+| AC-5 CI green | Yes | `77bf6ac5` | run 36142696197: `verify` and `app-qa` success | PASS | |
 
 ## Sources
 
@@ -117,8 +126,8 @@ Rework count and hypothesis changes: none.
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: `gp-architect`, `gp-security` and `gp-reviewer` ran as independent native subagents; `gp-qa` is pending.
-- Verified scope: rows 1–11.
+- Review independence: `gp-architect`, `gp-security`, `gp-reviewer` and `gp-qa` ran as independent native subagents.
+- Verified scope: rows 1–13.
 - Remaining risks / blocked requirements: «What is not true after this task».
-- Next bounded action and owner: `gp-qa`.
-- Final state and reason: implementing.
+- Next bounded action and owner: BL-170 is the next stage. Pushing `0103` … `0107` to staging is the owner's.
+- Final state and reason: done — every required criterion PASS; #162 merged with CI green (row 13).
