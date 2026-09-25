@@ -5,7 +5,7 @@
 - **Objective and user-visible outcome.** A prospecting dump committed on a branch and deleted in a later commit on the same branch no longer passes CI.
   - **Before this task.** The DEV-031 guards read only the index, the tree a branch ends on. The deleted dump passed them, while its bytes stayed in the branch's history and in the pull request's refs.
   - **After it.** `scripts/validate-canonical-docs.mjs --commits <range>` runs the same path, binary and contactPoint rules over every blob any commit in the range added or changed. CI's `verify` job runs it over what a pull request or a push to main adds.
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** Claude Code primary session, 2026-09-25.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why** (`agents/COORDINATION.md`): the change touches executed code under `scripts/` and `.github/workflows/`. The route is implementation → `gp-reviewer` and `gp-security` → `gp-qa`.
@@ -54,8 +54,10 @@
 | 5 | gp-security | **PASS WITH FINDINGS**, no blocker or major.<br>• Permissions and the six pins are unchanged.<br>• Full history widens nothing: `verify` uploads no artifact, and `app-qa` stays shallow.<br>• The event values go through env, quoted.<br>• A fork runs its own script, the same trust as the gate before it.<br>• Renames, merges, submodules and symlinks are handled as the index rule handles them.<br>• Every failure is closed.<br>• The errors print paths and line numbers, never content. The history output holds no name, no Cyrillic and no identifier.<br>S1–S5 (below). | Subagent report (session) | Fixes |
 | 6 | gp-reviewer | **PASS WITH FINDINGS**, no blocker or major.<br>• `HEAD^1..HEAD^2` on a merge ref is correct, and `fetch-depth: 0` is required and changes nothing else: no script assumes a shallow clone, and turbo takes no ref filter.<br>• The parse, deduplication, fail-closed paths and exit codes are correct.<br>R1–R6 (below); R3 and R4 are S2 and S1. | Subagent report (session) | Fixes |
 | 7 | Coordinator | **Fixes.**<br>• S1/R4: `trackedIgnoredErrors` runs over the range's paths through `git -c core.excludesFile=/dev/null check-ignore --no-index -z --stdin`, where exit 1 means none are ignored and any other status throws.<br>• S2/R3: `--diff-merges=separate` and `--no-show-signature` replace `-m`, and `parseRawLog` throws on any token it cannot read.<br>• R2: a pure `isCommitRange`, self-tested on eight negatives and three positives, so the self-test never runs git; `--end-of-options` goes before the range (git 2.43.0 here).<br>• R5: range-mode errors add «a pushed branch clears this only by rewriting it, and the remote keeps the old commits: tell the owner».<br>• R6: the CI comment names a future trigger with no `before`.<br>• R1: row 4 and BL-124 corrected.<br>End to end in the scratch clone: a forced `.env.local` committed and then removed gives OK in tree mode and exit 1 with `.env.local` named in range mode. `--commits 2c33404d..90517713` (merges included) is OK.<br>Mutations, each caught and restored by sha256: the predicate loosened to `/\.\./`, or refusing everything; the strict parse relaxed; the ignore rule dropped; the score digit refused. | Session output | gp-qa |
-| 8 | gp-qa | **At `37e15376`, AC-1 to AC-4 PASS; AC-5 NOT RUN (CI's).**<br>• In its own scratch clone, each of these, committed then removed, passes tree mode and is refused by range mode, directly and through a `--no-ff` merge's `HEAD^1..HEAD^2`: a dump under `outputs/` (3 problems since S1: path, ignore, content), a forced `.env.local`, a content-only `docs/notes.csv`, a dump renamed into `outputs/`, and an evil merge adding a dump.<br>• The push shape `<base>..<merge>` is refused too.<br>• Eight bad arguments and a missing object fail closed, and no file is written.<br>• Hostile `GIT_CONFIG_*` settings (`log.showSignature`, `log.diffMerges=off`, `diff.renames=copies`, `diff.external`, `core.abbrev`) change nothing.<br>• Of 20 mutants: the self-test kills 7, its end-to-end runs kill 5, and the rest are equivalent or never triggered.<br>• Every stated fix is confirmed.<br>• Q1–Q4 (below). | Subagent report (session) | Fixes |
+| 8 | gp-qa | **At `37e15376`, AC-1 to AC-4 PASS; AC-5 NOT RUN (CI's).**<br>• In its own scratch clone, each of these, committed then removed, passes tree mode and is refused by range mode: a dump under `outputs/` (3 problems since S1: path, ignore, content), a forced `.env.local`, a content-only `docs/notes.csv`, a dump renamed into `outputs/`, and an evil merge adding a dump. The dump and `.env.local` were also run through a `--no-ff` merge's `HEAD^1..HEAD^2` (corrected at the gp-qa re-check).<br>• The push shape `<base>..<merge>` is refused too.<br>• Eight bad arguments and a missing object fail closed, and no file is written.<br>• Hostile `GIT_CONFIG_*` settings (`log.showSignature`, `log.diffMerges=off`, `diff.renames=copies`, `diff.external`, `core.abbrev`) change nothing.<br>• Of 20 mutants: the self-test kills 7, its end-to-end runs kill 5, and the rest are equivalent or never triggered.<br>• Every stated fix is confirmed.<br>• Q1–Q4 (below). | Subagent report (session) | Fixes |
 | 9 | Coordinator | **Q1:** the `git log` arguments are the exported `COMMIT_RANGE_LOG_ARGS`; the self-test holds seven flags to it, with `--end-of-options` last.<br>**Q2:** `ignoredPaths` reads `check-ignore -v -n -z`, and `gitignoredOf` keeps only a match from a `.gitignore` file whose pattern is not a negation; self-tested.<br>**Q3:** `--commits=<range>` is refused with exit 1.<br>**Q4:** row 3 corrected.<br>End to end in the scratch clone: the forced `.env.local` still exits 1; a clean file excluded only through `.git/info/exclude` now passes (OK).<br>Mutations, each restored by sha256: the source filter loosened, the negation check dropped, and `--no-renames` removed are killed by the self-test; the `--commits=` refusal dropped fails open (exit 0), which the manual run catches.<br>`--commits b81a2492..HEAD` OK. | Session output | gp-qa re-check, CI |
+| 10 | gp-qa | **Re-check at `7ca68af6`: AC-1 to AC-4 PASS, Q1–Q4 confirmed.**<br>• Merged onto `7ca68af6` as a pull request's merge ref, `HEAD^1..HEAD^2` refuses the dump (3 problems), `.env.local`, and a nested-ignore match (`apps/mobile/release.jks`, `supabase/.temp/…`); a clean branch is OK.<br>• A file excluded only by `.git/info/exclude` or a global excludes file passes. A `.gitignore` negation (`!.env.example`) passes, even with `info/exclude` listing it.<br>• `--commits=<range>` exits 1.<br>• The self-test kills M1 and M2 (and `--diff-merges=off`).<br>• Q5 (info): a flag re-enabling renames after `--no-renames` would not be caught; contrived, no action.<br>• Row 8's merge-form claim was overstated, corrected in row 8. | Subagent report (session) | Merge |
+| 11 | Coordinator | **CI and merge.**<br>• The step ran first on `37e15376` (run 36196812434): the `verify` log shows `fetch-depth: 0` and `prospecting guard over HEAD^1..HEAD^2: OK`, and the job is green.<br>• On the final head `7ca68af6` (run 36196980729), `verify` and `app-qa` are green and step 7 «prospecting guard over the commits this change adds» succeeded.<br>• The red `Vercel – goproceed-landing` status was the free plan's daily deployment quota, not this change; one PR comment says so.<br>• #176 merged as `8f335c43` under the owner's standing order («мержи и давай дальше»).<br>• The push to main that the merge made ran the step over `before..HEAD` (run 36198128335, `verify` job 108278539760): step 7 succeeded. | [akisly/go-proceed#176](https://github.com/akisly/go-proceed/pull/176), jobs 108274411572 and 108274955277 | Done |
 
 ## Findings and rework
 
@@ -71,6 +73,7 @@
 | Q2 | low | `ignoredPaths` | `.git/info/exclude` counted, which the index rule does not read | Coordinator | Fixed: `gitignoredOf` |
 | Q3 | low | `--commits=<range>` | Fell through to tree mode, exit 0 | Coordinator | Fixed: refused, exit 1 |
 | Q4 | info | row 3 | Overstated one kill | Coordinator | Fixed |
+| Q5 | info | `COMMIT_RANGE_LOG_ARGS` | A later flag re-enabling renames (`-M`) would survive the self-test | — | No action: contrived |
 | S3 | info | commit and tag messages | Not scanned | — | Recorded in «What is not true» and BL-124 |
 | S4 | info | Git LFS pointers | A pointer's content is never read (both modes; no LFS today) | — | Recorded in «What is not true» and BL-124 |
 | S5 | info | coverage; the Actions log | A branch with no pull request is never scanned, and a stacked pull request leaves out its base's commits; refused paths stay in the run log after a history rewrite | — | Recorded in «What is not true» and BL-124 |
@@ -93,11 +96,11 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 a deleted dump refused | Yes | | | | |
-| AC-2 fails closed | Yes | | | | |
-| AC-3 self-tests and sweep | Yes | | | | |
-| AC-4 the validator passes | Yes | | | | |
-| AC-5 the step on CI | Yes | | | | |
+| AC-1 a deleted dump refused | Yes | `7ca68af6` | Rows 2, 7, 8, 10: plain ranges and pull-request merge refs, in the coordinator's and gp-qa's scratch clones | PASS | Scratch clones; not the remote |
+| AC-2 fails closed | Yes | `7ca68af6` | An unresolvable range, 8 bad arguments, `--commits=`, a missing object, a failing `check-ignore`; no file written | PASS | — |
+| AC-3 self-tests and sweep | Yes | `7ca68af6` | Self-tests on the parse, both refusals, the ignore sources, the flags, the predicate; sweeps in rows 3, 7, 9, 8 and 10 | PASS | The `main()` wiring and the `--commits=` refusal are held by end-to-end runs only |
+| AC-4 the validator passes | Yes | `7ca68af6` | Tree mode OK; `--commits` OK over `b81a2492..HEAD`, `2c33404d..90517713`, `90517713..HEAD` | PASS | — |
+| AC-5 the step on CI | Yes | `37e15376`, `7ca68af6` | `verify`: `prospecting guard over HEAD^1..HEAD^2: OK` on `37e15376`; step 7 green on `7ca68af6` | PASS | The push-to-main shape ran on the merge: main's run 36198128335, step 7 green over `before..HEAD` |
 
 ## Sources
 
@@ -108,7 +111,7 @@ Rework count and hypothesis changes: none.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** every stage runs as an independent native subagent.
-- **Verified scope:** rows 1–9.
+- **Verified scope:** rows 1–11.
 - **Remaining risks / blocked requirements:** see «What is not true after this task».
-- **Next bounded action and owner:** `gp-qa` (Q1–Q3), CI.
-- **Final state and reason:** reviewing.
+- **Next bounded action and owner:** none here. BL-124 items (1) and (3) stay open.
+- **Final state and reason:** done: every acceptance criterion PASS, merged in #176 (`8f335c43`).
