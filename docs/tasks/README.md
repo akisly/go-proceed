@@ -108,4 +108,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-088](DEV-088-typed-zero-line-states-its-basis.md) | done | BL-022: a hand-typed zero-priced line stores the price basis an imported one does, so the two are indistinguishable in provenance (ADR-006 decision 2) |
 | [DEV-089](DEV-089-evidence-times-in-the-workspace-zone.md) | done | BL-034: the evidence screen formats a photo's receipt time and a review link's expiry in the workspace's own zone, which the evidence read now returns, not a hard-coded Kyiv |
 | [DEV-090](DEV-090-prospecting-guard-reads-the-commits.md) | done | BL-124 (2): the prospecting-data guard reads every commit a pull request or a push to main adds, so a dump committed and then deleted on a branch no longer passes |
-| [DEV-091](DEV-091-landing-without-javascript.md) | reviewing | BL-116: with scripting off, the landing shows every entrance at rest instead of at its hidden first frame; `/pilot`'s form paints |
+| [DEV-091](DEV-091-landing-without-javascript.md) | done | BL-116: with scripting off, the landing shows every entrance at rest instead of at its hidden first frame; `/pilot`'s form paints |

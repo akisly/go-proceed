@@ -6,7 +6,7 @@
   - **Before.** `Reveal`, `Stagger`'s items and `StaggerItem` server-render their hidden first frame inline, and only JavaScript ever clears it. On the server that frame is `opacity: 0`, because `useReduced()` is true there and the reduced branch renders. Such a reader saw each page's h1 and little else, and `/pilot`'s form was not among what painted.
   - **After.** Each entrance is shown at rest, at its final opacity with no offset.
   - **With scripting on, nothing changes.** First paint and every entrance stay as they were.
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** Claude Code primary session, 2026-09-25.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why** (`agents/COORDINATION.md`, `agents/PLAYBOOKS.md` UI change): the change touches `packages/ui` and `apps/landing`. The route is the UI procedure (`docs/design/02-building-ui.md`) → `gp-reviewer` and `gp-ui-reviewer` → `gp-qa`.
@@ -68,6 +68,8 @@
 | 10 | gp-ui-reviewer | **PASS** at `44f5bd62`. U1 is fixed and verified: both hero wrappers are marked, read opacity 1 at 1920 and 1440, and the viewport shots show the lead and both actions. U2–U5 are filed or evidenced; the scriptless `/roles` and `/product` at 1440 paint in reading order with nothing overlapping. With scripting off the fold no longer animates, which it accepts. U6 (nit, below) | Subagent report (session) | — |
 | 11 | gp-qa | **At `44f5bd62`: AC-1 to AC-4 PASS; AC-5 NOT RUN** (no CI yet).<br>• Its own build and scriptless measurement: 0 hidden on every route at all six widths, already at `load`, against 89/302/157/56 without the rule; the form paints.<br>• Every marked element computes opacity 1, no transform, no filter; the built HTML's `opacity:0` elements are all marked (23/49/23/9).<br>• Scripted: 0 style nodes, no stylesheet naming the mark, and entrances below the fold still start hidden.<br>• Mutations M1–M7 are caught by the unit tests.<br>• Every stated fix is confirmed. Q1 (below) | Subagent report (session) | Fixes |
 | 12 | Coordinator | **Q1:** `ScrollStackCard`'s content `motion.div` takes the mark; the fixture renders it and counts 8 hidden elements, all marked; with the mark removed the fixture fails (restored). **U6:** BL-209 and this record no longer say `/product` has hidden tabs: `PinnedTabs` is used only on `/kitchen-sink`. Landing suite 276 of 276; `typecheck` 10/10; `motion-audit: clean` | Session output | gp-qa re-check, CI |
+| 13 | gp-qa | **Re-check at `a84e1924`: AC-1 to AC-4 PASS**, no new finding.<br>• Q1 confirmed: the mutant fails the fixture; rebuilt, `/kitchen-sink` without script now reads 0 hidden (6 before the fix, 27 without the rule). Its only unmarked `opacity:0` elements are `ScrollStack`'s three decorative veils, rightly unmarked.<br>• U6 confirmed.<br>• Rows 10–12 accurate. | Subagent report (session) | CI |
+| 14 | Coordinator | **Preview, CI and merge.**<br>• The Vercel preview of `a84e1924` serves `/pilot` (200) with the `<noscript>` rule, and its 9 `opacity:0` elements are all marked; fetched through the Vercel connector, since the sandbox's egress refuses the host.<br>• CI green on `a84e1924` (run 36201813222: `verify`, `app-qa`). The `verify` log shows `tests/no-script-entrances.test.tsx` (4), `tests/landing-render.test.tsx` (80) and `src/component-contract.test.ts` (21) passing, with the landing suite at 276 of 276.<br>• #178 merged as `8f81d3c6` under the owner's standing order («мержи и давай дальше»). BL-116 closed → DEV-091. | [akisly/go-proceed#178](https://github.com/akisly/go-proceed/pull/178), `verify` job 108289881067 | Done |
 
 ## Findings and rework
 
@@ -99,11 +101,11 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 the scriptless pages paint | Yes | | | | |
-| AC-2 scripted paint unchanged | Yes | | | | |
-| AC-3 the chain in unit tests | Yes | | | | |
-| AC-4 §5 gate and §6 | Yes | | | | |
-| AC-5 CI green | Yes | | | | |
+| AC-1 the scriptless pages paint | Yes | `44f5bd62`, `a84e1924` | The harness's «no-script» pass and gp-qa's own measurement: 0 hidden on every route at six widths against 89/302/157/56 without the rule; `/pilot`'s form paints | PASS | Opacity only; `hidden` panels excluded (BL-209) |
+| AC-2 scripted paint unchanged | Yes | `a84e1924` | `ruleScripted: 0` on every route; no stylesheet names the mark; entrances below the fold start hidden | PASS | Not diffed against a base build; rests on the rule being inert |
+| AC-3 the chain in unit tests | Yes | `a84e1924` | `no-script-entrances.test.tsx` 4 of 4; mutants M1–M8 caught | PASS | A word added later is held only if the fixture adds it |
+| AC-4 §5 gate and §6 | Yes | `a84e1924` | motion-audit clean; DB-free `packages/testing` 209/209; `typecheck` 10/10; `next build` exit 0; §6 rows 6, 9, 11 | PASS | §6 on fixtures and local builds, not on the live preview |
+| AC-5 CI green | Yes | `a84e1924` | Run 36201813222 green; the new test in the `verify` log | PASS | — |
 
 ## Sources
 
@@ -114,7 +116,7 @@ Rework count and hypothesis changes: none.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** every stage runs as an independent native subagent.
-- **Verified scope:** rows 1–12.
+- **Verified scope:** rows 1–14.
 - **Remaining risks / blocked requirements:** see «What is not true after this task».
-- **Next bounded action and owner:** `gp-qa` (Q1), CI.
-- **Final state and reason:** reviewing.
+- **Next bounded action and owner:** none here. BL-207, BL-208 and BL-209 are open.
+- **Final state and reason:** done: every acceptance criterion PASS, merged in #178 (`8f81d3c6`).
