@@ -9,9 +9,11 @@
 --   state, response_status, response_body, response_headers, expires_at,
 --   completed_at.
 -- `id` and `created_at` take their defaults. A column grant keeps an
--- arbitrary-SQL session from choosing a record's id, or backdating its
--- created_at against the `expires_at > created_at` check. goproceed_service
--- inherits goproceed_app (0034, 0087) and is narrowed with it. The expiry
+-- arbitrary-SQL session from choosing a record's id or its created_at, so
+-- created_at is always the insert's time. expires_at, which the purge reads,
+-- stays the writer's: it is computed from the retention class on the server,
+-- and a ceiling on it is BL-202 (DEV-086 gp-security S1). goproceed_service
+-- inherits goproceed_app (0034) and is narrowed with it. The expiry
 -- definers (0007) delete as their owner, unaffected.
 --
 -- DEV-086 (BL-172) found it while writing the cross-workspace write tests the

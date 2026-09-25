@@ -230,6 +230,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-199](#bl-199) | P3 | open | A rotated external session's absolute expiry is bounded by the route alone |
 | [BL-200](#bl-200) | P3 | open | Three data-access rows describe external objects that do not exist |
 | [BL-201](#bl-201) | P3 | open | A readiness projection's scope reference has no key, so a service write can name another workspace's scope |
+| [BL-202](#bl-202) | P3 | open | An idempotency record's expiry is bounded only by its writer, so a caller could keep a stored response past its retention class |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -2468,7 +2469,20 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** DEV-086's `gp-architect` (F1), 2026-09-25; the owner chose to file it («File as P3 residual»). `readiness_projection.scope_ref` is a uuid with no foreign key, by design (0045), since the `scope_kind` vocabulary is not decided (0045 §11 item 4; `packages/contracts/src/readiness.ts`). A service transaction declaring workspace A can store A's row naming B's stage. B's rows cannot be touched (`workspace_id` is in the key and `rp_write_server` confines it), no writer exists yet, and no route reads the table (readiness is computed live). The DEV-076 mixed INSERT cannot be met for this one column, so `projection-write-rls.test.ts` does not assert it.
   - **The fix.** With the rebuilder: decide the `scope_kind` vocabulary, then a composite key per kind (for `work_stage`, `(workspace_id, scope_ref)` → `work_stages`), or a check that names the kinds and a key for each, with a mixed-insert probe.
+  - **Until then** (DEV-086 gp-security S3): a reader of the projection resolves `scope_ref`, and the ids inside `blocking`, only together with the row's `workspace_id`, never by the id alone.
   - **Ranking.** Ranked by DEV-086.
 - **Evidence:** `supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql`; [DEV-086](tasks/DEV-086-operational-projection-write-denial.md).
 - **Depends on:** the readiness rebuilder; the `scope_kind` vocabulary.
+- **Deadline:** none recorded.
+
+<a id="bl-202"></a>
+### BL-202 — P3 — An idempotency record's expiry is bounded only by its writer, so a caller could keep a stored response past its retention class
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-086's `gp-security` (S1), 2026-09-25. `withIdempotency` computes `expires_at` from the retention class on the server (at most `ledger_400d`), but the column is granted to `goproceed_app` and `goproceed_service` at INSERT, and the only check is `expires_at > created_at` (0002). An arbitrary-SQL session could store a response body, which may carry personal data, for longer than any class allows. No route is exposed. Since `0110`, `created_at` is always the insert's time.
+  - **The fix.** A check `expires_at <= created_at + interval '400 days'` (the longest class), with a probe inserting a 401-day expiry and expecting 23514; or the TTL computed in the database.
+  - **Ranking.** Ranked by DEV-086.
+- **Evidence:** `supabase/migrations/0002_audit_outbox_idempotency.sql`; `packages/database/src/idempotency.ts`; [DEV-086](tasks/DEV-086-operational-projection-write-denial.md).
+- **Depends on:** none.
 - **Deadline:** none recorded.

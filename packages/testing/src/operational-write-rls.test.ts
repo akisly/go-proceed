@@ -11,7 +11,7 @@ import { adminClient, dropWorkspaces, superuserClient } from "./pg";
  * its principal can write, a test must show a principal of one workspace cannot
  * write into another. goproceed_app holds INSERT here (SELECT is the read row's,
  * operational-rls.test.ts) and no UPDATE or DELETE; goproceed_service inherits
- * both (0034, 0087). idem_insert (0006, 0089) admits a record whose
+ * both (0034). idem_insert (0006) admits a record whose
  * actor_scope is the actor's own and whose workspace, if it names one, the
  * actor is an active member of. Its only reference is organization_id, a
  * single-column key to organizations; actor_scope is text. There is no parent
@@ -27,7 +27,8 @@ import { adminClient, dropWorkspaces, superuserClient } from "./pg";
  *
  * On the service plane the declared workspace plays no part: a service
  * transaction carrying an actor writes wherever that actor is active (BL-101),
- * and one carrying none writes nothing. Both are asserted as the policy's.
+ * and one carrying none writes nothing. Both are asserted: the refusals as the
+ * policy's, and BL-101's residual — declaring A, writing B — as an insert.
  *
  * Every probe runs on the local superuser connection in one transaction that
  * is always rolled back, each statement in a savepoint under `SET LOCAL ROLE`
@@ -204,7 +205,12 @@ describe("operational cross-workspace write denial", () => {
       [serviceWithB(WS_B), RECORD, [WS_A, `user:${USER_A}`, k()]],
       [serviceWithNone(WS_A), RECORD, [WS_A, `user:${USER_A}`, k()]],
       [serviceWithNone(WS_A), RECORD, [null, "user:", k()]],
+      // Declaring A does not let B's owner write into A…
+      [serviceWithB(WS_A), RECORD, [WS_A, `user:${USER_B}`, k()]],
+      // …and declaring A does not keep it out of B, where it is active: BL-101's
+      // residual, pinned so that a restrictive service policy changes it on purpose.
+      [serviceWithB(WS_A), RECORD, [WS_B, `user:${USER_B}`, k()]],
       [serviceWithB(WS_B), RECORD, [WS_B, `user:${USER_B}`, k()]],
-    ])).toEqual([refusedByPolicy, refusedByPolicy, refusedByPolicy, refusedByPolicy, inserted]);
+    ])).toEqual([refusedByPolicy, refusedByPolicy, refusedByPolicy, refusedByPolicy, refusedByPolicy, inserted, inserted]);
   });
 });

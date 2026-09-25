@@ -280,7 +280,8 @@ artifact the first time it is pasted into a bug report.
   revoked). A write row may not cite its read row's own test. The 65 rows that
   held a write on that day are gaps, BL-164 … BL-173, due before real customer
   data. *[2026-09-25, DEV-086: all 65 are covered or revoked, the last by
-  `operational-write-rls.test.ts` and `projection-write-rls.test.ts`; the
+  `operational-write-rls.test.ts` and `projection-write-rls.test.ts`, except
+  `readiness_projection.scope_ref`, which has no key (BL-201, owner); the
   baseline is empty, so a write gap row is now refused outright.]* The validator pins each gap to the writes it held that day and requires
   every pinned key to still be a gap row, so a write granted later — a new
   pair, or a new verb or column on an old one — arrives covered, and a key a

@@ -31,10 +31,10 @@ import {
  *
  * One reference has no key: readiness_projection.scope_ref (0045), whose
  * vocabulary is not decided. A's row naming B's stage is admitted; it is not
- * asserted here (BL-201). Where one of B's parents breaks two composite keys,
- * the one named is the one that answers first on a migrated database: the RI
- * triggers fire in the order of their names, which carry their OIDs, so the
- * key created first answers first (blocked_reasons_occurrence_fkey, 0045).
+ * asserted here (BL-201). B's project breaks both of a blocked reason's
+ * composite keys, and which answers first follows the RI triggers' OID-bearing
+ * names, not tenancy (DEV-086 R1), so those two probes accept either key; each
+ * key alone is pinned by the probes that break only it.
  *
  * Every probe runs on the local superuser connection in one transaction that
  * is always rolled back, each statement in a savepoint under `SET LOCAL ROLE
@@ -63,6 +63,11 @@ const refusedByPolicy: Outcome = { rowCount: null, code: "42501", reason: "polic
 const inserted: Outcome = { rowCount: 1, code: null, reason: null, constraint: null };
 const changed = (rowCount: number): Outcome => ({ rowCount, code: null, reason: null, constraint: null });
 const byForeignKey = (constraint: string): Outcome => ({ rowCount: null, code: "23503", reason: "other", constraint });
+/** B's project breaks both of a blocked reason's composite keys; either answering is the refusal. */
+const byEitherBlockedReasonKey = {
+  rowCount: null, code: "23503", reason: "other",
+  constraint: expect.stringMatching(/^blocked_reasons_(occurrence|contract)_fkey$/),
+};
 
 /** A service transaction: its actor ('' none) and its declared workspace ('' none). */
 interface Plane { actor: string; declared: string }
@@ -253,8 +258,7 @@ describe("projection cross-workspace write denial", () => {
       refusedByPolicy,
       byForeignKey("blocked_reasons_contract_fkey"),
       byForeignKey("blocked_reasons_occurrence_fkey"),
-      // B's project breaks both keys; the occurrence's, created first, answers first.
-      byForeignKey("blocked_reasons_occurrence_fkey"),
+      byEitherBlockedReasonKey,
       inserted,
     ]);
     const bothOfA = [A.w.blockingA, A.w.blockingB].sort();
@@ -285,7 +289,7 @@ describe("projection cross-workspace write denial", () => {
       refusedByPolicy,
       byForeignKey("blocked_reasons_contract_fkey"),
       byForeignKey("blocked_reasons_occurrence_fkey"),
-      byForeignKey("blocked_reasons_occurrence_fkey"),
+      byEitherBlockedReasonKey,
       changed(0),
     ]);
   });
