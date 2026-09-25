@@ -62,8 +62,9 @@ progress_allocation_heads,serializes,progress_entries,1:1,yes,workspace_id+root_
 valuation_allocations,splits_pool_of,work_items,N:1,yes,workspace_id+work_item_id -> work_items(workspace_id+id),restrict,INV-055
 valuation_allocations,follows,progress_entries,N:1,no,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id),restrict,INV-055
 capture_events,attempts,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id); INV-014 is a native-client invariant and a v0.3 obligation (ADR-007 Cost 2) — the v0.1 PWA path claims INV-081 instead,restrict,INV-014
+capture_events,scopes,work_assignments,N:1,no,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id); 0108 (DEV-084 / BL-105),restrict,INV-001
 upload_intents,scopes,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-047
-upload_intents,satisfies,requirement_occurrences,N:1,no,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-047
+upload_intents,satisfies,requirement_occurrences,N:1,no,workspace_id+project_id+work_assignment_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+project_id+work_assignment_id+id),restrict,INV-047
 evidence_objects,finalized_from,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id),restrict,INV-046
 evidence_objects,derived_from,evidence_objects,N:1,no,workspace_id+source_evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-045
 evidence_requirement_links,links,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-001
