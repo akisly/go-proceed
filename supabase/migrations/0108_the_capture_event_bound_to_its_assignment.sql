@@ -24,6 +24,13 @@
 --        app.evidence_bytes_in_use (0031) — which 0031 made the server's.
 --    goproceed_service inherits these grants (BL-019) and writes the same
 --    columns. SECURITY DEFINER functions write as their owner, unaffected.
+--    The columns kept are still unconstrained in value: an intent's
+--    quota_reserved_bytes, staging_bucket, staging_storage_key and expires_at
+--    are whatever the INSERT says (BL-197).
+--
+-- Hosted apply: the foreign key takes SHARE ROW EXCLUSIVE on both tables while
+-- it validates; wait no longer than this for them.
+set local lock_timeout = '5s';
 --
 -- DEV-084 (BL-170) found both while writing the cross-workspace write-denial
 -- tests the DEV-076 minimum asks of every covered row that holds a write. The

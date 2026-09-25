@@ -75,11 +75,19 @@
 | 4 | Coordinator | The test file: 3 cases, run on `goproceed_app_login` and `goproceed_service_login` under `SET LOCAL ROLE`, each statement in a savepoint of a rolled-back transaction. No capture event is committed. `beforeAll` asserts no INSERT trigger and no RETURNING in a probed statement. Local run: 3 of 3. The neighbouring suites also pass against `0108`:<br>• `evidence-service-rls` 2;<br>• `m2-policy-gaps` 4;<br>• `m2-binding-hardening` 36;<br>• `m2-service-principal` 11;<br>• `privileges` 3;<br>• `rls-coverage` 31;<br>• `m5-external-rls` 10. | Session output | Mutations |
 | 5 | Coordinator | 23 mutations, each applied to one policy or to the definer's body and restored from its stored text. The md5 of the policies and of the function was identical before and after.<br>• **First sweep: 14 of 23.** It found a missing probe: a device event with no intent is bound to its project by the capabilities alone. Replacing both with «an active member» survived, because the intent conjunct refused the mixed-project probe. A probe with B's project and no intent was added.<br>• **Second sweep: 15 of 23.** The definer's own declared-workspace check was then pinned by calling it directly: true for A's triple and false for B's while declaring A, and refused to the member role.<br>• **Final: 16 of 23.** The survivors cannot be observed across workspaces:<br>&nbsp;&nbsp;– `ce_insert` without `project.view`, or without `evidence.record`: the other capability on the same project still refuses;<br>&nbsp;&nbsp;– without the EXISTS's `u.workspace_id`: the EXISTS reads under the actor's `ui_select`, and B's intent is not there;<br>&nbsp;&nbsp;– without `u.project_id`: the capabilities on the row's project answer first;<br>&nbsp;&nbsp;– without `u.created_by_member_id`: needs a second member of A;<br>&nbsp;&nbsp;– `ce_insert_server` without its declared workspace: the definer repeats it;<br>&nbsp;&nbsp;– the definer without its `session_user` check: every session here is the service's, as in production | `scratchpad/dev084-mutate.out`, `-2.out`, `-3.out` | Catalogs |
 | 6 | Coordinator | Catalogs and docs:<br>• the write registry: 3 rows `covered`, with column-grant privileges;<br>• the 3 keys removed from the baseline;<br>• DA-113 corrected (it read `UPDATE`; `0031` withdrew it); DA-114 marked superseded (no worker grant exists); DA-182 and DA-183 completed;<br>• INV-001 and INV-060 cite the file;<br>• the relationship catalog gains the capture event's assignment, and the intent's occurrence key is its full four columns;<br>• the `STATUS.md` migrations marker is `0108`;<br>• BL-170 and BL-105 scheduled; BL-196 (P3, the intent's creator) filed.<br>The validator and `typecheck` pass | `git diff` | Reviews |
+| 7 | gp-security | PASS, no blocker or major.<br>• `0108` breaks no path: authorize writes exactly the 22 intent columns and 10 of the 11 event columns; finalize's three server events stay within the 11; the Telegram path shares both; no definer inserts into either table; the external plane only reads.<br>• The new key cannot reject a production row: the event's workspace, project and assignment are copied from the intent, which the same key already binds.<br>• After `0108` no role holds a privilege without a policy, or a policy without a privilege.<br>• The scope definer is an acceptable, bounded existence check.<br>• The tests prove confinement on the real logins.<br>Findings S1–S6 (below) | Subagent report (session) | Fixes |
+| 8 | Coordinator | Fixes: S1 filed as BL-197, with `0108`'s comment and DA-113 qualified; S2, the afterAll count now runs before the drop; S3 recorded in BL-101; S6, `0108` sets `lock_timeout = '5s'` for the hosted apply (after `0095`). 3 of 3 pass; the validator passes | Session output | gp-reviewer |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1 | low | `upload_intents`' kept columns, pre-existing | A negative quota reservation, or a foreign bucket and key for the purge to delete, inside one workspace | Owner | Deferred to BL-197 (P3); `0108`'s comment and DA-113 qualified |
+| S2 | low | The file's afterAll | The count ran after the drop and could never fail | Coordinator | Fixed |
+| S3 | info | BL-101's scope | The inherited `ui_insert` belongs in it | Coordinator | Fixed: recorded in BL-101 |
+| S4 | info | `failure_code`'s grant | Only the service writes it; the member plane holds it through the shared grant | Owner | No change: the service's INSERT is inherited (BL-019); narrowing it means a service-only grant, the owner's call |
+| S5 | info | `app.upload_intent_scope_matches` | A bounded existence check | — | No action |
+| S6 | info | `0108`'s hosted apply | No lock timeout | Coordinator | Fixed: `set local lock_timeout = '5s'` |
 
 Rework count and hypothesis changes: none.
 
@@ -105,7 +113,7 @@ Rework count and hypothesis changes: none.
 
 - Changed / inspected files: see «Owning module».
 - Review independence: `gp-architect` ran as an independent native subagent; `gp-reviewer`, `gp-security` and `gp-qa` are pending.
-- Verified scope: rows 1–6.
+- Verified scope: rows 1–8.
 - Remaining risks / blocked requirements: «What is not true after this task».
 - Next bounded action and owner: `gp-reviewer` and `gp-security`.
 - Final state and reason: implementing.

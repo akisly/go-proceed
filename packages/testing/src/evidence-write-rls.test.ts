@@ -232,9 +232,10 @@ beforeAll(async () => {
 }, 240_000);
 
 afterAll(async () => {
-  await dropWorkspaces(admin, BOTH);
+  // Counted before the drop, which would delete them (gp-security S2).
   const left = await admin.query<{ n: string }>(
     "select count(*) as n from public.capture_events where workspace_id = any($1)", [BOTH]);
+  await dropWorkspaces(admin, BOTH);
   await admin.end();
   expect(Number(left.rows[0]?.n)).toBe(0);
 });

@@ -225,6 +225,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-194](#bl-194) | P3 | open | The act content's INSERT policies have no status arm; only the content guard keeps a frozen version's content closed, and it races a freeze |
 | [BL-195](#bl-195) | P3 | open | The entity and relationship catalogs misdescribe the statutory act tables |
 | [BL-196](#bl-196) | P3 | open | An upload intent may name any member of its workspace as its creator |
+| [BL-197](#bl-197) | P3 | open | An upload intent's kept columns are unconstrained in value: a negative quota reservation, or a bucket and key outside the evidence bucket for the purge to delete |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1319,6 +1320,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-014's `gp-architect` design (O-1). `withServiceTx` (`packages/database/src/tx.ts`) keeps the caller's `app.actor_user_id`, and `goproceed_service` inherits the `to goproceed_app` policies, which combine with its own by `OR`. On the tables both planes can read (`communication_messages`, `communication_message_events`, `communication_attachments`, `telegram_chat_bindings`, `telegram_media_groups`), an actor entitled to workspace A therefore reads A's rows through a service transaction that declared workspace B. This is not a cross-tenant leak, because the actor is entitled to A, but `adoptServiceWorkspace`'s comment («confines every subsequent statement to this workspace») holds only with an empty actor. DEV-014's service-plane tests use an empty actor, so they prove the service policy and not this path. The callers that keep the actor, found by DEV-014's `gp-security` (S1-02): `apps/app/app/v1/projects/[projectId]/communications/route.ts:241`, `.../communications/[messageId]/retry/route.ts:90`, `apps/app/app/v1/assignments/[assignmentId]/communication-card/route.ts:52`, the Telegram `member-link-intents` (`:47`) and `binding-intents` (`:50`) routes, and `apps/app/src/lib/evidence/finalize-upload-intent.ts:29,142,168` (evidence tables); every Telegram processor, ingress, linking and erasure path passes an empty actor. In those routes a lookup by id inside a transaction declared for workspace X can return a row of another workspace where the actor holds `project.view` or `project.admin`. The fix should also say in `adoptServiceWorkspace`'s comment that the confinement holds only with an empty actor. DEV-015 (0086) confined the two readiness projections' service policies and added them to the affected set: `rp_select` and `br_select` still admit an entitled actor's other workspaces to a service transaction. DEV-015's `gp-architect` named the clean fix: a restrictive policy `as restrictive for all to goproceed_service using (workspace_id = app.service_workspace()) with check (…)` on every table both planes read, which combines with every permissive branch by AND and touches only the service role. Ranked by DEV-014.
+- **Scope (DEV-084 gp-security S3, 2026-09-25):** the same inheritance reaches `upload_intents`: `goproceed_service` holds the 22-column INSERT of `goproceed_app` (0108) and `ui_insert` applies to it, so an actor-bearing service transaction can create an intent wherever the actor holds `evidence.record`, whatever it declares. No production path does; `rls-coverage.csv` has no `upload_intents × goproceed_service` pair, so the write registry does not see it.
 - **Evidence:** observed 2026-09-17: `packages/testing/src/communication-rls.test.ts` header; a mutation run in DEV-014 (row 5) shows the service-plane assertions depend on the declared workspace. Unverified: a test with a member of both workspaces (`asService(USER, WS_B)` reading A's rows) has not been written.
 - **Depends on:** none.
 - **Deadline:** none recorded.
@@ -2403,4 +2405,19 @@ A priority is the source entry's own where it had one. Entries whose source carr
   - **Ranking.** Ranked by DEV-084.
 - **Evidence:** `supabase/migrations/0016_execution_evidence_security.sql` (`ui_insert`); `apps/app/src/lib/evidence/authorize-upload-intent.ts`.
 - **Depends on:** `gp-architect`.
+- **Deadline:** none recorded.
+
+<a id="bl-197"></a>
+### BL-197 — P3 — An upload intent's kept columns are unconstrained in value: a negative quota reservation, or a bucket and key outside the evidence bucket for the purge to delete
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-084's `gp-security` (S1), 2026-09-25; older than DEV-084. `0108` withdrew the state and purge columns from the INSERT grant, but the columns it keeps carry no CHECK and `ui_insert` asks only `evidence.record`. By raw SQL on the application plane, inside the actor's own workspace:
+  - **Quota.** `quota_reserved_bytes = -10^12` with a far `expires_at`: `app.evidence_bytes_in_use` (0031) sums it, and the workspace's quota is defeated for good.
+  - **Purge.** `staging_bucket = 'requirement-reference-images'` with a reference image's key (readable to any member through `rriv_select`) and a past `expires_at`: expiry, then `app.claim_upload_purge`, hands that bucket and key to the purge worker, which deletes an operator-provisioned illustration with the secret key.
+  - **Its bounds.** One workspace; another's keys are not readable, and `upload_intents_staging_key_key` refuses a key an intent already holds. The authorize route writes none of these shapes.
+  - **The fix.** In `ui_insert`'s WITH CHECK: `staging_bucket = 'evidence'`, a `<uuid>/<uuid>` key, `quota_reserved_bytes = expected_byte_size`, and `expires_at` within the route's TTL — all of which the route already satisfies. The test: as the owner of A, `intent(A)` with a negative reservation, and separately with the reference bucket, each refused by the policy.
+  - **Ranking.** Ranked by DEV-084.
+- **Evidence:** `supabase/migrations/0015_execution_evidence_module.sql` (the columns), `0016` (`ui_insert`), `0031` (`app.evidence_bytes_in_use`), `0090`/`0091` (expiry and the purge claim); `apps/app/src/lib/evidence/authorize-upload-intent.ts`.
+- **Depends on:** `gp-architect`, `gp-security`.
 - **Deadline:** none recorded.
