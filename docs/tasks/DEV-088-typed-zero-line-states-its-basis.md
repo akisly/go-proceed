@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome.** A work line typed with a zero price stores the version's price basis, as the same line imported from an estimate does. A line with a missing price still stores none. The published version then no longer tells a typed zero line from an imported one (ADR-006 decision 2). There is no change on screen, and the amounts, the line manifest hash and the API shape are unchanged.
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** Claude Code primary session, 2026-09-25.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires, as native `gp-*` agent types.
 - **Selected route and why** (`agents/COORDINATION.md`): the change touches executed code under `apps/app`. The route is implementation → `gp-reviewer` → `gp-qa`.
@@ -47,8 +47,10 @@
 |---|---|---|---|---|
 | 1 | Coordinator | **The divergence, read.**<br>• `import_batches.publish` writes `mp.unitPrice ? priceBasis : null`, and `validateRow` sets `unitPrice` for a zero price too (state `zero`). So an imported zero line states the basis.<br>• `deriveLine` set `unitPrice` only for state `known`, and wrote `unitPrice === null ? null : pins.priceBasis`. So a typed zero line stated none.<br>• A missing price states none on both paths.<br>• The line manifest hash (`lineManifestHash`) does not include the basis, so publication hashes are unaffected. | Files above | Fix |
 | 2 | Coordinator | **The fix and its checks.**<br>• `deriveLine` now writes `input.unitPriceState === "missing" ? null : pins.priceBasis`.<br>• The unit test runs `validateRow` and `deriveLine` side by side for zero, known and missing. It passes 4 of 4, and against the baseline line it fails the two zero cases.<br>• One assertion in each integration suite checks the stored basis; these run on CI only.<br>• The app unit suite passes 532 tests, with 1 skipped (a DB-credential-gated evidence-service case), and `typecheck` is clean. | Session output | Reviews |
-| 3 | gp-reviewer | PASS on `9dc7e53b`, no blocker or major. The importer stores a basis for a zero price (the stored `{ scaled: "0" }` object is truthy); `state === "missing"` is exactly the importer's test for every state a typed line can reach; when `pins.priceBasis` is null both writers store null; **nothing reads `price_basis`** (the three writers, the column and fixtures only; every `select *` passes through `workItemView`, which has no basis); no hash, manifest, contract or OpenAPI includes it. R1–R5 (below) | Subagent report (session) | Fixes |
+| 3 | gp-reviewer | PASS on `9dc7e53b`, no blocker or major. The importer stores a basis for a zero price (the stored `{ scaled: "0" }` object is truthy); `state === "missing"` is exactly the importer's test for every state a typed line can reach; when `pins.priceBasis` is null both writers store null; **nothing reads `price_basis`** (the three writers, the column and fixtures only; every `select *` either passes through `workItemView`, which has no basis, or is only correction input — the update route's `select * … for update` re-derives the line and does not read the basis, gp-qa Q1); no hash, manifest, contract or OpenAPI includes it. R1–R5 (below) | Subagent report (session) | Fixes |
 | 4 | Coordinator | R1: both integration assertions pin `"net"`, the fixture's exclusive-tax basis, so the typed zero, typed known and imported zero lines are equal under the same pins. R2: the record says a draft's zero line takes the basis on its next correction, and why the manual path follows the importer. R5: coherent inclusive pins; the unused zero price removed. R3, R4 recorded. Unit test 4 of 4; `typecheck` clean | Session output | gp-qa |
+| 5 | gp-qa | **PASS on `a98b7958`** (the pre-rebase head of `ea2c31bd`, same tree), no blocker, major or minor. AC-1 PASS: 4 of 4, the baseline line fails the two zero cases (`expected null to be 'net'`), and an always-basis mutant fails the missing case; the file restored by sha256. AC-3 PASS: app unit suite 532 passed, 1 skipped (the credential-gated `evidence-service.test.ts` case), `typecheck` clean, `validate:canonical-docs` OK; nothing reads `price_basis`. AC-2 and AC-4 NOT RUN (CI only). R1, R2, R5 confirmed fixed; R3, R4 recorded. Q1: the record's `select *` wording; Q2: BL-022's Evidence cites the pre-fix line | Subagent report (session) | CI |
+| 6 | Coordinator | **CI and merge.** #172 green on `ea2c31bd`: `verify` and `app-qa` success. The `verify` log shows `tests/import-publish.int.test.ts` (17 tests), `tests/manual-baseline.int.test.ts` (22 tests) and `src/lib/manual-baseline.test.ts` (4 tests) passing, in the app run of 135 files and 1519 tests, all passed. Merged as `2c33404d`. Q1 reworded in row 3; Q2: BL-022's Evidence marked as the pre-fix state; BL-022 closed → DEV-088 | [akisly/go-proceed#172](https://github.com/akisly/go-proceed/pull/172), `verify` job 108251051421 | Done |
 
 ## Findings and rework
 
@@ -72,10 +74,10 @@ Rework count and hypothesis changes: none.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| AC-1 `deriveLine` states the importer's basis | Yes | | | | |
-| AC-2 the stored bases on CI's database | Yes | | | | |
-| AC-3 unit suite, typecheck, manifest unaffected | Yes | | | | |
-| AC-4 CI green, the suites in the log | Yes | | | | |
+| AC-1 `deriveLine` states the importer's basis | Yes | `a98b7958` (= `ea2c31bd`'s tree) | gp-qa: `manual-baseline.test.ts` 4 of 4; the baseline line fails the two zero cases; CI: 4 tests passed | PASS | The test restates the importer's rule (R3) |
+| AC-2 the stored bases on CI's database | Yes | `ea2c31bd` | CI `verify`: `tests/manual-baseline.int.test.ts` (22) and `tests/import-publish.int.test.ts` (17) passed | PASS | The import assertion passes on the baseline too; it guards the importer, not the fix |
+| AC-3 unit suite, typecheck, manifest unaffected | Yes | `a98b7958` | gp-qa: 532 passed, 1 skipped (credential-gated); `typecheck` clean; `lineManifestHash` leaves the basis out | PASS | — |
+| AC-4 CI green, the suites in the log | Yes | `ea2c31bd` | #172 `verify` and `app-qa` success; the app run 135 files, 1519 tests, all passed | PASS | — |
 
 ## Sources
 
@@ -85,7 +87,7 @@ None beyond the repository: no external library or service is involved.
 
 - **Changed / inspected files:** see «Owning module».
 - **Review independence:** `gp-reviewer` ran as an independent native subagent.
-- **Verified scope:** rows 1–4.
+- **Verified scope:** rows 1–6.
 - **Remaining risks / blocked requirements:** «What is not true after this task».
-- **Next bounded action and owner:** `gp-qa`.
-- **Final state and reason:** reviewing.
+- **Next bounded action and owner:** none; a shared `priceBasisFor` would close R3 and R4 (not filed: nothing reads the column).
+- **Final state and reason:** done: every acceptance criterion PASS, merged in #172 (`2c33404d`).
