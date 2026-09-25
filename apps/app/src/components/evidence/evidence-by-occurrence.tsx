@@ -56,10 +56,12 @@ import { IssueReviewLink } from "./issue-review-link";
  * second screen needs this same shape.
  */
 export function EvidenceByOccurrence({
-  assignmentId, groups,
+  assignmentId, groups, timeZone,
 }: {
   assignmentId: string;
   groups: AssignmentEvidenceResponse["groups"];
+  /** The response's `workspaceTimezone` (DEV-089, BL-034): every time below is formatted in it. */
+  timeZone: string;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-6">
@@ -89,7 +91,7 @@ export function EvidenceByOccurrence({
             <PanelBody className="flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 wide:grid-cols-3">
                 {group.evidence.map((item) => (
-                  <EvidenceCard key={item.evidenceObjectId} item={item} />
+                  <EvidenceCard key={item.evidenceObjectId} item={item} timeZone={timeZone} />
                 ))}
               </div>
               {/* PER GROUP, AND ONLY WHERE THERE IS AN OCCURRENCE TO SCOPE IT
@@ -101,7 +103,7 @@ export function EvidenceByOccurrence({
                * not hidden and it is not disabled: there is simply no control,
                * because there is no occurrence. */}
               {group.occurrenceId !== null && (
-                <IssueReviewLink occurrenceId={group.occurrenceId} />
+                <IssueReviewLink occurrenceId={group.occurrenceId} timeZone={timeZone} />
               )}
             </PanelBody>
           </Panel>

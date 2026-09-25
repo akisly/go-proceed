@@ -62,7 +62,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-031](#bl-031) | P2 | closed → DEV-037 | Purge claims are not fenced |
 | [BL-032](#bl-032) | P2 | closed → DEV-038 | A deactivated member cannot abandon their own upload through the route |
 | [BL-033](#bl-033) | P2 | closed → DEV-034 | `evidence-storage.ts` puts raw storage keys into error messages |
-| [BL-034](#bl-034) | P2 | open | The evidence screen formats times in a hard-coded zone, not the workspace's |
+| [BL-034](#bl-034) | P2 | scheduled → DEV-089 | The evidence screen formats times in a hard-coded zone, not the workspace's |
 | [BL-035](#bl-035) | P3 | open | `apps/app` has no application logging, so «never in the logs» cannot be asserted |
 | [BL-036](#bl-036) | P3 | closed → DEV-039 | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
 | [BL-037](#bl-037) | P3 | open | Evidence groups are labelled by, and ordered by, a bare occurrence UUID |
@@ -234,6 +234,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-203](#bl-203) | P3 | open | An approved unreadable file is approved by its path, so new content at that path passes the contactPoint guard unread |
 | [BL-204](#bl-204) | P3 | open | ExcelJS 4.4.0 cannot load an openpyxl workbook that carries a cell comment, so its import fails as malformed |
 | [BL-205](#bl-205) | P3 | open | An XLSX hyperlink or error cell imports as «[object Object]» |
+| [BL-206](#bl-206) | P3 | open | A workspace's timezone is stored unchecked and cannot be corrected |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -598,7 +599,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-034"></a>
 ### BL-034 — P2 — The evidence screen formats times in a hard-coded zone, not the workspace's
 
-- **State:** open
+- **State:** scheduled → DEV-089
 - **Legacy cite:** `TODOS.md` «against a hardcoded default zone, not the workspace's own»
 - **Why:** correct while every workspace is `Europe/Kyiv`, silently wrong the day a second zone exists.
 - **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx:54` and `:90` (`WORKSPACE_TIMEZONE_DEFAULT`); the same default in `issue-review-link.tsx:70`; `packages/contracts/src/evidence.ts` carries no timezone; `organizations.timezone` exists since `0001`.
@@ -2525,3 +2526,17 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `packages/domain/src/import/xlsx.ts` (the value branch after rich text and dates).
 - **Depends on:** none.
 - **Deadline:** none recorded.
+
+<a id="bl-206"></a>
+### BL-206 — P3 — A workspace's timezone is stored unchecked and cannot be corrected
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-089's `gp-architect` review, 2026-09-25. `createWorkspaceRequest` (`timezone: z.string().trim().min(1).max(64)`) and `createOrganizationRequest` (`z.string().min(1)`) accept any string, `organizations.timezone` has no CHECK (`0001`), and nothing can correct a stored value (`0039` withdrew the UPDATE). Since DEV-089 the evidence screen formats times in that zone; a name the runtime does not know falls back to `Europe/Kyiv`, then UTC, with the zone used shown — honest, but not the workspace's zone.
+  - **The fix.** Refuse a non-IANA zone at creation (`Intl.supportedValuesOf("timeZone")` or a constructor probe, in `packages/contracts`), and decide whether an owner may change the zone (a command, an audit event, an UPDATE grant: the `gp-architect` route).
+  - **Empty.** An `''` stored zone (possible only through an admin or service write) fails `workspaceTimezone`'s `min(1)` and so the whole evidence read, signed URLs included (DEV-089 `gp-security` S1): a `check (length(timezone) between 1 and 64)` with the refusal closes it.
+  - **Also.** `technical/openapi.yaml` describes a project `timezone` («Presentation timezone only…») the applied schema does not have; it is unapplied target material, not a contract.
+  - **Ranking.** Ranked by DEV-089.
+- **Evidence:** `packages/contracts/src/workspaces.ts:5`, `organizations.ts:9`; `supabase/migrations/0001_core_tenancy.sql:12`, `0039`; `apps/app/src/lib/workspace-time.ts`.
+- **Depends on:** none for the refusal; an owner decision for a correction path.
+- **Deadline:** before a workspace is created outside Ukraine.

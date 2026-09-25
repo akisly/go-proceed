@@ -8,6 +8,13 @@ import {
 
 export interface ActiveMembership { memberId: string; role: GovernanceRole }
 
+/** The refusal for a caller with no active membership; one body wherever it is answered. */
+export function membershipInactive(requestId: string): HttpProblem {
+  return new HttpProblem(403, problem("MEMBERSHIP_INACTIVE",
+    "Немає активного членства в цьому робочому просторі.",
+    { requestId, retryable: false, userAction: "contact_org_admin" }));
+}
+
 export async function requireActiveMembership(
   tx: Tx, requestId: string, userId: string, workspaceId: string,
 ): Promise<ActiveMembership> {
@@ -15,11 +22,7 @@ export async function requireActiveMembership(
     `select id, role from public.memberships
       where organization_id = $1 and user_id = $2 and status = 'active'`,
     [workspaceId, userId]);
-  if (r.rows.length === 0) {
-    throw new HttpProblem(403, problem("MEMBERSHIP_INACTIVE",
-      "Немає активного членства в цьому робочому просторі.",
-      { requestId, retryable: false, userAction: "contact_org_admin" }));
-  }
+  if (r.rows.length === 0) throw membershipInactive(requestId);
   return { memberId: r.rows[0].id, role: r.rows[0].role };
 }
 

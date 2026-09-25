@@ -1,5 +1,5 @@
 import { queryRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { membershipInactive, requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { assignmentEvidenceResponse, type EvidenceObjectView } from "@goproceed/contracts";
 import { withTenantTx } from "@goproceed/database";
@@ -51,7 +51,7 @@ export const GET = queryRoute(async (a) => {
   // transaction, `:275` opens the stream). The move is behaviour-preserving: the rows
   // are already fully materialised, the signing reads no `tx`, and the grouping
   // and `parse` below are pure.
-  const rows = await withTenantTx(ctx, async (tx) => {
+  const { rows, workspaceTimezone } = await withTenantTx(ctx, async (tx) => {
     const asg = await tx.query(
       `select workspace_id, project_id from public.work_assignments where id = $1`,
       [assignmentId]);
@@ -86,7 +86,18 @@ export const GET = queryRoute(async (a) => {
                  eo.server_received_at, eo.id`,
       [workspaceId, assignmentId]);
 
-    return evidence.rows;
+    // The zone the screen formats times in (DEV-089, BL-034), read on its own
+    // after authorization rather than joined into the assignment query above,
+    // whose shape is the sibling route's and whose 403 a join under
+    // `org_select` could turn into a 404. `org_select` (0004) admits exactly
+    // the active members `requireActiveMembership` admits, so no row here
+    // means the membership was revoked between the two statements (READ
+    // COMMITTED): the same refusal, never a default zone.
+    const org = await tx.query<{ timezone: string }>(
+      `select timezone from public.organizations where id = $1`, [workspaceId]);
+    if (org.rows.length === 0) throw membershipInactive(a.requestId);
+
+    return { rows: evidence.rows, workspaceTimezone: org.rows[0]!.timezone };
   });
 
   // `storage_bucket` comes from the ROW, never from EVIDENCE_BUCKET: the
@@ -169,7 +180,7 @@ export const GET = queryRoute(async (a) => {
     [...byOccurrence].map(([occurrenceId, evidence]) => ({ occurrenceId, evidence }));
   if (nullGroup) groups.push({ occurrenceId: null, evidence: nullGroup });
 
-  const body = assignmentEvidenceResponse.parse({ groups });
+  const body = assignmentEvidenceResponse.parse({ workspaceTimezone, groups });
 
   return {
     status: 200,
