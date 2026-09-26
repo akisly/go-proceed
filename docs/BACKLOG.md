@@ -144,7 +144,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
 | [BL-114](#bl-114) | P3 | open | The invitation redemption page (`invite#<token>`) is not built |
 | [BL-115](#bl-115) | P3 | open | A prefetching mail scanner may spend the one-time code the sign-in email carries |
-| [BL-116](#bl-116) | P2 | scheduled → DEV-091 | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
+| [BL-116](#bl-116) | P2 | closed → DEV-091 | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
 | [BL-117](#bl-117) | P2 | closed → DEV-035 | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
 | [BL-119](#bl-119) | P2 | closed → DEV-035 | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
@@ -1510,7 +1510,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-116"></a>
 ### BL-116 — P2 — Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0`
 
-- **State:** scheduled → DEV-091
+- **State:** closed → DEV-091
 - **Legacy cite:** none
 - **Why:** ranked by DEV-027 (`gp-qa` Q-01). `Reveal`, `Stagger` and `StaggerItem` (`packages/ui/src/motion/`) server-render their hidden state inline (`opacity:0` and a transform), and only JavaScript ever clears it. A visitor whose scripts fail to load — a blocked CDN, a broken chunk, a reader mode, a crawler that does not execute — gets each page's h1, the home hero's lead and pills, the footer and the CSS grids, and nothing else; on `/pilot` that includes the form. DEV-026 recorded this («every `Reveal`/`Stagger` below the first heading stays hidden»); DEV-027 measured it and did not change it. The number is this branch's next free one (the validator requires a sequence without gaps); unmerged branches elsewhere already use BL-116…BL-118, so the entry is renumbered when the branches meet.
 - **Evidence:** `gp-qa`, 2026-09-19, working tree over `3601658`, the built pages with JavaScript disabled: text elements in `main` whose opacity chain is 0 — `/` 51 of 55 (the six sources, the fact tiles and the closing heading among them), `/product` 113 of 126, `/roles` 80 of 82, `/pilot` 32 of 41 (the form among them). The markup itself is complete (one h1, nav, main, footer, all six source codes).
